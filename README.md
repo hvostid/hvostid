@@ -4,20 +4,23 @@ Distributed platform for responsible pet sales and transfers with a digital trus
 
 ## Tech Stack
 
-- **Language:** Java 25
-- **Framework:** Spring Boot 3.x, Spring Cloud Gateway
-- **Build:** Gradle multi-module (Kotlin DSL)
-- **Database:** PostgreSQL 16
-- **File Storage:** MinIO (S3-compatible)
-- **Containers:** Docker + Docker Compose
-- **CI/CD:** GitHub Actions
-- **Code Quality:** SonarQube
-- **Load Testing:** k6
+**Backend:**
+- Java 25, Spring Boot 3.x, Spring Cloud Gateway
+- Gradle multi-module (Kotlin DSL)
+- PostgreSQL 16, MinIO (S3-compatible)
+- Docker + Docker Compose
+- GitHub Actions (CI/CD)
+- SonarQube, k6
 
-## Microservices
+**Frontend:**
+- React 18, Vite, React Router 6
+- Tailwind CSS, Axios
+
+## Services
 
 | Service | Port | Description |
 |---------|------|-------------|
+| Frontend | 3000 | React SPA |
 | API Gateway | 8080 | Routing, token validation, rate limiting |
 | Auth Service | 8081 | Registration, login, opaque tokens, roles |
 | Listing Service | 8082 | CRUD for pet listings, search, filters |
@@ -29,41 +32,48 @@ Distributed platform for responsible pet sales and transfers with a digital trus
 ### Prerequisites
 
 - Java 25
+- Node.js 20+
 - Docker and Docker Compose
 - Gradle 8.x (or use the included wrapper)
 
-### Local Development
+### Quick Start
 
-1. Clone the repository:
 ```bash
-git clone https://github.com/<your-org>/hvostid.git
+git clone https://github.com/hvostid/hvostid.git
 cd hvostid
-```
-
-2. Copy the environment file:
-```bash
 cp .env.example .env
 ```
 
-3. Start infrastructure (PostgreSQL + MinIO):
+### Local Development
+
+Start infrastructure:
+
 ```bash
-docker compose up -d postgres minio
+docker compose up -d postgres minio minio-init
 ```
 
-4. Build all services:
+Build and run backend:
+
 ```bash
 ./gradlew build
-```
-
-5. Run a specific service:
-```bash
 ./gradlew :auth-service:bootRun
 ```
 
-### Run All Services with Docker Compose
+Run frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend dev server starts at http://localhost:3000 and proxies `/api` to Gateway at :8080.
+
+### Run Everything with Docker Compose
 
 ```bash
 ./gradlew build
+cd frontend && npm run build && cd ..
 docker compose up --build
 ```
 
@@ -71,7 +81,6 @@ docker compose up --build
 
 ```bash
 docker compose --profile quality up -d sonarqube
-# Wait for SonarQube to start, then:
 ./gradlew sonar -Dsonar.host.url=http://localhost:9090
 ```
 
@@ -87,7 +96,14 @@ hvostid/
   passport-service/
   matching-service/
   common/
+  frontend/                -- React SPA
+    src/
+      api/                 -- axios client
+      context/             -- AuthContext
+      components/          -- shared components
+      pages/               -- page components
   docker-compose.yml
+  docker/
   k6/
   postman/
   .github/workflows/
@@ -103,18 +119,22 @@ hvostid/
 
 ## API Documentation
 
-API documentation is available via Swagger UI when services are running:
-- Auth Service: http://localhost:8081/swagger-ui.html
-- Listing Service: http://localhost:8082/swagger-ui.html
-- Passport Service: http://localhost:8083/swagger-ui.html
-- Matching Service: http://localhost:8084/swagger-ui.html
+Swagger UI (when services are running):
+- Auth: http://localhost:8081/swagger-ui.html
+- Listing: http://localhost:8082/swagger-ui.html
+- Passport: http://localhost:8083/swagger-ui.html
+- Matching: http://localhost:8084/swagger-ui.html
 
 ## Team
 
-| # | Role | Responsibility |
-|---|------|----------------|
-| 1 | Tech Lead / DevOps | Gateway, CI/CD, Docker |
-| 2 | Auth/Profile | Auth Service, tokens, security |
-| 3 | Catalog/Search | Listing Service |
-| 4 | Passport/Moderation | Passport Service, MinIO |
-| 5 | Matching + QA | Matching Service, tests, load testing |
+| # | Role | Backend | Frontend |
+|---|------|---------|----------|
+| 1 | Tech Lead / DevOps | Gateway, CI/CD, Docker | -- |
+| 2 | Auth/Profile | Auth Service | React scaffold, auth pages, seller pages, moderator panel |
+| 3 | Catalog/Search | Listing Service | Catalog page, listing detail |
+| 4 | Passport/Moderation | Passport Service | Profile, matching result |
+| 5 | Matching + QA | Matching Service, tests | -- |
+
+## License
+
+MIT
