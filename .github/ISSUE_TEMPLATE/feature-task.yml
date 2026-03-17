@@ -1,5 +1,5 @@
 name: Feature Task
-description: Task from project backlog (T01-T27)
+description: Task from project backlog (T01-T34)
 title: "TXX -- "
 labels: ["feature"]
 body:
@@ -26,6 +26,7 @@ body:
         - "Epic 3 -- Pet Passport"
         - "Epic 4 -- Matching"
         - "Epic 5 -- Quality & Infrastructure"
+        - "Epic 6 -- Frontend"
     validations:
       required: true
 
