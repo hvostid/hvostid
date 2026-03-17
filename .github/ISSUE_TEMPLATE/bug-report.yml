@@ -1,0 +1,59 @@
+name: Bug Report
+description: Report a bug or defect
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: service
+    attributes:
+      label: Service
+      options:
+        - "api-gateway"
+        - "auth-service"
+        - "listing-service"
+        - "passport-service"
+        - "matching-service"
+        - "infrastructure"
+        - "unknown"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Send POST /api/v1/...
+        2. With body { ... }
+        3. Observe error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Relevant logs, error messages, or screenshots
+      render: text

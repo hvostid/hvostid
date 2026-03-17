@@ -1,0 +1,99 @@
+name: Feature Task
+description: Task from project backlog (T01-T27)
+title: "TXX -- "
+labels: ["feature"]
+body:
+  - type: markdown
+    attributes:
+      value: "## Task Info"
+
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      description: Git branch name
+      placeholder: "feature/TXX-short-name"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: epic
+    attributes:
+      label: Epic
+      options:
+        - "Epic 1 -- Base Platform"
+        - "Epic 2 -- Listings & Catalog"
+        - "Epic 3 -- Pet Passport"
+        - "Epic 4 -- Matching"
+        - "Epic 5 -- Quality & Infrastructure"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: assignee-role
+    attributes:
+      label: Assignee Role
+      options:
+        - "Tech Lead / DevOps"
+        - "Auth/Profile"
+        - "Catalog/Search"
+        - "Passport/Moderation"
+        - "Matching + QA"
+    validations:
+      required: true
+
+  - type: input
+    id: blocked-by
+    attributes:
+      label: Blocked by
+      description: Tasks that must be completed first (leave empty if none)
+      placeholder: "T04, T05"
+
+  - type: markdown
+    attributes:
+      value: "## Description"
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What and why
+      description: Brief description of the task
+      placeholder: "Describe what needs to be done and why"
+    validations:
+      required: true
+
+  - type: textarea
+    id: todo
+    attributes:
+      label: What to do
+      description: Detailed list of subtasks
+      placeholder: |
+        - Implement X
+        - Create entity Y
+        - Add endpoint Z
+    validations:
+      required: true
+
+  - type: textarea
+    id: api
+    attributes:
+      label: API (if applicable)
+      description: Endpoint signatures, request/response examples
+      render: text
+      placeholder: |
+        POST /api/v1/...
+        Request:  { ... }
+        Response: { ... }
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Checklist for completion
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Unit tests written
+        - [ ] OpenAPI spec updated
+    validations:
+      required: true
