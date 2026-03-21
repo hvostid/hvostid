@@ -1,10 +1,12 @@
 # HvostID
 
-Distributed platform for responsible pet sales and transfers with a digital trust passport and owner-pet compatibility scoring.
+Distributed platform for responsible pet sales and transfers with a digital trust passport and owner-pet compatibility
+scoring.
 
 ## Tech Stack
 
 **Backend:**
+
 - Java 25, Spring Boot 3.x, Spring Cloud Gateway
 - Gradle multi-module (Kotlin DSL)
 - PostgreSQL 16, MinIO (S3-compatible)
@@ -13,19 +15,20 @@ Distributed platform for responsible pet sales and transfers with a digital trus
 - SonarQube, k6
 
 **Frontend:**
+
 - React 18, Vite, React Router 6
 - Tailwind CSS, Axios
 
 ## Services
 
-| Service | Port | Description |
-|---------|------|-------------|
-| Frontend | 3000 | React SPA |
-| API Gateway | 8080 | Routing, token validation, rate limiting |
-| Auth Service | 8081 | Registration, login, opaque tokens, roles |
-| Listing Service | 8082 | CRUD for pet listings, search, filters |
+| Service          | Port | Description                                  |
+|------------------|------|----------------------------------------------|
+| Frontend         | 3000 | React SPA                                    |
+| API Gateway      | 8080 | Routing, token validation, rate limiting     |
+| Auth Service     | 8081 | Registration, login, opaque tokens, roles    |
+| Listing Service  | 8082 | CRUD for pet listings, search, filters       |
 | Passport Service | 8083 | Digital pet passport, documents, trust score |
-| Matching Service | 8084 | Buyer questionnaire, compatibility score |
+| Matching Service | 8084 | Buyer questionnaire, compatibility score     |
 
 ## Getting Started
 
@@ -120,6 +123,7 @@ hvostid/
 ## API Documentation
 
 Swagger UI (when services are running):
+
 - Auth: http://localhost:8081/swagger-ui.html
 - Listing: http://localhost:8082/swagger-ui.html
 - Passport: http://localhost:8083/swagger-ui.html
@@ -127,13 +131,13 @@ Swagger UI (when services are running):
 
 ## Team
 
-| # | Role | Backend | Frontend |
-|---|------|---------|----------|
-| 1 | Tech Lead / DevOps | Gateway, CI/CD, Docker | -- |
-| 2 | Auth/Profile | Auth Service | React scaffold, auth pages, seller pages, moderator panel |
-| 3 | Catalog/Search | Listing Service | Catalog page, listing detail |
-| 4 | Passport/Moderation | Passport Service | Profile, matching result |
-| 5 | Matching + QA | Matching Service, tests | -- |
+| # | Role                | Backend                 | Frontend                                                  |
+|---|---------------------|-------------------------|-----------------------------------------------------------|
+| 1 | Tech Lead / DevOps  | Gateway, CI/CD, Docker  | --                                                        |
+| 2 | Auth/Profile        | Auth Service            | React scaffold, auth pages, seller pages, moderator panel |
+| 3 | Catalog/Search      | Listing Service         | Catalog page, listing detail                              |
+| 4 | Passport/Moderation | Passport Service        | Profile, matching result                                  |
+| 5 | Matching + QA       | Matching Service, tests | --                                                        |
 
 ## License
 

@@ -1,7 +1,7 @@
 name: Feature Task
 description: Task from project backlog (T01-T34)
 title: "TXX -- "
-labels: ["feature"]
+labels: [ "feature" ]
 body:
   - type: markdown
     attributes:

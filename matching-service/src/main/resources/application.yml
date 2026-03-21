@@ -1,0 +1,34 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: matching-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:hvostid_matching}
+    username: ${DB_USER:hvostid}
+    password: ${DB_PASSWORD:hvostid}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+hvostid:
+  listing-service:
+    url: http://${LISTING_SERVICE_HOST:localhost}:8082
+  passport-service:
+    url: http://${PASSPORT_SERVICE_HOST:localhost}:8083
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+
+logging:
+  level:
+    root: INFO
+    ru.hvostid: DEBUG
