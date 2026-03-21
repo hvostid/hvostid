@@ -1,12 +1,10 @@
 plugins {
     java
-    id("org.springframework.boot") version "3.4.1" apply false
-    id("io.spring.dependency-management") version "1.1.7" apply false
-    id("org.sonarqube") version "6.0.1.5171"
-    id("jacoco")
+    alias(libs.plugins.spring.boot) apply false
+    alias(libs.plugins.spring.dependency.management) apply false
+    alias(libs.plugins.sonarqube)
+    alias(libs.plugins.jacoco)
 }
-
-val javaVersion: String by project
 
 sonarqube {
     properties {
@@ -20,6 +18,8 @@ allprojects {
     version = "0.1.0-SNAPSHOT"
 
     repositories {
+        maven { url = uri("https://repo.spring.io/snapshot") }
+        maven { url = uri("https://repo.spring.io/milestone") }
         mavenCentral()
     }
 }
@@ -31,7 +31,9 @@ subprojects {
 
     java {
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(javaVersion.toInt()))
+            languageVersion.set(
+                JavaLanguageVersion.of(rootProject.libs.versions.java.get().toInt())
+            )
         }
     }
 

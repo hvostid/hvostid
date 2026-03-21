@@ -3,8 +3,8 @@ plugins {
 }
 
 dependencies {
-    api("com.fasterxml.jackson.core:jackson-annotations:2.18.2")
-    api("jakarta.validation:jakarta.validation-api:3.1.0")
+    api(libs.jackson.annotations)
+    api(libs.jakarta.validation)
 
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+    testImplementation(libs.junit.jupiter)
 }
