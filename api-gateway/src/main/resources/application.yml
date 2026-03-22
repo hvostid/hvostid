@@ -1,43 +1,43 @@
 server:
-  port: 8080
+    port: 8080
 
 spring:
-  application:
-    name: api-gateway
-  cloud:
-    gateway:
-      routes:
-        - id: auth-service
-          uri: http://${AUTH_SERVICE_HOST:localhost}:8081
-          predicates:
-            - Path=/api/v1/auth/**, /api/v1/profile/**
+    application:
+        name: api-gateway
+    cloud:
+        gateway:
+            routes:
+                -   id: auth-service
+                    uri: http://${AUTH_SERVICE_HOST:localhost}:8081
+                    predicates:
+                        - Path=/api/v1/auth/**, /api/v1/profile/**
 
-        - id: listing-service
-          uri: http://${LISTING_SERVICE_HOST:localhost}:8082
-          predicates:
-            - Path=/api/v1/listings/**
+                -   id: listing-service
+                    uri: http://${LISTING_SERVICE_HOST:localhost}:8082
+                    predicates:
+                        - Path=/api/v1/listings/**
 
-        - id: passport-service
-          uri: http://${PASSPORT_SERVICE_HOST:localhost}:8083
-          predicates:
-            - Path=/api/v1/passports/**
+                -   id: passport-service
+                    uri: http://${PASSPORT_SERVICE_HOST:localhost}:8083
+                    predicates:
+                        - Path=/api/v1/passports/**
 
-        - id: matching-service
-          uri: http://${MATCHING_SERVICE_HOST:localhost}:8084
-          predicates:
-            - Path=/api/v1/match/**
+                -   id: matching-service
+                    uri: http://${MATCHING_SERVICE_HOST:localhost}:8084
+                    predicates:
+                        - Path=/api/v1/match/**
 
 hvostid:
-  auth:
-    introspect-url: http://${AUTH_SERVICE_HOST:localhost}:8081/internal/auth/introspect
+    auth:
+        introspect-url: http://${AUTH_SERVICE_HOST:localhost}:8081/internal/auth/introspect
 
 management:
-  endpoints:
-    web:
-      exposure:
-        include: health, info
+    endpoints:
+        web:
+            exposure:
+                include: health, info
 
 logging:
-  level:
-    root: INFO
-    ru.hvostid: DEBUG
+    level:
+        root: INFO
+        ru.hvostid: DEBUG
