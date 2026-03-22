@@ -11,6 +11,7 @@ sonarqube = "7.2.2.6593"
 
 # Libraries
 jackson = "2.21"
+jackson-core = "3.1.0"
 jakarta-validation = "4.0.0-M1"
 minio = "8.6.0"
 junit = "6.0.3"
@@ -20,6 +21,8 @@ h2 = "2.4.240"
 # Spring Boot starters
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
 spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
+spring-boot-starter-flyway = { module = "org.springframework.boot:spring-boot-starter-flyway" }
+spring-boot-starter-flyway-test = { module = "org.springframework.boot:spring-boot-starter-flyway-test" }
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-starter-security" }
@@ -37,8 +40,11 @@ spring-security-test = { module = "org.springframework.security:spring-security-
 postgresql = { module = "org.postgresql:postgresql" }
 h2 = { module = "com.h2database:h2", version.ref = "h2" }
 
+flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql" }
+
 # Jackson
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson" }
+jackson-databind = { module = "tools.jackson.core:jackson-databind", version.ref = "jackson-core" }
 
 # Validation
 jakarta-validation = { module = "jakarta.validation:jakarta.validation-api", version.ref = "jakarta-validation" }
