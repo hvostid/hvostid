@@ -3,6 +3,7 @@ package ru.hvostid.auth.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import ru.hvostid.auth.entity.Session;
 
+import java.time.Instant;
 import java.util.Optional;
 
 /**
@@ -14,4 +15,6 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
     Optional<Session> findByRefreshToken(String refreshToken);
 
     void deleteByUserId(Long userId);
+
+    int deleteAllByExpiresAtBefore(Instant instant);
 }
