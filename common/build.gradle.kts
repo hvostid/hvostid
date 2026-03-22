@@ -1,5 +1,5 @@
 plugins {
-    id("java-library")
+    `java-library`
 }
 
 dependencies {
@@ -7,4 +7,5 @@ dependencies {
     api(libs.jakarta.validation)
 
     testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }

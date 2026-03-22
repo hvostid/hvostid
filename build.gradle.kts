@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.spring.boot) apply false
     alias(libs.plugins.spring.dependency.management) apply false
     alias(libs.plugins.sonarqube)
-    alias(libs.plugins.jacoco)
+    jacoco
 }
 
 sonarqube {
@@ -27,7 +27,7 @@ allprojects {
 subprojects {
     apply(plugin = "java")
     apply(plugin = "jacoco")
-    apply(plugin = "org.sonarqube")
+    apply(plugin = rootProject.libs.plugins.sonarqube.get().pluginId)
 
     java {
         toolchain {

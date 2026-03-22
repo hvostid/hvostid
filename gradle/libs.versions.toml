@@ -53,7 +53,6 @@ testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgr
 testcontainers-minio = { module = "org.testcontainers:testcontainers-minio" }
 
 [plugins]
-jacoco = { id = "jacoco" }
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
 spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
 sonarqube = { id = "org.sonarqube", version.ref = "sonarqube" }
