@@ -27,6 +27,9 @@ public class Session {
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
 
+    @Column(name = "refresh_token_expires_at", nullable = false)
+    private Instant refreshTokenExpiresAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -34,11 +37,13 @@ public class Session {
         // JPA requires a no-arg constructor
     }
 
-    public Session(User user, String accessToken, String refreshToken, Instant expiresAt) {
+    public Session(User user, String accessToken, String refreshToken,
+                   Instant expiresAt, Instant refreshTokenExpiresAt) {
         this.user = user;
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;
         this.expiresAt = expiresAt;
+        this.refreshTokenExpiresAt = refreshTokenExpiresAt;
         this.createdAt = Instant.now();
     }
 
@@ -80,6 +85,14 @@ public class Session {
 
     public void setExpiresAt(Instant expiresAt) {
         this.expiresAt = expiresAt;
+    }
+
+    public Instant getRefreshTokenExpiresAt() {
+        return refreshTokenExpiresAt;
+    }
+
+    public void setRefreshTokenExpiresAt(Instant refreshTokenExpiresAt) {
+        this.refreshTokenExpiresAt = refreshTokenExpiresAt;
     }
 
     public Instant getCreatedAt() {

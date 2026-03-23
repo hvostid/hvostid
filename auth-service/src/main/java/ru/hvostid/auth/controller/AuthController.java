@@ -3,14 +3,8 @@ package ru.hvostid.auth.controller;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import ru.hvostid.auth.dto.LoginRequest;
-import ru.hvostid.auth.dto.LoginResponse;
-import ru.hvostid.auth.dto.RegisterRequest;
-import ru.hvostid.auth.dto.UserResponse;
+import org.springframework.web.bind.annotation.*;
+import ru.hvostid.auth.dto.*;
 import ru.hvostid.auth.service.AuthService;
 
 /**
@@ -41,5 +35,35 @@ public class AuthController {
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Refresh tokens using a valid refresh token.
+     * Generates a new access + refresh pair and invalidates the old session.
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<LoginResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+        LoginResponse response = authService.refresh(request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Logout by revoking the session associated with the Bearer token.
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@RequestHeader("Authorization") String authHeader) {
+        String accessToken = extractBearerToken(authHeader);
+        authService.logout(accessToken);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Extract the token value from "Bearer <token>" header.
+     */
+    private String extractBearerToken(String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        return "";
     }
 }
