@@ -7,9 +7,9 @@ scoring.
 
 **Backend:**
 
-- Java 25, Spring Boot 3.x, Spring Cloud Gateway
+- Java 25, Spring Boot 4.0.x, Spring Cloud Gateway
 - Gradle multi-module (Kotlin DSL)
-- PostgreSQL 16, MinIO (S3-compatible)
+- PostgreSQL 18, MinIO (S3-compatible)
 - Docker + Docker Compose
 - GitHub Actions (CI/CD)
 - SonarQube, k6
@@ -37,7 +37,7 @@ scoring.
 - Java 25
 - Node.js 24+
 - Docker and Docker Compose
-- Gradle 8.x (or use the included wrapper)
+- Gradle 9.x (or use the included wrapper)
 
 ### Quick Start
 
