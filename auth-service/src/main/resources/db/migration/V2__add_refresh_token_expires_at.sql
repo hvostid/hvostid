@@ -5,7 +5,8 @@ ALTER TABLE sessions
 
 -- Backfill existing sessions: set refresh expiry to created_at + 7 days
 UPDATE sessions
-SET refresh_token_expires_at = created_at + INTERVAL '7 days';
+SET refresh_token_expires_at = created_at + INTERVAL '7 days'
+WHERE refresh_token_expires_at = now();
 
 -- Remove the default after backfill
 ALTER TABLE sessions
