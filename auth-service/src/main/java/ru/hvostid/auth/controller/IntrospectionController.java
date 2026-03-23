@@ -1,6 +1,8 @@
 package ru.hvostid.auth.controller;
 
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,6 +19,8 @@ import ru.hvostid.auth.service.AuthService;
 @RestController
 @RequestMapping("/internal/auth")
 public class IntrospectionController {
+    private static final Logger log = LoggerFactory.getLogger(IntrospectionController.class);
+
     private final AuthService authService;
 
     public IntrospectionController(AuthService authService) {
@@ -29,7 +33,9 @@ public class IntrospectionController {
     @PostMapping("/introspect")
     public ResponseEntity<IntrospectResponse> introspect(
             @Valid @RequestBody IntrospectRequest request) {
+        log.debug("POST /internal/auth/introspect");
         IntrospectResponse response = authService.introspect(request);
+        log.debug("Introspect response: active={}", response.active());
         return ResponseEntity.ok(response);
     }
 }
