@@ -4,21 +4,21 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.hvostid.auth.config.AuthTokenProperties;
-import ru.hvostid.auth.dto.LoginRequest;
-import ru.hvostid.auth.dto.LoginResponse;
-import ru.hvostid.auth.dto.RegisterRequest;
-import ru.hvostid.auth.dto.UserResponse;
+import ru.hvostid.auth.dto.*;
 import ru.hvostid.auth.entity.Session;
 import ru.hvostid.auth.entity.User;
 import ru.hvostid.auth.exception.EmailAlreadyExistsException;
 import ru.hvostid.auth.exception.InvalidCredentialsException;
+import ru.hvostid.auth.exception.InvalidRefreshTokenException;
 import ru.hvostid.auth.repository.SessionRepository;
 import ru.hvostid.auth.repository.UserRepository;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
- * Core authentication service handling registration and login.
+ * Core authentication service handling registration, login,
+ * token introspection, refresh, and logout.
  */
 @Service
 public class AuthService {
@@ -76,16 +76,79 @@ public class AuthService {
             throw new InvalidCredentialsException();
         }
 
+        return createSession(user);
+    }
+
+    /**
+     * Validate an access token and return user info if active.
+     * Called by Gateway on every protected request.
+     *
+     * @param request contains the access token to validate
+     * @return active status with userId and roles, or inactive
+     */
+    @Transactional(readOnly = true)
+    public IntrospectResponse introspect(IntrospectRequest request) {
+        return sessionRepository.findByAccessToken(request.token())
+                .filter(session -> session.getExpiresAt().isAfter(Instant.now()))
+                .map(session -> {
+                    User user = session.getUser();
+                    List<String> roles = List.of(user.getRole().name().toLowerCase());
+                    return IntrospectResponse.active(user.getId(), roles);
+                })
+                .orElse(IntrospectResponse.inactive());
+    }
+
+    /**
+     * Refresh a session by generating new token pair and deleting the old session.
+     *
+     * @param request contains the refresh token
+     * @return new access and refresh tokens with expiry info
+     * @throws InvalidRefreshTokenException if refresh token is invalid or expired
+     */
+    @Transactional
+    public LoginResponse refresh(RefreshRequest request) {
+        Session oldSession = sessionRepository.findByRefreshToken(request.refreshToken())
+                .orElseThrow(InvalidRefreshTokenException::new);
+
+        if (oldSession.getRefreshTokenExpiresAt().isBefore(Instant.now())) {
+            sessionRepository.delete(oldSession);
+            throw new InvalidRefreshTokenException();
+        }
+
+        User user = oldSession.getUser();
+        sessionRepository.delete(oldSession);
+
+        return createSession(user);
+    }
+
+    /**
+     * Logout by deleting the session associated with the given access token.
+     *
+     * @param accessToken the Bearer token from Authorization header
+     */
+    @Transactional
+    public void logout(String accessToken) {
+        sessionRepository.findByAccessToken(accessToken)
+                .ifPresent(sessionRepository::delete);
+    }
+
+    /**
+     * Create a new session for the user and return the token response.
+     */
+    private LoginResponse createSession(User user) {
         String accessToken = tokenService.generateToken();
         String refreshToken = tokenService.generateToken();
 
-        long ttlSeconds = tokenProperties.accessTokenTtl().toSeconds();
-        Instant expiresAt = Instant.now().plusSeconds(ttlSeconds);
+        Instant now = Instant.now();
+        long accessTtlSeconds = tokenProperties.accessTokenTtl().toSeconds();
+        Instant accessExpiresAt = now.plusSeconds(accessTtlSeconds);
+        Instant refreshExpiresAt = now.plus(tokenProperties.refreshTokenTtl());
 
-        Session session = new Session(user, accessToken, refreshToken, expiresAt);
+        Session session = new Session(user, accessToken, refreshToken,
+                accessExpiresAt, refreshExpiresAt);
         sessionRepository.save(session);
 
-        return new LoginResponse(accessToken, refreshToken, ttlSeconds);
+        return new LoginResponse(accessToken, refreshToken, accessTtlSeconds);
     }
 
     private UserResponse toUserResponse(User user) {
