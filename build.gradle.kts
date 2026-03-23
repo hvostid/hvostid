@@ -18,8 +18,8 @@ allprojects {
     version = "0.1.0-SNAPSHOT"
 
     repositories {
-        maven { url = uri("https://repo.spring.io/snapshot") }
-        maven { url = uri("https://repo.spring.io/milestone") }
+        maven("https://repo.spring.io/snapshot")
+        maven("https://repo.spring.io/milestone")
         mavenCentral()
     }
 }
@@ -31,9 +31,7 @@ subprojects {
 
     java {
         toolchain {
-            languageVersion.set(
-                JavaLanguageVersion.of(rootProject.libs.versions.java.get().toInt())
-            )
+            languageVersion = JavaLanguageVersion.of(rootProject.libs.versions.java.get().toInt())
         }
     }
 
@@ -43,7 +41,7 @@ subprojects {
 
     tasks.jacocoTestReport {
         reports {
-            xml.required.set(true)
+            xml.required = true
         }
     }
 }

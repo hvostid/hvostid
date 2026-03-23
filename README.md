@@ -35,7 +35,7 @@ scoring.
 ### Prerequisites
 
 - Java 25
-- Node.js 20+
+- Node.js 24+
 - Docker and Docker Compose
 - Gradle 8.x (or use the included wrapper)
 
