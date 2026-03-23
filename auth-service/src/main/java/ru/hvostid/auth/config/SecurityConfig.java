@@ -13,7 +13,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * Spring Security configuration.
- * Disables CSRF, uses stateless sessions, permits auth endpoints.
+ * Disables CSRF, uses stateless sessions, permits auth and internal endpoints.
  */
 @Configuration
 @EnableWebSecurity
@@ -26,6 +26,7 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/internal/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .anyRequest().authenticated()
                 );
