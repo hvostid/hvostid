@@ -1,10 +1,16 @@
 package ru.hvostid.auth.controller;
 
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.hvostid.auth.dto.*;
+import ru.hvostid.auth.dto.LoginRequest;
+import ru.hvostid.auth.dto.LoginResponse;
+import ru.hvostid.auth.dto.RefreshRequest;
+import ru.hvostid.auth.dto.RegisterRequest;
+import ru.hvostid.auth.dto.UserResponse;
 import ru.hvostid.auth.service.AuthService;
 
 /**
@@ -13,6 +19,8 @@ import ru.hvostid.auth.service.AuthService;
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
+
     private final AuthService authService;
 
     public AuthController(AuthService authService) {
@@ -24,6 +32,7 @@ public class AuthController {
      */
     @PostMapping("/register")
     public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
+        log.debug("POST /api/v1/auth/register email={}", request.email());
         UserResponse response = authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -33,6 +42,7 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        log.debug("POST /api/v1/auth/login email={}", request.email());
         LoginResponse response = authService.login(request);
         return ResponseEntity.ok(response);
     }
@@ -43,6 +53,7 @@ public class AuthController {
      */
     @PostMapping("/refresh")
     public ResponseEntity<LoginResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+        log.debug("POST /api/v1/auth/refresh");
         LoginResponse response = authService.refresh(request);
         return ResponseEntity.ok(response);
     }
@@ -52,6 +63,7 @@ public class AuthController {
      */
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@RequestHeader("Authorization") String authHeader) {
+        log.debug("POST /api/v1/auth/logout");
         String accessToken = extractBearerToken(authHeader);
         authService.logout(accessToken);
         return ResponseEntity.noContent().build();

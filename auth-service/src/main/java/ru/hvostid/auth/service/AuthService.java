@@ -1,5 +1,7 @@
 package ru.hvostid.auth.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,8 @@ import java.util.List;
  */
 @Service
 public class AuthService {
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
+
     private final UserRepository userRepository;
     private final SessionRepository sessionRepository;
     private final PasswordEncoder passwordEncoder;
@@ -49,7 +53,10 @@ public class AuthService {
      */
     @Transactional
     public UserResponse register(RegisterRequest request) {
+        log.debug("Registering user with email={}", request.email());
+
         if (userRepository.existsByEmail(request.email())) {
+            log.warn("Registration failed: email already exists email={}", request.email());
             throw new EmailAlreadyExistsException(request.email());
         }
 
@@ -57,6 +64,8 @@ public class AuthService {
         User user = new User(request.email(), request.name(), hashedPassword);
         user = userRepository.save(user);
 
+        log.info("User registered userId={} email={} role={}",
+                user.getId(), user.getEmail(), user.getRole());
         return toUserResponse(user);
     }
 
@@ -69,14 +78,22 @@ public class AuthService {
      */
     @Transactional
     public LoginResponse login(LoginRequest request) {
+        log.debug("Login attempt email={}", request.email());
+
         User user = userRepository.findByEmail(request.email())
-                .orElseThrow(InvalidCredentialsException::new);
+                .orElseThrow(() -> {
+                    log.warn("Login failed: user not found email={}", request.email());
+                    return new InvalidCredentialsException();
+                });
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            log.warn("Login failed: wrong password userId={} email={}", user.getId(), user.getEmail());
             throw new InvalidCredentialsException();
         }
 
-        return createSession(user);
+        LoginResponse response = createSession(user);
+        log.info("Login successful userId={} email={}", user.getId(), user.getEmail());
+        return response;
     }
 
     /**
@@ -88,14 +105,20 @@ public class AuthService {
      */
     @Transactional(readOnly = true)
     public IntrospectResponse introspect(IntrospectRequest request) {
+        log.debug("Introspect requested");
+
         return sessionRepository.findByAccessToken(request.token())
                 .filter(session -> session.getExpiresAt().isAfter(Instant.now()))
                 .map(session -> {
                     User user = session.getUser();
                     List<String> roles = List.of(user.getRole().name().toLowerCase());
+                    log.debug("Introspect result: active=true userId={} roles={}", user.getId(), roles);
                     return IntrospectResponse.active(user.getId(), roles);
                 })
-                .orElse(IntrospectResponse.inactive());
+                .orElseGet(() -> {
+                    log.debug("Introspect result: active=false");
+                    return IntrospectResponse.inactive();
+                });
     }
 
     /**
@@ -107,10 +130,17 @@ public class AuthService {
      */
     @Transactional
     public LoginResponse refresh(RefreshRequest request) {
+        log.debug("Refresh token requested");
+
         Session oldSession = sessionRepository.findByRefreshToken(request.refreshToken())
-                .orElseThrow(InvalidRefreshTokenException::new);
+                .orElseThrow(() -> {
+                    log.warn("Refresh failed: token not found");
+                    return new InvalidRefreshTokenException();
+                });
 
         if (oldSession.getRefreshTokenExpiresAt().isBefore(Instant.now())) {
+            log.warn("Refresh failed: token expired userId={} sessionId={}",
+                    oldSession.getUser().getId(), oldSession.getId());
             sessionRepository.delete(oldSession);
             throw new InvalidRefreshTokenException();
         }
@@ -118,7 +148,9 @@ public class AuthService {
         User user = oldSession.getUser();
         sessionRepository.delete(oldSession);
 
-        return createSession(user);
+        LoginResponse response = createSession(user);
+        log.info("Token refreshed userId={} oldSessionId={}", user.getId(), oldSession.getId());
+        return response;
     }
 
     /**
@@ -128,8 +160,17 @@ public class AuthService {
      */
     @Transactional
     public void logout(String accessToken) {
+        log.debug("Logout requested");
+
         sessionRepository.findByAccessToken(accessToken)
-                .ifPresent(sessionRepository::delete);
+                .ifPresentOrElse(
+                        session -> {
+                            Long userId = session.getUser().getId();
+                            sessionRepository.delete(session);
+                            log.info("Logout successful userId={} sessionId={}", userId, session.getId());
+                        },
+                        () -> log.debug("Logout: session not found, no-op")
+                );
     }
 
     /**
@@ -148,6 +189,8 @@ public class AuthService {
                 accessExpiresAt, refreshExpiresAt);
         sessionRepository.save(session);
 
+        log.debug("Session created userId={} accessTtl={}s refreshTtl={}",
+                user.getId(), accessTtlSeconds, tokenProperties.refreshTokenTtl());
         return new LoginResponse(accessToken, refreshToken, accessTtlSeconds);
     }
 
