@@ -59,7 +59,7 @@ Build and run backend:
 
 ```bash
 ./gradlew build
-./gradlew :auth-service:bootRun
+./gradlew :bootRun
 ```
 
 Run frontend:
@@ -80,36 +80,49 @@ cd frontend && npm run build && cd ..
 docker compose up --build
 ```
 
+### Hybrid Local Development
+
+For day-to-day development, it is recommended to run all supporting infrastructure and non-active services via Docker Compose, while starting the service currently being developed directly from the IDE or with Gradle.
+
+This approach is especially useful for IntelliJ IDEA: when a Spring Boot service is started locally, Spring-specific IDE features such as the Spring plugin, environment inspection, configuration assistance, and debugger integration work as expected. If the service were also started inside Docker Compose, these capabilities would be limited or unavailable.
+
+Example workflow:
+
+```bash
+docker compose up -d postgres minio minio-init listing-service passport-service matching-service api-gateway
+./gradlew :auth-service:bootRun
+```
+
 ### SonarQube (optional)
 
 ```bash
 docker compose --profile quality up -d sonarqube
-./gradlew sonar -Dsonar.host.url=http://localhost:9090
+./gradlew sonar -Dsonar.host.url=http://localhost:9090 -Dsonar.token=squ_...
 ```
 
 ## Project Structure
 
 ```
 hvostid/
-  settings.gradle.kts
-  build.gradle.kts
+  .github/workflows/
   api-gateway/
   auth-service/
-  listing-service/
-  passport-service/
-  matching-service/
   common/
+  docker/
   frontend/                -- React SPA
     src/
       api/                 -- axios client
       context/             -- AuthContext
       components/          -- shared components
       pages/               -- page components
-  docker-compose.yml
-  docker/
   k6/
+  listing-service/
+  matching-service/
+  passport-service/
   postman/
-  .github/workflows/
+  build.gradle.kts
+  docker-compose.yml
+  settings.gradle.kts
 ```
 
 ## Git Workflow
