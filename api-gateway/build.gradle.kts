@@ -12,6 +12,7 @@ dependencyManagement {
 dependencies {
     implementation(libs.spring.cloud.starter.gateway)
     implementation(libs.spring.boot.starter.actuator)
+    implementation(libs.jackson.databind)
     implementation(project(":common"))
 
     testImplementation(libs.spring.boot.starter.test)
