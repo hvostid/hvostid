@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -42,20 +41,18 @@ public class IntrospectionController {
     @Operation(
             summary = "Token introspection (internal only)",
             description = "Validates an access token and returns user info if active. This endpoint is NOT routed through the Gateway. Called by Gateway on every protected request via internal network.")
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Introspection result",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = IntrospectResponse.class))),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Validation error",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = ErrorResponse.class)))
-    })
+    @ApiResponse(
+            responseCode = "200",
+            description = "Introspection result",
+            content = @Content(
+                    mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    schema = @Schema(implementation = IntrospectResponse.class)))
+    @ApiResponse(
+            responseCode = "400",
+            description = "Validation error",
+            content = @Content(
+                    mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    schema = @Schema(implementation = ErrorResponse.class)))
     @PostMapping("/introspect")
     public ResponseEntity<IntrospectResponse> introspect(
             @Valid @RequestBody IntrospectRequest request) {

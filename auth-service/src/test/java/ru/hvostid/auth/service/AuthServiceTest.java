@@ -264,8 +264,9 @@ class AuthServiceTest {
             when(sessionRepository.findByRefreshToken("bad_token"))
                     .thenReturn(Optional.empty());
 
+            RefreshRequest request = new RefreshRequest("bad_token");
             assertThrows(InvalidRefreshTokenException.class,
-                    () -> authService.refresh(new RefreshRequest("bad_token")));
+                    () -> authService.refresh(request));
             verify(sessionRepository, never()).save(any());
         }
 
@@ -283,8 +284,9 @@ class AuthServiceTest {
             when(sessionRepository.findByRefreshToken("expired_refresh"))
                     .thenReturn(Optional.of(expiredSession));
 
+            RefreshRequest request = new RefreshRequest("expired_refresh");
             assertThrows(InvalidRefreshTokenException.class,
-                    () -> authService.refresh(new RefreshRequest("expired_refresh")));
+                    () -> authService.refresh(request));
 
             verify(sessionRepository).delete(expiredSession);
             verify(sessionRepository, never()).save(any());
