@@ -105,7 +105,7 @@ jobs:
                     npm run build
 
             -   name: Start all services
-                run: docker compose up -d --build --wait --wait-timeout 120
+                run: docker compose up -d --build
 
             -   name: Check service health endpoints
                 run: |
@@ -117,25 +117,39 @@ jobs:
                         "http://localhost:8084/actuator/health matching-service"
                     )
 
+                    MAX_ATTEMPTS=24
+                    INTERVAL=5
+
                     FAILED=0
 
                     for ENTRY in "${ENDPOINTS[@]}"; do
                         URL=$(echo "$ENTRY" | awk '{print $1}')
                         NAME=$(echo "$ENTRY" | awk '{print $2}')
 
-                        echo "--- Checking ${NAME} at ${URL} ---"
+                        echo "--- Waiting for ${NAME} at ${URL} ---"
 
-                        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${URL}" || true)
+                        HEALTHY=false
+                        for i in $(seq 1 $MAX_ATTEMPTS); do
+                            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "${URL}" 2>/dev/null || true)
+                            if [ "$HTTP_CODE" = "200" ]; then
+                                echo "OK: ${NAME} returned 200 (attempt ${i})"
+                                HEALTHY=true
+                                break
+                            fi
+                            echo "  attempt ${i}/${MAX_ATTEMPTS}: ${NAME} returned ${HTTP_CODE}, retrying in ${INTERVAL}s..."
+                            sleep $INTERVAL
+                        done
 
-                        if [ "$HTTP_CODE" = "200" ]; then
-                            echo "OK: ${NAME} returned 200"
-                        else
-                            echo "FAIL: ${NAME} returned ${HTTP_CODE}"
+                        if [ "$HEALTHY" = false ]; then
+                            echo "FAIL: ${NAME} did not become healthy after ${MAX_ATTEMPTS} attempts"
                             FAILED=1
                         fi
                     done
 
                     if [ "$FAILED" -eq 1 ]; then
+                        echo ""
+                        echo "=== Docker container status ==="
+                        docker compose ps -a
                         echo ""
                         echo "=== Docker container logs ==="
                         docker compose logs --tail=50
