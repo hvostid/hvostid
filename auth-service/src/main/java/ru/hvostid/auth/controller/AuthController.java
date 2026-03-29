@@ -5,7 +5,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -38,20 +37,18 @@ public class AuthController {
     @Operation(
             summary = "Register a new user",
             description = "Creates a new user account with buyer role by default.")
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "201",
-                    description = "User created successfully",
-                    content = @Content(schema = @Schema(implementation = UserResponse.class))),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Validation error",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "Email already registered",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    })
+    @ApiResponse(
+            responseCode = "201",
+            description = "User created successfully",
+            content = @Content(schema = @Schema(implementation = UserResponse.class)))
+    @ApiResponse(
+            responseCode = "400",
+            description = "Validation error",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(
+            responseCode = "409",
+            description = "Email already registered",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @PostMapping("/register")
     public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
         log.debug("POST /api/v1/auth/register email={}", request.email());
@@ -65,17 +62,15 @@ public class AuthController {
     @Operation(
             summary = "Log in with email and password",
             description = "Authenticates the user and returns opaque access and refresh tokens. Tokens are random strings stored in the database (not JWT).")
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200", description = "Login successful",
-                    content = @Content(schema = @Schema(implementation = LoginResponse.class))),
-            @ApiResponse(
-                    responseCode = "400", description = "Validation error",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(
-                    responseCode = "401", description = "Invalid credentials",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    })
+    @ApiResponse(
+            responseCode = "200", description = "Login successful",
+            content = @Content(schema = @Schema(implementation = LoginResponse.class)))
+    @ApiResponse(
+            responseCode = "400", description = "Validation error",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(
+            responseCode = "401", description = "Invalid credentials",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         log.debug("POST /api/v1/auth/login email={}", request.email());
@@ -90,20 +85,18 @@ public class AuthController {
     @Operation(
             summary = "Refresh access token",
             description = "Generates a new access + refresh token pair using a valid refresh token. The old session is deleted (token rotation).")
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Tokens refreshed successfully",
-                    content = @Content(schema = @Schema(implementation = LoginResponse.class))),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Validation error",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Invalid or expired refresh token",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    })
+    @ApiResponse(
+            responseCode = "200",
+            description = "Tokens refreshed successfully",
+            content = @Content(schema = @Schema(implementation = LoginResponse.class)))
+    @ApiResponse(
+            responseCode = "400",
+            description = "Validation error",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(
+            responseCode = "401",
+            description = "Invalid or expired refresh token",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @PostMapping("/refresh")
     public ResponseEntity<LoginResponse> refresh(@Valid @RequestBody RefreshRequest request) {
         log.debug("POST /api/v1/auth/refresh");
@@ -117,12 +110,10 @@ public class AuthController {
     @Operation(
             summary = "Logout and revoke session",
             description = "Deletes the session associated with the Bearer token. Subsequent introspection of the token will return active: false.")
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "204",
-                    description = "Session revoked successfully",
-                    content = @Content)
-    })
+    @ApiResponse(
+            responseCode = "204",
+            description = "Session revoked successfully",
+            content = @Content)
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
             @Parameter(
