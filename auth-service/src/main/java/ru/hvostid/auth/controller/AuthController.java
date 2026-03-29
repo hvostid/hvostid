@@ -1,23 +1,28 @@
 package ru.hvostid.auth.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.hvostid.auth.dto.LoginRequest;
-import ru.hvostid.auth.dto.LoginResponse;
-import ru.hvostid.auth.dto.RefreshRequest;
-import ru.hvostid.auth.dto.RegisterRequest;
-import ru.hvostid.auth.dto.UserResponse;
+import ru.hvostid.auth.dto.*;
 import ru.hvostid.auth.service.AuthService;
 
 /**
  * REST controller for authentication endpoints.
  */
+@Tag(name = "Auth")
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping(value = "/api/v1/auth", produces = MediaType.APPLICATION_JSON_VALUE)
 public class AuthController {
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
@@ -30,6 +35,23 @@ public class AuthController {
     /**
      * Register a new user account.
      */
+    @Operation(
+            summary = "Register a new user",
+            description = "Creates a new user account with buyer role by default.")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "User created successfully",
+                    content = @Content(schema = @Schema(implementation = UserResponse.class))),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Validation error",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "Email already registered",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     @PostMapping("/register")
     public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
         log.debug("POST /api/v1/auth/register email={}", request.email());
@@ -40,6 +62,20 @@ public class AuthController {
     /**
      * Authenticate and obtain access/refresh tokens.
      */
+    @Operation(
+            summary = "Log in with email and password",
+            description = "Authenticates the user and returns opaque access and refresh tokens. Tokens are random strings stored in the database (not JWT).")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200", description = "Login successful",
+                    content = @Content(schema = @Schema(implementation = LoginResponse.class))),
+            @ApiResponse(
+                    responseCode = "400", description = "Validation error",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(
+                    responseCode = "401", description = "Invalid credentials",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         log.debug("POST /api/v1/auth/login email={}", request.email());
@@ -51,6 +87,23 @@ public class AuthController {
      * Refresh tokens using a valid refresh token.
      * Generates a new access + refresh pair and invalidates the old session.
      */
+    @Operation(
+            summary = "Refresh access token",
+            description = "Generates a new access + refresh token pair using a valid refresh token. The old session is deleted (token rotation).")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Tokens refreshed successfully",
+                    content = @Content(schema = @Schema(implementation = LoginResponse.class))),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Validation error",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Invalid or expired refresh token",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     @PostMapping("/refresh")
     public ResponseEntity<LoginResponse> refresh(@Valid @RequestBody RefreshRequest request) {
         log.debug("POST /api/v1/auth/refresh");
@@ -61,8 +114,23 @@ public class AuthController {
     /**
      * Logout by revoking the session associated with the Bearer token.
      */
+    @Operation(
+            summary = "Logout and revoke session",
+            description = "Deletes the session associated with the Bearer token. Subsequent introspection of the token will return active: false.")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Session revoked successfully",
+                    content = @Content)
+    })
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<Void> logout(
+            @Parameter(
+                    description = "Bearer token",
+                    example = "Bearer dGhpcyBpcyBhIHNhbXBsZSB0b2tlbg",
+                    required = true)
+            @RequestHeader("Authorization")
+            String authHeader) {
         log.debug("POST /api/v1/auth/logout");
         String accessToken = extractBearerToken(authHeader);
         authService.logout(accessToken);
