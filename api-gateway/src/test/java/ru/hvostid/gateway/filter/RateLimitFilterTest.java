@@ -13,8 +13,10 @@ import ru.hvostid.gateway.config.RateLimitProperties;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
@@ -172,17 +174,18 @@ class RateLimitFilterTest {
             request1.setRemoteAddr("10.0.0.20");
             filter.doFilterInternal(request1, new MockHttpServletResponse(), mock(FilterChain.class));
 
-            // Wait enough for at least 1 token to refill (100/sec = 10ms per token)
-            Thread.sleep(50);
+            // Poll until token refills instead of Thread.sleep (100/sec = 10ms per token)
+            await().atMost(Duration.ofMillis(500))
+                    .pollInterval(Duration.ofMillis(10))
+                    .untilAsserted(() -> {
+                        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/v1/listings");
+                        req.setRemoteAddr("10.0.0.20");
+                        MockHttpServletResponse resp = new MockHttpServletResponse();
+                        AtomicInteger passed = new AtomicInteger(0);
+                        filter.doFilterInternal(req, resp, (_, _) -> passed.incrementAndGet());
 
-            // Should be allowed again
-            MockHttpServletRequest request2 = new MockHttpServletRequest("GET", "/api/v1/listings");
-            request2.setRemoteAddr("10.0.0.20");
-            MockHttpServletResponse response2 = new MockHttpServletResponse();
-            AtomicInteger passed = new AtomicInteger(0);
-            filter.doFilterInternal(request2, response2, (_, _) -> passed.incrementAndGet());
-
-            assertEquals(1, passed.get(), "Request should be allowed after tokens refill");
+                        assertEquals(1, passed.get(), "Request should be allowed after tokens refill");
+                    });
         }
     }
 }

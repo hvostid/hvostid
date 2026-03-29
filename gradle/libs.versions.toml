@@ -11,6 +11,7 @@ spring-doc = "3.0.2"
 sonarqube = "7.2.2.6593"
 
 # Libraries
+awaitility = "4.3.0"
 jackson = "2.21"
 jackson-core = "3.1.0"
 jakarta-validation = "4.0.0-M1"
@@ -40,10 +41,14 @@ spring-doc-openapi-webmvc = { module = "org.springdoc:springdoc-openapi-starter-
 # Spring Security
 spring-security-test = { module = "org.springframework.security:spring-security-test" }
 
+# Awaitility
+awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
+
 # Database
 postgresql = { module = "org.postgresql:postgresql" }
 h2 = { module = "com.h2database:h2", version.ref = "h2" }
 
+# Flyway
 flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql" }
 
 # Jackson
