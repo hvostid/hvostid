@@ -74,7 +74,7 @@ class AuthControllerTest {
         return tokens.get("refreshToken").asString();
     }
 
-    // -- Logout --
+    // -- Registration --
 
     @Nested
     @DisplayName("POST /register")
@@ -91,7 +91,7 @@ class AuthControllerTest {
                     .andExpect(jsonPath("$.id", notNullValue()))
                     .andExpect(jsonPath("$.email", is("user@example.com")))
                     .andExpect(jsonPath("$.name", is("John Doe")))
-                    .andExpect(jsonPath("$.role", is("buyer")));
+                    .andExpect(jsonPath("$.roles", hasItem("buyer")));
         }
 
         @Test
@@ -145,7 +145,7 @@ class AuthControllerTest {
         }
     }
 
-    // -- Helper methods --
+    // -- Login --
 
     @Nested
     @DisplayName("POST /login")
@@ -208,6 +208,8 @@ class AuthControllerTest {
         }
     }
 
+    // -- Introspect --
+
     @Nested
     @DisplayName("POST /internal/auth/introspect")
     class IntrospectTests {
@@ -246,6 +248,8 @@ class AuthControllerTest {
                     .andExpect(status().isBadRequest());
         }
     }
+
+    // -- Refresh --
 
     @Nested
     @DisplayName("POST /api/v1/auth/refresh")
@@ -326,6 +330,8 @@ class AuthControllerTest {
                     .andExpect(status().isUnauthorized());
         }
     }
+
+    // -- Logout --
 
     @Nested
     @DisplayName("POST /api/v1/auth/logout")
