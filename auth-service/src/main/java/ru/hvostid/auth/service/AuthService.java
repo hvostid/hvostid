@@ -17,6 +17,7 @@ import ru.hvostid.auth.repository.UserRepository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Core authentication service handling registration, login,
@@ -64,8 +65,8 @@ public class AuthService {
         User user = new User(request.email(), request.name(), hashedPassword);
         user = userRepository.save(user);
 
-        log.info("User registered userId={} email={} role={}",
-                user.getId(), user.getEmail(), user.getRole());
+        log.info("User registered userId={} email={} roles={}",
+                user.getId(), user.getEmail(), user.getRoles());
         return toUserResponse(user);
     }
 
@@ -111,7 +112,10 @@ public class AuthService {
                 .filter(session -> session.getExpiresAt().isAfter(Instant.now()))
                 .map(session -> {
                     User user = session.getUser();
-                    List<String> roles = List.of(user.getRole().name().toLowerCase());
+                    List<String> roles = user.getRoles().stream()
+                            .map(role -> role.name().toLowerCase(Locale.ROOT))
+                            .sorted()
+                            .toList();
                     log.debug("Introspect result: active=true userId={} roles={}", user.getId(), roles);
                     return IntrospectResponse.active(user.getId(), roles);
                 })
@@ -195,11 +199,10 @@ public class AuthService {
     }
 
     private UserResponse toUserResponse(User user) {
-        return new UserResponse(
-                user.getId(),
-                user.getEmail(),
-                user.getName(),
-                user.getRole().name().toLowerCase()
-        );
+        List<String> roles = user.getRoles().stream()
+                .map(role -> role.name().toLowerCase(Locale.ROOT))
+                .sorted()
+                .toList();
+        return new UserResponse(user.getId(), user.getEmail(), user.getName(), roles);
     }
 }
