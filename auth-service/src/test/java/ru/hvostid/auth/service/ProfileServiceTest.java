@@ -272,8 +272,9 @@ class ProfileServiceTest {
             User user = createUser(1L, "test@example.com", "Test");
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
+            AddRoleRequest request = new AddRoleRequest("moderator");
             assertThrows(ForbiddenRoleException.class,
-                    () -> profileService.addRole(1L, new AddRoleRequest("moderator")));
+                    () -> profileService.addRole(1L, request));
             verify(userRepository, never()).save(any());
         }
 
@@ -283,8 +284,9 @@ class ProfileServiceTest {
             User user = createUser(1L, "test@example.com", "Test");
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
+            AddRoleRequest request = new AddRoleRequest("admin");
             assertThrows(ForbiddenRoleException.class,
-                    () -> profileService.addRole(1L, new AddRoleRequest("admin")));
+                    () -> profileService.addRole(1L, request));
             verify(userRepository, never()).save(any());
         }
 
@@ -295,8 +297,9 @@ class ProfileServiceTest {
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
             // BUYER is not in SELF_ASSIGNABLE_ROLES, so it throws
+            AddRoleRequest request = new AddRoleRequest("buyer");
             assertThrows(ForbiddenRoleException.class,
-                    () -> profileService.addRole(1L, new AddRoleRequest("buyer")));
+                    () -> profileService.addRole(1L, request));
         }
 
         @Test
@@ -305,8 +308,9 @@ class ProfileServiceTest {
             User user = createUser(1L, "test@example.com", "Test");
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
+            AddRoleRequest request = new AddRoleRequest("superadmin");
             assertThrows(ForbiddenRoleException.class,
-                    () -> profileService.addRole(1L, new AddRoleRequest("superadmin")));
+                    () -> profileService.addRole(1L, request));
         }
 
         @Test
@@ -314,8 +318,9 @@ class ProfileServiceTest {
         void addRole_nonExistentUser_throws() {
             when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
+            AddRoleRequest request = new AddRoleRequest("seller");
             assertThrows(UserNotFoundException.class,
-                    () -> profileService.addRole(999L, new AddRoleRequest("seller")));
+                    () -> profileService.addRole(999L, request));
         }
     }
 }

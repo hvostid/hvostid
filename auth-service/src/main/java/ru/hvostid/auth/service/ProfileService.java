@@ -98,7 +98,7 @@ public class ProfileService {
         Role role;
         try {
             role = Role.valueOf(request.role().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             throw new ForbiddenRoleException(request.role());
         }
 
