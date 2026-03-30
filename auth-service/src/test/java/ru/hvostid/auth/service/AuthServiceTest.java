@@ -75,7 +75,7 @@ class AuthServiceTest {
             assertEquals(1L, response.id());
             assertEquals("test@example.com", response.email());
             assertEquals("Test User", response.name());
-            assertEquals("buyer", response.role());
+            assertTrue(response.roles().contains("buyer"));
 
             verify(userRepository).save(any(User.class));
         }
@@ -158,7 +158,6 @@ class AuthServiceTest {
         void introspect_validToken_returnsActive() {
             User user = new User("test@example.com", "Test User", "hash");
             user.setId(42L);
-            user.setRole(Role.BUYER);
 
             Session session = new Session(user, "valid_token", "refresh",
                     Instant.now().plusSeconds(600), Instant.now().plusSeconds(86400));
@@ -206,11 +205,11 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("seller role - returns correct role in list")
-        void introspect_sellerRole_returnsSellerInRoles() {
+        @DisplayName("user with seller role - returns both roles in sorted order")
+        void introspect_sellerRole_returnsBothRolesSorted() {
             User user = new User("seller@example.com", "Seller", "hash");
             user.setId(10L);
-            user.setRole(Role.SELLER);
+            user.addRole(Role.SELLER);
 
             Session session = new Session(user, "seller_token", "refresh",
                     Instant.now().plusSeconds(600), Instant.now().plusSeconds(86400));
@@ -221,7 +220,7 @@ class AuthServiceTest {
             IntrospectResponse response = authService.introspect(new IntrospectRequest("seller_token"));
 
             assertTrue(response.active());
-            assertEquals(List.of("seller"), response.roles());
+            assertEquals(List.of("buyer", "seller"), response.roles());
         }
     }
 
