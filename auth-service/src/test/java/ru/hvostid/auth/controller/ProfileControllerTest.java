@@ -18,6 +18,7 @@ import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -26,7 +27,6 @@ class ProfileControllerTest {
     private static final String PROFILE_ME_URL = "/api/v1/profile/me";
     private static final String PROFILE_ROLES_URL = "/api/v1/profile/me/roles";
     private static final String REGISTER_URL = "/api/v1/auth/register";
-    private static final String USER_ID_HEADER = "X-User-Id";
 
     @Autowired
     private MockMvc mockMvc;
@@ -60,7 +60,7 @@ class ProfileControllerTest {
             Long userId = registerAndGetUserId("profile@example.com", "Profile User");
 
             mockMvc.perform(get(PROFILE_ME_URL)
-                            .header(USER_ID_HEADER, userId))
+                            .header(USER_ID, userId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id", is(userId.intValue())))
                     .andExpect(jsonPath("$.email", is("profile@example.com")))
@@ -80,7 +80,7 @@ class ProfileControllerTest {
         @DisplayName("with non-existent user id - returns 404")
         void getProfile_nonExistentUser_returns404() throws Exception {
             mockMvc.perform(get(PROFILE_ME_URL)
-                            .header(USER_ID_HEADER, 99999))
+                            .header(USER_ID, 99999))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.status", is(404)));
         }
@@ -91,7 +91,7 @@ class ProfileControllerTest {
             Long userId = registerAndGetUserId("defaults@example.com", "Defaults");
 
             mockMvc.perform(get(PROFILE_ME_URL)
-                            .header(USER_ID_HEADER, userId))
+                            .header(USER_ID, userId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.phone").doesNotExist())
                     .andExpect(jsonPath("$.city").doesNotExist())
@@ -120,7 +120,7 @@ class ProfileControllerTest {
                     """;
 
             mockMvc.perform(put(PROFILE_ME_URL)
-                            .header(USER_ID_HEADER, userId)
+                            .header(USER_ID, userId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isOk())
@@ -141,7 +141,7 @@ class ProfileControllerTest {
                     { "phone": "+79001234567" }
                     """;
             mockMvc.perform(put(PROFILE_ME_URL)
-                            .header(USER_ID_HEADER, userId)
+                            .header(USER_ID, userId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(firstUpdate))
                     .andExpect(status().isOk());
@@ -151,7 +151,7 @@ class ProfileControllerTest {
                     { "name": "New Name" }
                     """;
             mockMvc.perform(put(PROFILE_ME_URL)
-                            .header(USER_ID_HEADER, userId)
+                            .header(USER_ID, userId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(secondUpdate))
                     .andExpect(status().isOk())
@@ -180,7 +180,7 @@ class ProfileControllerTest {
                     """;
 
             mockMvc.perform(put(PROFILE_ME_URL)
-                            .header(USER_ID_HEADER, 99999)
+                            .header(USER_ID, 99999)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isNotFound());
@@ -195,7 +195,7 @@ class ProfileControllerTest {
             String body = "{\"name\": \"" + longName + "\"}";
 
             mockMvc.perform(put(PROFILE_ME_URL)
-                            .header(USER_ID_HEADER, userId)
+                            .header(USER_ID, userId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isBadRequest());
@@ -210,7 +210,7 @@ class ProfileControllerTest {
             String body = "{\"bio\": \"" + longBio + "\"}";
 
             mockMvc.perform(put(PROFILE_ME_URL)
-                            .header(USER_ID_HEADER, userId)
+                            .header(USER_ID, userId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isBadRequest());
@@ -226,7 +226,7 @@ class ProfileControllerTest {
                     """;
 
             mockMvc.perform(put(PROFILE_ME_URL)
-                            .header(USER_ID_HEADER, userId)
+                            .header(USER_ID, userId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isBadRequest());
@@ -242,7 +242,7 @@ class ProfileControllerTest {
                     """;
 
             mockMvc.perform(put(PROFILE_ME_URL)
-                            .header(USER_ID_HEADER, userId)
+                            .header(USER_ID, userId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isOk())
@@ -266,7 +266,7 @@ class ProfileControllerTest {
                     """;
 
             mockMvc.perform(post(PROFILE_ROLES_URL)
-                            .header(USER_ID_HEADER, userId)
+                            .header(USER_ID, userId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isOk())
@@ -285,14 +285,14 @@ class ProfileControllerTest {
                     """;
 
             mockMvc.perform(post(PROFILE_ROLES_URL)
-                            .header(USER_ID_HEADER, userId)
+                            .header(USER_ID, userId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isOk());
 
             // Verify via GET profile
             mockMvc.perform(get(PROFILE_ME_URL)
-                            .header(USER_ID_HEADER, userId))
+                            .header(USER_ID, userId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.roles", hasItem("seller")))
                     .andExpect(jsonPath("$.roles", hasItem("buyer")));
@@ -308,7 +308,7 @@ class ProfileControllerTest {
                     """;
 
             mockMvc.perform(post(PROFILE_ROLES_URL)
-                            .header(USER_ID_HEADER, userId)
+                            .header(USER_ID, userId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isForbidden())
@@ -325,7 +325,7 @@ class ProfileControllerTest {
                     """;
 
             mockMvc.perform(post(PROFILE_ROLES_URL)
-                            .header(USER_ID_HEADER, userId)
+                            .header(USER_ID, userId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isForbidden())
@@ -342,7 +342,7 @@ class ProfileControllerTest {
                     """;
 
             mockMvc.perform(post(PROFILE_ROLES_URL)
-                            .header(USER_ID_HEADER, userId)
+                            .header(USER_ID, userId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isForbidden());
@@ -358,7 +358,7 @@ class ProfileControllerTest {
                     """;
 
             mockMvc.perform(post(PROFILE_ROLES_URL)
-                            .header(USER_ID_HEADER, userId)
+                            .header(USER_ID, userId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isBadRequest());
@@ -385,7 +385,7 @@ class ProfileControllerTest {
                     """;
 
             mockMvc.perform(post(PROFILE_ROLES_URL)
-                            .header(USER_ID_HEADER, 99999)
+                            .header(USER_ID, 99999)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isNotFound());
@@ -401,14 +401,14 @@ class ProfileControllerTest {
                     """;
 
             mockMvc.perform(post(PROFILE_ROLES_URL)
-                            .header(USER_ID_HEADER, userId)
+                            .header(USER_ID, userId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isOk());
 
             // Adding again should still succeed
             mockMvc.perform(post(PROFILE_ROLES_URL)
-                            .header(USER_ID_HEADER, userId)
+                            .header(USER_ID, userId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isOk())

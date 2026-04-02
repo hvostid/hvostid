@@ -1,4 +1,4 @@
-package ru.hvostid.auth.dto;
+package ru.hvostid.common.contract.auth;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
@@ -6,7 +6,8 @@ import java.util.List;
 
 /**
  * Response body for token introspection.
- * When active is false, userId and roles are omitted from JSON.
+ * <p>
+ * When {@code active} is false, {@code userId} and {@code roles} are omitted from JSON.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record IntrospectResponse(

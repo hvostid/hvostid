@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
-import ru.hvostid.gateway.dto.IntrospectResponse;
+import ru.hvostid.common.contract.auth.IntrospectResponse;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.Optional;

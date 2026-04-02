@@ -13,10 +13,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.hvostid.auth.dto.AddRoleRequest;
-import ru.hvostid.auth.dto.ErrorResponse;
 import ru.hvostid.auth.dto.ProfileResponse;
 import ru.hvostid.auth.dto.UpdateProfileRequest;
 import ru.hvostid.auth.service.ProfileService;
+import ru.hvostid.common.dto.ErrorResponse;
+import ru.hvostid.common.http.SecurityHeaders;
 
 /**
  * REST controller for user profile and role management.
@@ -26,7 +27,6 @@ import ru.hvostid.auth.service.ProfileService;
 @RestController
 @RequestMapping(value = "/api/v1/profile", produces = MediaType.APPLICATION_JSON_VALUE)
 public class ProfileController {
-    static final String USER_ID_HEADER = "X-User-Id";
     private static final Logger log = LoggerFactory.getLogger(ProfileController.class);
     private final ProfileService profileService;
 
@@ -56,7 +56,7 @@ public class ProfileController {
     @GetMapping("/me")
     public ResponseEntity<ProfileResponse> getMyProfile(
             @Parameter(description = "User ID from Gateway", required = true)
-            @RequestHeader(value = USER_ID_HEADER, required = false) Long userId) {
+            @RequestHeader(value = SecurityHeaders.USER_ID, required = false) Long userId) {
         log.debug("GET /api/v1/profile/me userId={}", userId);
         if (userId == null) {
             return ResponseEntity.status(401).build();
@@ -91,7 +91,7 @@ public class ProfileController {
     @PutMapping("/me")
     public ResponseEntity<ProfileResponse> updateMyProfile(
             @Parameter(description = "User ID from Gateway", required = true)
-            @RequestHeader(value = USER_ID_HEADER, required = false) Long userId,
+            @RequestHeader(value = SecurityHeaders.USER_ID, required = false) Long userId,
             @Valid @RequestBody UpdateProfileRequest request) {
         log.debug("PUT /api/v1/profile/me userId={}", userId);
         if (userId == null) {
@@ -129,7 +129,7 @@ public class ProfileController {
     @PostMapping("/me/roles")
     public ResponseEntity<ProfileResponse> addRole(
             @Parameter(description = "User ID from Gateway", required = true)
-            @RequestHeader(value = USER_ID_HEADER, required = false) Long userId,
+            @RequestHeader(value = SecurityHeaders.USER_ID, required = false) Long userId,
             @Valid @RequestBody AddRoleRequest request) {
         log.debug("POST /api/v1/profile/me/roles userId={} role={}", userId, request.role());
         if (userId == null) {

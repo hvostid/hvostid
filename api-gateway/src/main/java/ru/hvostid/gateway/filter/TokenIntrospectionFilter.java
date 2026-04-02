@@ -15,14 +15,17 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
+import ru.hvostid.common.contract.auth.IntrospectResponse;
 import ru.hvostid.common.dto.ErrorResponse;
 import ru.hvostid.gateway.client.IntrospectionClient;
 import ru.hvostid.gateway.config.AuthProperties;
-import ru.hvostid.gateway.dto.IntrospectResponse;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.*;
+
+import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
+import static ru.hvostid.common.http.SecurityHeaders.USER_ROLES;
 
 /**
  * Servlet filter that performs token introspection on every protected request.
@@ -41,8 +44,6 @@ import java.util.*;
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class TokenIntrospectionFilter extends OncePerRequestFilter {
     static final String BEARER_PREFIX = "Bearer ";
-    static final String USER_ID_HEADER = "X-User-Id";
-    static final String USER_ROLES_HEADER = "X-User-Roles";
 
     private static final Logger log = LoggerFactory.getLogger(TokenIntrospectionFilter.class);
     private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
@@ -97,7 +98,7 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
 
         HttpServletRequest wrappedRequest = new UserInfoHeaderWrapper(
                 request,
-                Map.of(USER_ID_HEADER, userId, USER_ROLES_HEADER, roles)
+                Map.of(USER_ID, userId, USER_ROLES, roles)
         );
         filterChain.doFilter(wrappedRequest, response);
     }

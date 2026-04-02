@@ -19,6 +19,8 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.UUID;
 
+import static ru.hvostid.common.http.SecurityHeaders.REQUEST_ID;
+
 /**
  * Global servlet filter that ensures every request has an X-Request-Id header.
  * <p>
@@ -31,13 +33,12 @@ import java.util.UUID;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class RequestIdFilter extends OncePerRequestFilter {
-    static final String REQUEST_ID_HEADER = "X-Request-Id";
     static final String MDC_REQUEST_ID_KEY = "requestId";
     private static final Logger log = LoggerFactory.getLogger(RequestIdFilter.class);
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        String requestId = request.getHeader(REQUEST_ID_HEADER);
+        String requestId = request.getHeader(REQUEST_ID);
         boolean generated = false;
 
         if (requestId == null || requestId.isBlank()) {
@@ -54,7 +55,7 @@ public class RequestIdFilter extends OncePerRequestFilter {
             HttpServletRequest wrappedRequest = generated ? new RequestIdHeaderWrapper(request, requestId) : request;
 
             // Add X-Request-Id to the response for the client
-            response.setHeader(REQUEST_ID_HEADER, requestId);
+            response.setHeader(REQUEST_ID, requestId);
 
             filterChain.doFilter(wrappedRequest, response);
         } finally {
@@ -76,7 +77,7 @@ public class RequestIdFilter extends OncePerRequestFilter {
 
         @Override
         public String getHeader(String name) {
-            if (REQUEST_ID_HEADER.equalsIgnoreCase(name)) {
+            if (REQUEST_ID.equalsIgnoreCase(name)) {
                 return requestId;
             }
             return super.getHeader(name);
@@ -84,7 +85,7 @@ public class RequestIdFilter extends OncePerRequestFilter {
 
         @Override
         public Enumeration<String> getHeaders(String name) {
-            if (REQUEST_ID_HEADER.equalsIgnoreCase(name)) {
+            if (REQUEST_ID.equalsIgnoreCase(name)) {
                 return Collections.enumeration(List.of(requestId));
             }
             return super.getHeaders(name);
@@ -93,8 +94,8 @@ public class RequestIdFilter extends OncePerRequestFilter {
         @Override
         public Enumeration<String> getHeaderNames() {
             List<String> names = Collections.list(super.getHeaderNames());
-            if (names.stream().noneMatch(REQUEST_ID_HEADER::equalsIgnoreCase)) {
-                names.add(REQUEST_ID_HEADER);
+            if (names.stream().noneMatch(REQUEST_ID::equalsIgnoreCase)) {
+                names.add(REQUEST_ID);
             }
             return Collections.enumeration(names);
         }
