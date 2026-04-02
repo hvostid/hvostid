@@ -6,7 +6,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import ru.hvostid.gateway.dto.IntrospectResponse;
+import ru.hvostid.common.contract.auth.IntrospectResponse;
 
 import java.util.Map;
 import java.util.Optional;

@@ -14,9 +14,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import ru.hvostid.common.contract.auth.IntrospectResponse;
 import ru.hvostid.gateway.client.IntrospectionClient;
 import ru.hvostid.gateway.config.AuthProperties;
-import ru.hvostid.gateway.dto.IntrospectResponse;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -27,6 +27,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
+import static ru.hvostid.common.http.SecurityHeaders.USER_ROLES;
 
 @ExtendWith(MockitoExtension.class)
 class TokenIntrospectionFilterTest {
@@ -144,8 +146,8 @@ class TokenIntrospectionFilterTest {
 
             FilterChain chain = (req, _) -> {
                 HttpServletRequest httpReq = (HttpServletRequest) req;
-                capturedUserId.set(httpReq.getHeader("X-User-Id"));
-                capturedRoles.set(httpReq.getHeader("X-User-Roles"));
+                capturedUserId.set(httpReq.getHeader(USER_ID));
+                capturedRoles.set(httpReq.getHeader(USER_ROLES));
             };
 
             filter.doFilterInternal(request, response, chain);
@@ -167,7 +169,7 @@ class TokenIntrospectionFilterTest {
             AtomicReference<String> capturedRoles = new AtomicReference<>();
 
             FilterChain chain = (req, _) ->
-                    capturedRoles.set(((HttpServletRequest) req).getHeader("X-User-Roles"));
+                    capturedRoles.set(((HttpServletRequest) req).getHeader(USER_ROLES));
 
             filter.doFilterInternal(request, response, chain);
 
@@ -223,8 +225,8 @@ class TokenIntrospectionFilterTest {
             FilterChain chain = (req, _) -> {
                 HttpServletRequest httpReq = (HttpServletRequest) req;
                 var names = java.util.Collections.list(httpReq.getHeaderNames());
-                hasUserId.set(names.stream().anyMatch("X-User-Id"::equalsIgnoreCase));
-                hasRoles.set(names.stream().anyMatch("X-User-Roles"::equalsIgnoreCase));
+                hasUserId.set(names.stream().anyMatch(USER_ID::equalsIgnoreCase));
+                hasRoles.set(names.stream().anyMatch(USER_ROLES::equalsIgnoreCase));
             };
 
             filter.doFilterInternal(request, response, chain);

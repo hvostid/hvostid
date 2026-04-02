@@ -1,4 +1,4 @@
-package ru.hvostid.auth.dto;
+package ru.hvostid.common.contract.auth;
 
 import jakarta.validation.constraints.NotBlank;
 

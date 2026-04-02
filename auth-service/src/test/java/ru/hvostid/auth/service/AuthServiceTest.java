@@ -19,6 +19,8 @@ import ru.hvostid.auth.exception.InvalidCredentialsException;
 import ru.hvostid.auth.exception.InvalidRefreshTokenException;
 import ru.hvostid.auth.repository.SessionRepository;
 import ru.hvostid.auth.repository.UserRepository;
+import ru.hvostid.common.contract.auth.IntrospectRequest;
+import ru.hvostid.common.contract.auth.IntrospectResponse;
 
 import java.time.Duration;
 import java.time.Instant;
