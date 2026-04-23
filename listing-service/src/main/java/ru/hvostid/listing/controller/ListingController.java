@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
+import ru.hvostid.listing.exception.AccessDeniedException;
 import ru.hvostid.listing.service.ListingService;
 
 import java.util.Arrays;
@@ -155,7 +156,7 @@ public class ListingController {
         }
 
         if (!hasRole(rolesHeader, "seller")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw new AccessDeniedException("User does not have seller role");
         }
 
         ListingResponse response = listingService.updateListing(id, request, userId);

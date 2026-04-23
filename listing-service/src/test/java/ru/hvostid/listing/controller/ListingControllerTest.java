@@ -253,7 +253,7 @@ class ListingControllerTest {
         @DisplayName("update non-existent listing - returns 404")
         void updateListing_notFound_returns404() throws Exception {
             ListingUpdateRequest updateRequest = new ListingUpdateRequest(
-                    "Updated", null, null, null, null, null, null
+                    "Updated", null, null, null, null, null, null, null
             );
 
             mockMvc.perform(put(LISTINGS_URL + "/{id}", 99999L)
@@ -269,7 +269,7 @@ class ListingControllerTest {
         void updateListing_invalidData_returns400() throws Exception {
             // title too short
             ListingUpdateRequest invalidUpdate = new ListingUpdateRequest(
-                    "ab", null, null, null, null, null, null
+                    "ab", null, null, null, null, null, null, null
             );
 
             mockMvc.perform(put(LISTINGS_URL + "/{id}", listingId)
@@ -284,7 +284,7 @@ class ListingControllerTest {
         @DisplayName("update listing with negative price - returns 400")
         void updateListing_negativePrice_returns400() throws Exception {
             ListingUpdateRequest invalidUpdate = new ListingUpdateRequest(
-                    null, null, null, null, null, -100, null
+                    null, null, null, null, null, -100, null, null
             );
 
             mockMvc.perform(put(LISTINGS_URL + "/{id}", listingId)
@@ -324,7 +324,7 @@ class ListingControllerTest {
         @Test
         void update_success() throws Exception {
             ListingUpdateRequest req = new ListingUpdateRequest(
-                    "Updated", null, null, null, null, null, null
+                    "Updated", null, null, null, null, null, null, null
             );
 
             mockMvc.perform(put(LISTINGS_URL + "/{id}", listingId)
@@ -339,7 +339,7 @@ class ListingControllerTest {
         @Test
         void update_notOwner_returns403() throws Exception {
             ListingUpdateRequest req = new ListingUpdateRequest(
-                    "Hack", null, null, null, null, null, null
+                    "Hack", null, null, null, null, null, null, null
             );
 
             mockMvc.perform(put(LISTINGS_URL + "/{id}", listingId)

@@ -20,6 +20,8 @@ public record ListingUpdateRequest(
         @PositiveOrZero(message = "Price must be positive")
         Integer price,
 
-        String city
+        String city,
+
+        String passportId
 ) {
 }

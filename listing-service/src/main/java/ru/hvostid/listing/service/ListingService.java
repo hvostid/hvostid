@@ -82,10 +82,11 @@ public class ListingService {
         }
 
         if (listing.getStatus() != ListingStatus.DRAFT &&
-                listing.getStatus() != ListingStatus.PUBLISHED) {
+                listing.getStatus() != ListingStatus.PUBLISHED &&
+                listing.getStatus() != ListingStatus.REJECTED) {
             throw new InvalidListingStatusException(
                     "Cannot edit listing in status: " + listing.getStatus() +
-                            ". Only DRAFT or PUBLISHED listings can be edited."
+                            ". Only DRAFT/PUBLISHED/REJECTED listings can be edited."
             );
         }
 

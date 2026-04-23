@@ -135,7 +135,7 @@ class ListingServiceTest {
         ListingResponse created = listingService.createListing(validRequest, 1L);
         ListingUpdateRequest updateRequest = new ListingUpdateRequest(
                 "Updated Title", "Updated Description", "cat", "Siamese",
-                12, 20000, "Saint Petersburg"
+                12, 20000, "Saint Petersburg", "passport-1"
         );
 
         // when
@@ -157,7 +157,7 @@ class ListingServiceTest {
         listingRepository.save(listing);
 
         ListingUpdateRequest updateRequest = new ListingUpdateRequest(
-                "Updated Published Title", null, null, null, null, null, null
+                "Updated Published Title", null, null, null, null, null, null, null
         );
 
         // when
@@ -173,7 +173,7 @@ class ListingServiceTest {
         // given
         ListingResponse created = listingService.createListing(validRequest, 1L);
         ListingUpdateRequest updateRequest = new ListingUpdateRequest(
-                "Hacked Title", null, null, null, null, null, null
+                "Hacked Title", null, null, null, null, null, null, null
         );
 
         // when/then - user 2 tries to update
@@ -187,7 +187,7 @@ class ListingServiceTest {
         // given
         ListingResponse created = listingService.createListing(validRequest, 1L);
         ListingUpdateRequest updateRequest = new ListingUpdateRequest(
-                null, null, null, null, null, 25000, null  // only price updated
+                null, null, null, null, null, 25000, null, null  // only price updated
         );
 
         // when
@@ -320,7 +320,7 @@ class ListingServiceTest {
         setStatus(created.id(), ListingStatus.MODERATION);
 
         ListingUpdateRequest updateRequest = new ListingUpdateRequest(
-                "Updated Title", null, null, null, null, null, null
+                "Updated Title", null, null, null, null, null, null, null
         );
 
         // when/then
@@ -330,19 +330,21 @@ class ListingServiceTest {
     }
 
     @Test
-    void updateListing_WhenRejectedStatus_ShouldThrowInvalidStatusException() {
+    void updateListing_WhenRejectedStatus_ShouldUpdateSuccessfully() {
         // given
         ListingResponse created = listingService.createListing(validRequest, 1L);
         setStatus(created.id(), ListingStatus.REJECTED);
 
         ListingUpdateRequest updateRequest = new ListingUpdateRequest(
-                "Updated Title", null, null, null, null, null, null
+                "Updated Title", null, null, null, null, null, null, null
         );
 
-        // when/then
-        assertThatThrownBy(() -> listingService.updateListing(created.id(), updateRequest, 1L))
-                .isInstanceOf(InvalidListingStatusException.class)
-                .hasMessageContaining("Cannot edit listing in status: REJECTED");
+        // when
+        ListingResponse updated = listingService.updateListing(created.id(), updateRequest, 1L);
+
+        // then
+        assertThat(updated.title()).isEqualTo("Updated Title");
+        assertThat(updated.status()).isEqualTo(ListingStatus.REJECTED); // статус не меняется
     }
 
     @Test
@@ -411,7 +413,7 @@ class ListingServiceTest {
         // given
         ListingResponse created = listingService.createListing(validRequest, 1L);
         ListingUpdateRequest emptyUpdate = new ListingUpdateRequest(
-                null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null
         );
 
         // when
