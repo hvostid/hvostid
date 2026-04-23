@@ -13,7 +13,7 @@ import ru.hvostid.listing.entity.Listing;
 import ru.hvostid.listing.entity.ListingStatus;
 import ru.hvostid.listing.exception.*;
 import ru.hvostid.listing.repository.ListingRepository;
-// бизнес-логика
+
 @Service
 public class ListingService {
     private static final Logger log = LoggerFactory.getLogger(ListingService.class);
@@ -32,14 +32,14 @@ public class ListingService {
 
         Listing listing = new Listing(
                 sellerId,
-                request.title(),
-                request.description(),
-                request.species(),
-                request.breed(),
+                normalize(request.title()),
+                normalize(request.description()),
+                normalize(request.species()),
+                normalize(request.breed()),
                 request.age(),
                 request.price(),
-                request.city(),
-                request.passportId()
+                normalize(request.city()),
+                normalize(request.passportId())
         );
 
         // репозиторий сохраняет entity
@@ -111,14 +111,17 @@ public class ListingService {
     }
 
     private void checkForDuplicate(ListingRequest request, Long sellerId) {
-        // проверка: такое же название + тот же продавец + статус не ARCHIVED
         boolean exists = listingRepository.existsBySellerIdAndTitleAndStatusNot(
                 sellerId,
-                request.title(),
+                normalize(request.title()),
                 ListingStatus.ARCHIVED
         );
         if (exists) {
             throw new DuplicateListingException("You already have a listing with this title");
         }
+    }
+
+    private String normalize(String value) {
+        return value == null ? null : value.trim();
     }
 }

@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -143,9 +144,14 @@ public class ListingController {
             @PathVariable Long id,
             @Valid @RequestBody ListingUpdateRequest request,
             @Parameter(description = "User ID from Gateway", required = true, example = "100")
-            @RequestHeader("X-User-Id") Long userId) {
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestHeader("X-User-Roles") String rolesHeader) {
 
         log.debug("PUT /api/v1/listings/{}, userId={}", id, userId);
+
+        if (!hasRole(rolesHeader, "seller")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
 
         if (userId == null || userId <= 0) {
             return ResponseEntity.badRequest().build();
@@ -171,6 +177,11 @@ public class ListingController {
             @PageableDefault(size = 20) Pageable pageable) {
 
         log.debug("GET /api/v1/listings, page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
+
+        int maxSize = 100;
+        if (pageable.getPageSize() > maxSize) {
+            pageable = PageRequest.of(pageable.getPageNumber(), maxSize, pageable.getSort());
+        }
 
         Page<ListingResponse> responses = listingService.getPublishedListings(pageable);
         return ResponseEntity.ok(responses);

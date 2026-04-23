@@ -224,7 +224,6 @@ class ListingControllerTest {
     class UpdateListingEdgeCasesTests {
 
         private Long listingId;
-        private final Long otherUserId = 999L;
 
         @BeforeEach
         void setUp() {
@@ -259,6 +258,7 @@ class ListingControllerTest {
 
             mockMvc.perform(put(LISTINGS_URL + "/{id}", 99999L)
                             .header("X-User-Id", testSellerId)
+                            .header("X-User-Roles", "seller")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(updateRequest)))
                     .andExpect(status().isNotFound());
@@ -329,6 +329,7 @@ class ListingControllerTest {
 
             mockMvc.perform(put(LISTINGS_URL + "/{id}", listingId)
                             .header("X-User-Id", testSellerId)
+                            .header("X-User-Roles", "seller")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req)))
                     .andExpect(status().isOk())
@@ -343,6 +344,7 @@ class ListingControllerTest {
 
             mockMvc.perform(put(LISTINGS_URL + "/{id}", listingId)
                             .header("X-User-Id", 999L)
+                            .header("X-User-Roles", "buyer")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req)))
                     .andExpect(status().isForbidden());

@@ -9,7 +9,7 @@ public record ListingRequest(
         @Size(min = 3, max = 255, message = "Title must be between 3 and 255 characters")
         String title,
 
-        @Size(max = 5000, message = "Description too long")
+        @Size(max = 2000, message = "Description too long")
         String description,
 
         @NotBlank(message = "Species is required")
