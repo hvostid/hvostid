@@ -89,13 +89,13 @@ public class ListingService {
             );
         }
 
-        if (request.title() != null) listing.setTitle(request.title());
-        if (request.description() != null) listing.setDescription(request.description());
-        if (request.species() != null) listing.setSpecies(request.species());
-        if (request.breed() != null) listing.setBreed(request.breed());
+        if (request.title() != null) listing.setTitle(normalize(request.title()));
+        if (request.description() != null) listing.setDescription(normalize(request.description()));
+        if (request.species() != null) listing.setSpecies(normalize(request.species()));
+        if (request.breed() != null) listing.setBreed(normalize(request.breed()));
         if (request.age() != null) listing.setAge(request.age());
         if (request.price() != null) listing.setPrice(request.price());
-        if (request.city() != null) listing.setCity(request.city());
+        if (request.city() != null) listing.setCity(normalize(request.city()));
 
         Listing updated = listingRepository.save(listing);
         log.info("Listing updated id={} userId={}", updated.getId(), userId);

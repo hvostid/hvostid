@@ -145,16 +145,17 @@ public class ListingController {
             @Valid @RequestBody ListingUpdateRequest request,
             @Parameter(description = "User ID from Gateway", required = true, example = "100")
             @RequestHeader("X-User-Id") Long userId,
+            @Parameter(description = "User roles from Gateway (comma-separated)", required = true, example = "seller,buyer")
             @RequestHeader("X-User-Roles") String rolesHeader) {
 
         log.debug("PUT /api/v1/listings/{}, userId={}", id, userId);
 
-        if (!hasRole(rolesHeader, "seller")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-
         if (userId == null || userId <= 0) {
             return ResponseEntity.badRequest().build();
+        }
+
+        if (!hasRole(rolesHeader, "seller")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
         ListingResponse response = listingService.updateListing(id, request, userId);
