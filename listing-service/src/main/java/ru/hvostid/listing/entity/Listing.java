@@ -27,7 +27,7 @@ public class Listing {
 
     private String breed;
 
-    private Integer age; // в месяцах
+    private Integer age; // months
 
     private Integer price;
 

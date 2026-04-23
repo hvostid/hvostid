@@ -4,7 +4,7 @@ import ru.hvostid.listing.entity.Listing;
 import ru.hvostid.listing.entity.ListingStatus;
 
 import java.time.Instant;
-// формат ответа клиенту
+
 public record ListingResponse(
         Long id,
         Long sellerId,

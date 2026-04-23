@@ -253,7 +253,6 @@ class ListingServiceTest {
             setStatus(created.id(), ListingStatus.PUBLISHED);
             createdIds.add(created.id());
 
-            // небольшая задержка чтобы избежать коллизий по времени
             Thread.sleep(1);
         }
 
@@ -344,7 +343,7 @@ class ListingServiceTest {
 
         // then
         assertThat(updated.title()).isEqualTo("Updated Title");
-        assertThat(updated.status()).isEqualTo(ListingStatus.REJECTED); // статус не меняется
+        assertThat(updated.status()).isEqualTo(ListingStatus.REJECTED); // unchanged
     }
 
     @Test

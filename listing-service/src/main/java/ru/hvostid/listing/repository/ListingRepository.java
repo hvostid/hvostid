@@ -5,7 +5,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import ru.hvostid.listing.entity.Listing;
 import ru.hvostid.listing.entity.ListingStatus;
-// доступ к бд
+
 public interface ListingRepository extends JpaRepository<Listing, Long> {
     Page<Listing> findByStatus(ListingStatus status, Pageable pageable);
     boolean existsBySellerIdAndTitleAndStatusNot(Long sellerId, String title, ListingStatus status);

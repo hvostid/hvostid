@@ -17,6 +17,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.hvostid.common.http.SecurityHeaders;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
@@ -59,9 +60,9 @@ public class ListingController {
     public ResponseEntity<ListingResponse> createListing(
             @Valid @RequestBody ListingRequest request,
             @Parameter(description = "User ID from Gateway", required = true, example = "100")
-            @RequestHeader("X-User-Id") Long userId,
+            @RequestHeader(value = SecurityHeaders.USER_ID, required = false) Long userId,
             @Parameter(description = "User roles from Gateway (comma-separated)", required = true, example = "seller,buyer")
-            @RequestHeader("X-User-Roles") String rolesHeader) {
+            @RequestHeader(value = SecurityHeaders.USER_ROLES, required = false) String rolesHeader) {
 
         log.debug("POST /api/v1/listings, userId={}, roles={}", userId, rolesHeader);
 
@@ -105,7 +106,7 @@ public class ListingController {
             @Parameter(description = "Listing ID", required = true, example = "1")
             @PathVariable Long id,
             @Parameter(description = "User ID from Gateway", required = true, example = "100")
-            @RequestHeader("X-User-Id") Long userId) {
+            @RequestHeader(value = SecurityHeaders.USER_ID, required = false) Long userId) {
 
         log.debug("GET /api/v1/listings/{}, userId={}", id, userId);
 
@@ -145,9 +146,9 @@ public class ListingController {
             @PathVariable Long id,
             @Valid @RequestBody ListingUpdateRequest request,
             @Parameter(description = "User ID from Gateway", required = true, example = "100")
-            @RequestHeader("X-User-Id") Long userId,
+            @RequestHeader(value = SecurityHeaders.USER_ID, required = false) Long userId,
             @Parameter(description = "User roles from Gateway (comma-separated)", required = true, example = "seller,buyer")
-            @RequestHeader("X-User-Roles") String rolesHeader) {
+            @RequestHeader(value = SecurityHeaders.USER_ROLES, required = false) String rolesHeader) {
 
         log.debug("PUT /api/v1/listings/{}, userId={}", id, userId);
 
