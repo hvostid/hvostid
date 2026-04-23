@@ -22,9 +22,9 @@ import java.util.UUID;
 import static ru.hvostid.common.http.SecurityHeaders.REQUEST_ID;
 
 /**
- * Global servlet filter that ensures every request has an X-Request-Id header.
+ * Global servlet filter that ensures every request has a Request ID header.
  * <p>
- * If the incoming request already contains X-Request-Id, its value is reused.
+ * If the incoming request already contains Request ID, its value is reused.
  * Otherwise, a new UUID is generated. The header is:
  * - forwarded to downstream services (via request wrapper)
  * - added to the response so the client can see it
@@ -51,10 +51,10 @@ public class RequestIdFilter extends OncePerRequestFilter {
         try {
             log.debug("Request {} {} requestId={} (generated={})", request.getMethod(), request.getRequestURI(), requestId, generated);
 
-            // Wrap the request so the gateway forwards X-Request-Id to downstream services
+            // Wrap the request so the gateway forwards Request ID to downstream services
             HttpServletRequest wrappedRequest = generated ? new RequestIdHeaderWrapper(request, requestId) : request;
 
-            // Add X-Request-Id to the response for the client
+            // Add Request ID to the response for the client
             response.setHeader(REQUEST_ID, requestId);
 
             filterChain.doFilter(wrappedRequest, response);
@@ -64,7 +64,7 @@ public class RequestIdFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Wrapper that injects the X-Request-Id header into the request
+     * Wrapper that injects the Request ID header into the request
      * when the client did not provide one.
      */
     static class RequestIdHeaderWrapper extends HttpServletRequestWrapper {

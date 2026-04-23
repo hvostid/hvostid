@@ -37,7 +37,7 @@ public class ProfileService {
     /**
      * Get profile of the current user.
      *
-     * @param userId user identifier from X-User-Id header
+     * @param userId user identifier from User ID header
      * @return full profile data
      * @throws UserNotFoundException if user does not exist
      */
@@ -52,7 +52,7 @@ public class ProfileService {
      * Update profile fields for the current user.
      * Only non-null fields from the request are applied.
      *
-     * @param userId  user identifier from X-User-Id header
+     * @param userId  user identifier from User ID header
      * @param request profile fields to update
      * @return updated profile data
      * @throws UserNotFoundException if user does not exist
@@ -84,7 +84,7 @@ public class ProfileService {
      * Add a role to the current user.
      * Only seller can be self-assigned; moderator and admin require admin privileges.
      *
-     * @param userId  user identifier from X-User-Id header
+     * @param userId  user identifier from User ID header
      * @param request contains the role to add
      * @return updated profile data
      * @throws UserNotFoundException  if user does not exist

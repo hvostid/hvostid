@@ -14,7 +14,7 @@ import org.springframework.security.web.SecurityFilterChain;
 /**
  * Spring Security configuration.
  * Disables CSRF, uses stateless sessions, permits auth, profile, and internal endpoints.
- * Profile endpoints are protected by Gateway (X-User-Id header), not by Spring Security.
+ * Profile endpoints are protected by Gateway (User ID header), not by Spring Security.
  */
 @Configuration
 @EnableWebSecurity

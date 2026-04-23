@@ -231,8 +231,8 @@ class TokenIntrospectionFilterTest {
 
             filter.doFilterInternal(request, response, chain);
 
-            assertTrue(hasUserId.get(), "Header names must include X-User-Id");
-            assertTrue(hasRoles.get(), "Header names must include X-User-Roles");
+            assertTrue(hasUserId.get(), "Header names must include User ID");
+            assertTrue(hasRoles.get(), "Header names must include User Roles");
         }
     }
 }

@@ -21,7 +21,7 @@ import ru.hvostid.common.http.SecurityHeaders;
 
 /**
  * REST controller for user profile and role management.
- * User identity is provided by Gateway via X-User-Id header.
+ * User identity is provided by Gateway via User ID header.
  */
 @Tag(name = "Profile")
 @RestController
@@ -39,7 +39,7 @@ public class ProfileController {
      */
     @Operation(
             summary = "Get current user profile",
-            description = "Returns the profile of the user identified by X-User-Id header "
+            description = "Returns the profile of the user identified by User ID header "
                     + "(set by Gateway after token introspection).")
     @ApiResponse(
             responseCode = "200",
@@ -47,7 +47,7 @@ public class ProfileController {
             content = @Content(schema = @Schema(implementation = ProfileResponse.class)))
     @ApiResponse(
             responseCode = "401",
-            description = "Missing X-User-Id header",
+            description = "Missing User ID header",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(
             responseCode = "404",
@@ -82,7 +82,7 @@ public class ProfileController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(
             responseCode = "401",
-            description = "Missing X-User-Id header",
+            description = "Missing User ID header",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(
             responseCode = "404",
@@ -120,7 +120,7 @@ public class ProfileController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(
             responseCode = "401",
-            description = "Missing X-User-Id header",
+            description = "Missing User ID header",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(
             responseCode = "403",

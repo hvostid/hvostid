@@ -33,12 +33,12 @@ import static ru.hvostid.common.http.SecurityHeaders.USER_ROLES;
  * For each non-public path the filter:
  * 1. Extracts the Bearer token from the Authorization header
  * 2. Calls Auth Service introspection endpoint via {@link IntrospectionClient}
- * 3. On success (active=true): injects X-User-Id and X-User-Roles headers into the request
+ * 3. On success (active=true): injects User ID and User Roles headers into the request
  * 4. On failure (missing/invalid token or introspection error): returns 401
  * <p>
  * Public paths (login, register, actuator) bypass this filter entirely.
  * <p>
- * Ordered after {@link RequestIdFilter} so that X-Request-Id is available in logs.
+ * Ordered after {@link RequestIdFilter} so that Request ID is available in logs.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
@@ -118,7 +118,7 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Request wrapper that injects extra headers (X-User-Id, X-User-Roles)
+     * Request wrapper that injects extra headers (User ID, User Roles)
      * so downstream services receive authenticated user information.
      */
     static class UserInfoHeaderWrapper extends HttpServletRequestWrapper {

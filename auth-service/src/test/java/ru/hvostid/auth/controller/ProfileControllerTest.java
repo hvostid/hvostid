@@ -55,7 +55,7 @@ class ProfileControllerTest {
     @DisplayName("GET /api/v1/profile/me")
     class GetProfileTests {
         @Test
-        @DisplayName("with valid X-User-Id - returns 200 with profile")
+        @DisplayName("with valid User ID - returns 200 with profile")
         void getProfile_validUserId_returnsProfile() throws Exception {
             Long userId = registerAndGetUserId("profile@example.com", "Profile User");
 
@@ -70,7 +70,7 @@ class ProfileControllerTest {
         }
 
         @Test
-        @DisplayName("without X-User-Id header - returns 401")
+        @DisplayName("without User ID header - returns 401")
         void getProfile_noUserIdHeader_returns401() throws Exception {
             mockMvc.perform(get(PROFILE_ME_URL))
                     .andExpect(status().isUnauthorized());
@@ -365,7 +365,7 @@ class ProfileControllerTest {
         }
 
         @Test
-        @DisplayName("without X-User-Id header - returns 401")
+        @DisplayName("without User ID header - returns 401")
         void addRole_noUserIdHeader_returns401() throws Exception {
             String body = """
                     { "role": "seller" }
