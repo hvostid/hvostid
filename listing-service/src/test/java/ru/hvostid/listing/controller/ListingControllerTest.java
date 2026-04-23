@@ -79,6 +79,83 @@ class ListingControllerTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isForbidden());
         }
+
+        @Test
+        @DisplayName("create listing invalid title -> 400")
+        void create_invalidTitle_returns400() throws Exception {
+            ListingRequest request = new ListingRequest(
+                    "ab", "Desc", "dog", "Labrador",
+                    3, 10000, "Moscow", "p-1"
+            );
+
+            mockMvc.perform(post(LISTINGS_URL)
+                            .header("X-User-Id", testSellerId)
+                            .header("X-User-Roles", "seller")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.title").exists());
+        }
+
+        @Test
+        void create_invalidUserId_returns400() throws Exception {
+            ListingRequest request = new ListingRequest(
+                    "Test", "Desc", "dog", "Labrador",
+                    3, 10000, "Moscow", "p-1"
+            );
+
+            mockMvc.perform(post(LISTINGS_URL)
+                            .header("X-User-Id", -1)
+                            .header("X-User-Roles", "seller")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/v1/listings")
+    class GetListingsTests {
+
+        @BeforeEach
+        void setUp() {
+            // 2 published
+            for (int i = 0; i < 2; i++) {
+                Listing l = new Listing(
+                        testSellerId, "Pub " + i, "Desc", "dog",
+                        "Labrador", 3, 10000, "Moscow", "p-" + i
+                );
+                l.setStatus(ListingStatus.PUBLISHED);
+                listingRepository.save(l);
+            }
+
+            // 1 draft
+            Listing draft = new Listing(
+                    testSellerId, "Draft", "Desc", "dog",
+                    "Labrador", 3, 10000, "Moscow", "p-x"
+            );
+            draft.setStatus(ListingStatus.DRAFT);
+            listingRepository.save(draft);
+        }
+
+        @Test
+        @DisplayName("should return only published listings")
+        void getListings_onlyPublished() throws Exception {
+            mockMvc.perform(get(LISTINGS_URL + "?page=0&size=10"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content", hasSize(2)))
+                    .andExpect(jsonPath("$.content[*].status", everyItem(is("PUBLISHED"))));
+        }
+
+        @Test
+        @DisplayName("should support pagination")
+        void getListings_pagination() throws Exception {
+            mockMvc.perform(get(LISTINGS_URL + "?page=0&size=1"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content", hasSize(1)))
+                    .andExpect(jsonPath("$.totalElements").value(2))
+                    .andExpect(jsonPath("$.totalPages").value(2));
+        }
     }
 
     @Nested
@@ -218,4 +295,59 @@ class ListingControllerTest {
                     .andExpect(jsonPath("$.price").value("Price must be positive"));
         }
     }
+
+    @Nested
+    @DisplayName("PUT /api/v1/listings/{id}")
+    class UpdateListingTests {
+
+        private Long listingId;
+
+        @BeforeEach
+        void setUp() throws Exception {
+            ListingRequest request = new ListingRequest(
+                    "Test", "Desc", "dog", "Labrador",
+                    3, 10000, "Moscow", "p-1"
+            );
+
+            String response = mockMvc.perform(post(LISTINGS_URL)
+                            .header("X-User-Id", testSellerId)
+                            .header("X-User-Roles", "seller")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString();
+
+            listingId = objectMapper.readTree(response).get("id").asLong();
+        }
+
+        @Test
+        void update_success() throws Exception {
+            ListingUpdateRequest req = new ListingUpdateRequest(
+                    "Updated", null, null, null, null, null, null
+            );
+
+            mockMvc.perform(put(LISTINGS_URL + "/{id}", listingId)
+                            .header("X-User-Id", testSellerId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.title").value("Updated"));
+        }
+
+        @Test
+        void update_notOwner_returns403() throws Exception {
+            ListingUpdateRequest req = new ListingUpdateRequest(
+                    "Hack", null, null, null, null, null, null
+            );
+
+            mockMvc.perform(put(LISTINGS_URL + "/{id}", listingId)
+                            .header("X-User-Id", 999L)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req)))
+                    .andExpect(status().isForbidden());
+        }
+    }
+
+
 }

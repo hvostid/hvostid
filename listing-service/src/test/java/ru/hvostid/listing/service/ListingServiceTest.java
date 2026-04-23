@@ -15,6 +15,7 @@ import ru.hvostid.listing.dto.ListingUpdateRequest;
 import ru.hvostid.listing.entity.Listing;
 import ru.hvostid.listing.entity.ListingStatus;
 import ru.hvostid.listing.exception.AccessDeniedException;
+import ru.hvostid.listing.exception.DuplicateListingException;
 import ru.hvostid.listing.exception.InvalidListingStatusException;
 import ru.hvostid.listing.exception.ListingNotFoundException;
 import ru.hvostid.listing.repository.ListingRepository;
@@ -64,6 +65,15 @@ class ListingServiceTest {
         assertThat(response.sellerId()).isEqualTo(1L);
         assertThat(response.title()).isEqualTo("Cute Puppy");
         assertThat(response.status()).isEqualTo(ListingStatus.DRAFT);
+    }
+
+    @Test
+    void createListing_duplicateTitle_shouldThrow() {
+        listingService.createListing(validRequest, 1L);
+
+        assertThatThrownBy(() ->
+                listingService.createListing(validRequest, 1L)
+        ).isInstanceOf(DuplicateListingException.class);
     }
 
     // ==================== GET LISTING TESTS ====================
