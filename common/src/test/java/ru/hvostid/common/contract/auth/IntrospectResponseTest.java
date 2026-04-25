@@ -1,6 +1,7 @@
 package ru.hvostid.common.contract.auth;
 
 import org.junit.jupiter.api.Test;
+import ru.hvostid.common.security.UserRole;
 
 import java.util.List;
 
@@ -17,24 +18,24 @@ class IntrospectResponseTest {
 
     @Test
     void active_shouldReturnTrueActiveWithUserData() {
-        var response = IntrospectResponse.active(42L, List.of("buyer", "seller"));
+        var response = IntrospectResponse.active(42L, List.of(UserRole.BUYER.value(), UserRole.SELLER.value()));
         assertTrue(response.active());
         assertEquals(42L, response.userId());
-        assertEquals(List.of("buyer", "seller"), response.roles());
+        assertEquals(List.of(UserRole.BUYER.value(), UserRole.SELLER.value()), response.roles());
     }
 
     @Test
     void constructor_shouldPreserveAllFields() {
-        var response = new IntrospectResponse(true, 1L, List.of("admin"));
+        var response = new IntrospectResponse(true, 1L, List.of(UserRole.ADMIN.value()));
         assertTrue(response.active());
         assertEquals(1L, response.userId());
-        assertEquals(List.of("admin"), response.roles());
+        assertEquals(List.of(UserRole.ADMIN.value()), response.roles());
     }
 
     @Test
     void equalResponses_shouldBeEqual() {
-        var a = IntrospectResponse.active(1L, List.of("buyer"));
-        var b = IntrospectResponse.active(1L, List.of("buyer"));
+        var a = IntrospectResponse.active(1L, List.of(UserRole.BUYER.value()));
+        var b = IntrospectResponse.active(1L, List.of(UserRole.BUYER.value()));
         assertEquals(a, b);
     }
 }

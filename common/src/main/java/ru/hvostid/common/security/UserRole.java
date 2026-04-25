@@ -1,7 +1,6 @@
 package ru.hvostid.common.security;
 
 import java.util.Arrays;
-import java.util.Locale;
 
 /**
  * User roles shared across services.
@@ -20,7 +19,7 @@ public enum UserRole {
 
     public static UserRole fromValue(String value) {
         return Arrays.stream(values())
-                .filter(role -> role.value.equalsIgnoreCase(value))
+                .filter(role -> role.value.equals(value))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Unknown user role: " + value));
     }
@@ -31,9 +30,5 @@ public enum UserRole {
 
     public String authority() {
         return "ROLE_" + value;
-    }
-
-    public String lowerValue() {
-        return value.toLowerCase(Locale.ROOT);
     }
 }

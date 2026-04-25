@@ -40,7 +40,7 @@ public class ListingController {
 
     @Operation(
             summary = "Create a new listing",
-            description = "Creates a new animal listing with DRAFT status. Only users with seller role can create listings."
+            description = "Creates a new animal listing with DRAFT status. Only users with SELLER role can create listings."
     )
     @ApiResponses({
             @ApiResponse(
@@ -57,7 +57,7 @@ public class ListingController {
                     content = @Content),
             @ApiResponse(
                     responseCode = "403",
-                    description = "User does not have seller role",
+                    description = "User does not have SELLER role",
                     content = @Content)
     })
     @PostMapping

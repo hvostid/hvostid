@@ -100,13 +100,13 @@ public class ProfileController {
 
     /**
      * Add a role to the current user.
-     * Only 'seller' can be self-assigned. Moderator and admin roles
+     * Only SELLER can be self-assigned. MODERATOR and ADMIN roles
      * require admin assignment.
      */
     @Operation(
             summary = "Add a role to current user",
-            description = "Allows a user to self-assign the 'seller' role. "
-                    + "Roles 'moderator' and 'admin' can only be assigned by an administrator.")
+            description = "Allows a user to self-assign the SELLER role. "
+                    + "Roles MODERATOR and ADMIN can only be assigned by an administrator.")
     @ApiResponse(
             responseCode = "200",
             description = "Role added successfully",

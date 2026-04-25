@@ -53,27 +53,27 @@ export default function App() {
 
           {/* Seller */}
           <Route path="/my-listings" element={
-            <ProtectedRoute requiredRole="seller"><MyListingsPage /></ProtectedRoute>
+            <ProtectedRoute requiredRole="SELLER"><MyListingsPage /></ProtectedRoute>
           } />
           <Route path="/my-listings/new" element={
-            <ProtectedRoute requiredRole="seller"><CreateListingPage /></ProtectedRoute>
+            <ProtectedRoute requiredRole="SELLER"><CreateListingPage /></ProtectedRoute>
           } />
           <Route path="/my-listings/:id/edit" element={
-            <ProtectedRoute requiredRole="seller"><EditListingPage /></ProtectedRoute>
+            <ProtectedRoute requiredRole="SELLER"><EditListingPage /></ProtectedRoute>
           } />
           <Route path="/my-listings/:id/passport" element={
-            <ProtectedRoute requiredRole="seller"><PassportFormPage /></ProtectedRoute>
+            <ProtectedRoute requiredRole="SELLER"><PassportFormPage /></ProtectedRoute>
           } />
 
           {/* Moderator */}
           <Route path="/moderation" element={
-            <ProtectedRoute requiredRole="moderator"><ModerationQueuePage /></ProtectedRoute>
+            <ProtectedRoute requiredRole="MODERATOR"><ModerationQueuePage /></ProtectedRoute>
           } />
           <Route path="/moderation/:id" element={
-            <ProtectedRoute requiredRole="moderator"><ModerationDetailPage /></ProtectedRoute>
+            <ProtectedRoute requiredRole="MODERATOR"><ModerationDetailPage /></ProtectedRoute>
           } />
           <Route path="/moderation/flags" element={
-            <ProtectedRoute requiredRole="moderator"><FlagsPage /></ProtectedRoute>
+            <ProtectedRoute requiredRole="MODERATOR"><FlagsPage /></ProtectedRoute>
           } />
         </Routes>
       </main>

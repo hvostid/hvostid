@@ -8,8 +8,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import ru.hvostid.common.contract.auth.IntrospectResponse;
+import ru.hvostid.common.security.UserRole;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -38,7 +40,7 @@ class IntrospectionClientTest {
     @DisplayName("active token returns present result with user data")
     void activeToken_returnsPresent() {
         String responseBody = objectMapper.writeValueAsString(
-                new IntrospectResponse(true, 42L, java.util.List.of("buyer"))
+                new IntrospectResponse(true, 42L, List.of(UserRole.BUYER.value()))
         );
 
         mockServer.expect(requestTo("http://localhost:8081/internal/auth/introspect"))
@@ -51,7 +53,7 @@ class IntrospectionClientTest {
         assertTrue(result.isPresent());
         assertTrue(result.get().active());
         assertEquals(42L, result.get().userId());
-        assertEquals(java.util.List.of("buyer"), result.get().roles());
+        assertEquals(List.of(UserRole.BUYER.value()), result.get().roles());
     }
 
     @Test

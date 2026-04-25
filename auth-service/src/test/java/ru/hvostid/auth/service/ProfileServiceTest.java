@@ -62,7 +62,7 @@ class ProfileServiceTest {
             assertEquals(1L, response.id());
             assertEquals("test@example.com", response.email());
             assertEquals("Test User", response.name());
-            assertTrue(response.roles().contains("buyer"));
+            assertTrue(response.roles().contains(UserRole.BUYER.value()));
             assertEquals("+79001234567", response.phone());
             assertEquals("Moscow", response.city());
             assertEquals("Hello world", response.bio());
@@ -95,7 +95,7 @@ class ProfileServiceTest {
         }
 
         @Test
-        @DisplayName("default role is buyer")
+        @DisplayName("default role is BUYER")
         void getProfile_defaultRole_isBuyer() {
             User user = createUser(1L, "buyer@example.com", "Buyer");
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
@@ -103,7 +103,7 @@ class ProfileServiceTest {
             ProfileResponse response = profileService.getProfile(1L);
 
             assertEquals(1, response.roles().size());
-            assertTrue(response.roles().contains("buyer"));
+            assertTrue(response.roles().contains(UserRole.BUYER.value()));
         }
 
         @Test
@@ -117,8 +117,8 @@ class ProfileServiceTest {
 
             assertEquals(2, response.roles().size());
             // roles should be sorted alphabetically
-            assertEquals("buyer", response.roles().get(0));
-            assertEquals("seller", response.roles().get(1));
+            assertEquals(UserRole.BUYER.value(), response.roles().get(0));
+            assertEquals(UserRole.SELLER.value(), response.roles().get(1));
         }
     }
 
@@ -214,7 +214,7 @@ class ProfileServiceTest {
             ProfileResponse response = profileService.updateProfile(1L, request);
 
             assertEquals("test@example.com", response.email());
-            assertTrue(response.roles().contains("buyer"));
+            assertTrue(response.roles().contains(UserRole.BUYER.value()));
         }
     }
 
@@ -224,80 +224,79 @@ class ProfileServiceTest {
     @DisplayName("addRole")
     class AddRoleTests {
         @Test
-        @DisplayName("add seller role - success")
+        @DisplayName("add SELLER role - success")
         void addRole_seller_success() {
             User user = createUser(1L, "test@example.com", "Test");
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            ProfileResponse response = profileService.addRole(1L, new AddRoleRequest("seller"));
+            ProfileResponse response = profileService.addRole(1L, new AddRoleRequest(UserRole.SELLER.value()));
 
-            assertTrue(response.roles().contains("seller"));
-            assertTrue(response.roles().contains("buyer"));
+            assertTrue(response.roles().contains(UserRole.SELLER.value()));
+            assertTrue(response.roles().contains(UserRole.BUYER.value()));
             verify(userRepository).save(user);
         }
 
         @Test
-        @DisplayName("add seller role case-insensitive - success")
-        void addRole_sellerUpperCase_success() {
+        @DisplayName("add SELLER role lowercase - throws ForbiddenRoleException")
+        void addRole_sellerLowerCase_throws() {
             User user = createUser(1L, "test@example.com", "Test");
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-            when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            ProfileResponse response = profileService.addRole(1L, new AddRoleRequest("SELLER"));
-
-            assertTrue(response.roles().contains("seller"));
+            assertThrows(ForbiddenRoleException.class,
+                    () -> profileService.addRole(1L, new AddRoleRequest("seller")));
+            verify(userRepository, never()).save(any());
         }
 
         @Test
-        @DisplayName("add seller twice - idempotent, no error")
+        @DisplayName("add SELLER twice - idempotent, no error")
         void addRole_sellerTwice_idempotent() {
             User user = createUser(1L, "test@example.com", "Test");
             user.addRole(UserRole.SELLER);
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            ProfileResponse response = profileService.addRole(1L, new AddRoleRequest("seller"));
+            ProfileResponse response = profileService.addRole(1L, new AddRoleRequest(UserRole.SELLER.value()));
 
             // Set-based roles: adding existing role is a no-op
             long sellerCount = response.roles().stream()
-                    .filter("seller"::equals)
+                    .filter(UserRole.SELLER.value()::equals)
                     .count();
             assertEquals(1, sellerCount);
         }
 
         @Test
-        @DisplayName("add moderator role - throws ForbiddenRoleException")
+        @DisplayName("add MODERATOR role - throws ForbiddenRoleException")
         void addRole_moderator_throws() {
             User user = createUser(1L, "test@example.com", "Test");
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
-            AddRoleRequest request = new AddRoleRequest("moderator");
+            AddRoleRequest request = new AddRoleRequest(UserRole.MODERATOR.value());
             assertThrows(ForbiddenRoleException.class,
                     () -> profileService.addRole(1L, request));
             verify(userRepository, never()).save(any());
         }
 
         @Test
-        @DisplayName("add admin role - throws ForbiddenRoleException")
+        @DisplayName("add ADMIN role - throws ForbiddenRoleException")
         void addRole_admin_throws() {
             User user = createUser(1L, "test@example.com", "Test");
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
-            AddRoleRequest request = new AddRoleRequest("admin");
+            AddRoleRequest request = new AddRoleRequest(UserRole.ADMIN.value());
             assertThrows(ForbiddenRoleException.class,
                     () -> profileService.addRole(1L, request));
             verify(userRepository, never()).save(any());
         }
 
         @Test
-        @DisplayName("add buyer role - throws ForbiddenRoleException (already default)")
+        @DisplayName("add BUYER role - throws ForbiddenRoleException (already default)")
         void addRole_buyer_throws() {
             User user = createUser(1L, "test@example.com", "Test");
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
             // BUYER is not in SELF_ASSIGNABLE_ROLES, so it throws
-            AddRoleRequest request = new AddRoleRequest("buyer");
+            AddRoleRequest request = new AddRoleRequest(UserRole.BUYER.value());
             assertThrows(ForbiddenRoleException.class,
                     () -> profileService.addRole(1L, request));
         }
@@ -308,7 +307,7 @@ class ProfileServiceTest {
             User user = createUser(1L, "test@example.com", "Test");
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
-            AddRoleRequest request = new AddRoleRequest("superadmin");
+            AddRoleRequest request = new AddRoleRequest("SUPERADMIN");
             assertThrows(ForbiddenRoleException.class,
                     () -> profileService.addRole(1L, request));
         }
@@ -318,7 +317,7 @@ class ProfileServiceTest {
         void addRole_nonExistentUser_throws() {
             when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
-            AddRoleRequest request = new AddRoleRequest("seller");
+            AddRoleRequest request = new AddRoleRequest(UserRole.SELLER.value());
             assertThrows(UserNotFoundException.class,
                     () -> profileService.addRole(999L, request));
         }
