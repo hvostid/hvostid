@@ -7,13 +7,12 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.hvostid.auth.dto.AddRoleRequest;
 import ru.hvostid.auth.dto.ProfileResponse;
 import ru.hvostid.auth.dto.UpdateProfileRequest;
-import ru.hvostid.auth.entity.Role;
 import ru.hvostid.auth.entity.User;
 import ru.hvostid.auth.exception.ForbiddenRoleException;
 import ru.hvostid.auth.exception.UserNotFoundException;
 import ru.hvostid.auth.repository.UserRepository;
+import ru.hvostid.common.security.UserRole;
 
-import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -26,7 +25,7 @@ public class ProfileService {
     /**
      * Roles that can be self-assigned by a user.
      */
-    private static final Set<Role> SELF_ASSIGNABLE_ROLES = Set.of(Role.SELLER);
+    private static final Set<UserRole> SELF_ASSIGNABLE_ROLES = Set.of(UserRole.SELLER);
 
     private final UserRepository userRepository;
 
@@ -37,7 +36,7 @@ public class ProfileService {
     /**
      * Get profile of the current user.
      *
-     * @param userId user identifier from User ID header
+     * @param userId authenticated user identifier
      * @return full profile data
      * @throws UserNotFoundException if user does not exist
      */
@@ -52,7 +51,7 @@ public class ProfileService {
      * Update profile fields for the current user.
      * Only non-null fields from the request are applied.
      *
-     * @param userId  user identifier from User ID header
+     * @param userId  authenticated user identifier
      * @param request profile fields to update
      * @return updated profile data
      * @throws UserNotFoundException if user does not exist
@@ -84,7 +83,7 @@ public class ProfileService {
      * Add a role to the current user.
      * Only seller can be self-assigned; moderator and admin require admin privileges.
      *
-     * @param userId  user identifier from User ID header
+     * @param userId  authenticated user identifier
      * @param request contains the role to add
      * @return updated profile data
      * @throws UserNotFoundException  if user does not exist
@@ -95,9 +94,9 @@ public class ProfileService {
         log.debug("Adding role={} for userId={}", request.role(), userId);
         User user = findUserOrThrow(userId);
 
-        Role role;
+        UserRole role;
         try {
-            role = Role.valueOf(request.role().toUpperCase(Locale.ROOT));
+            role = UserRole.fromValue(request.role());
         } catch (IllegalArgumentException _) {
             throw new ForbiddenRoleException(request.role());
         }
@@ -127,7 +126,7 @@ public class ProfileService {
                 user.getEmail(),
                 user.getName(),
                 user.getRoles().stream()
-                        .map(role -> role.name().toLowerCase(Locale.ROOT))
+                        .map(UserRole::lowerValue)
                         .sorted()
                         .toList(),
                 user.getPhone(),

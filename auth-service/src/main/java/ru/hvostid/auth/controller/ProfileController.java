@@ -11,17 +11,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import ru.hvostid.auth.dto.AddRoleRequest;
 import ru.hvostid.auth.dto.ProfileResponse;
 import ru.hvostid.auth.dto.UpdateProfileRequest;
 import ru.hvostid.auth.service.ProfileService;
 import ru.hvostid.common.dto.ErrorResponse;
-import ru.hvostid.common.http.SecurityHeaders;
+import ru.hvostid.common.security.GatewayPreAuthentication;
 
 /**
  * REST controller for user profile and role management.
- * User identity is provided by Gateway via User ID header.
+ * User identity is provided by Spring Security pre-authentication.
  */
 @Tag(name = "Profile")
 @RestController
@@ -39,15 +41,14 @@ public class ProfileController {
      */
     @Operation(
             summary = "Get current user profile",
-            description = "Returns the profile of the user identified by User ID header "
-                    + "(set by Gateway after token introspection).")
+            description = "Returns the profile of the authenticated user.")
     @ApiResponse(
             responseCode = "200",
             description = "Profile retrieved successfully",
             content = @Content(schema = @Schema(implementation = ProfileResponse.class)))
     @ApiResponse(
             responseCode = "401",
-            description = "Missing User ID header",
+            description = "Missing or invalid authenticated user",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(
             responseCode = "404",
@@ -55,12 +56,10 @@ public class ProfileController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @GetMapping("/me")
     public ResponseEntity<ProfileResponse> getMyProfile(
-            @Parameter(description = "User ID from Gateway", required = true)
-            @RequestHeader(value = SecurityHeaders.USER_ID, required = false) Long userId) {
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal UserDetails user) {
+        long userId = GatewayPreAuthentication.currentUserId(user);
         log.debug("GET /api/v1/profile/me userId={}", userId);
-        if (userId == null) {
-            return ResponseEntity.status(401).build();
-        }
         ProfileResponse response = profileService.getProfile(userId);
         return ResponseEntity.ok(response);
     }
@@ -82,7 +81,7 @@ public class ProfileController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(
             responseCode = "401",
-            description = "Missing User ID header",
+            description = "Missing or invalid authenticated user",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(
             responseCode = "404",
@@ -90,13 +89,11 @@ public class ProfileController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @PutMapping("/me")
     public ResponseEntity<ProfileResponse> updateMyProfile(
-            @Parameter(description = "User ID from Gateway", required = true)
-            @RequestHeader(value = SecurityHeaders.USER_ID, required = false) Long userId,
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal UserDetails user,
             @Valid @RequestBody UpdateProfileRequest request) {
+        long userId = GatewayPreAuthentication.currentUserId(user);
         log.debug("PUT /api/v1/profile/me userId={}", userId);
-        if (userId == null) {
-            return ResponseEntity.status(401).build();
-        }
         ProfileResponse response = profileService.updateProfile(userId, request);
         return ResponseEntity.ok(response);
     }
@@ -120,7 +117,7 @@ public class ProfileController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(
             responseCode = "401",
-            description = "Missing User ID header",
+            description = "Missing or invalid authenticated user",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(
             responseCode = "403",
@@ -128,13 +125,11 @@ public class ProfileController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @PostMapping("/me/roles")
     public ResponseEntity<ProfileResponse> addRole(
-            @Parameter(description = "User ID from Gateway", required = true)
-            @RequestHeader(value = SecurityHeaders.USER_ID, required = false) Long userId,
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal UserDetails user,
             @Valid @RequestBody AddRoleRequest request) {
+        long userId = GatewayPreAuthentication.currentUserId(user);
         log.debug("POST /api/v1/profile/me/roles userId={} role={}", userId, request.role());
-        if (userId == null) {
-            return ResponseEntity.status(401).build();
-        }
         ProfileResponse response = profileService.addRole(userId, request);
         return ResponseEntity.ok(response);
     }

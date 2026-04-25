@@ -11,7 +11,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import ru.hvostid.auth.config.AuthTokenProperties;
 import ru.hvostid.auth.dto.*;
-import ru.hvostid.auth.entity.Role;
 import ru.hvostid.auth.entity.Session;
 import ru.hvostid.auth.entity.User;
 import ru.hvostid.auth.exception.EmailAlreadyExistsException;
@@ -21,6 +20,7 @@ import ru.hvostid.auth.repository.SessionRepository;
 import ru.hvostid.auth.repository.UserRepository;
 import ru.hvostid.common.contract.auth.IntrospectRequest;
 import ru.hvostid.common.contract.auth.IntrospectResponse;
+import ru.hvostid.common.security.UserRole;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -211,7 +211,7 @@ class AuthServiceTest {
         void introspect_sellerRole_returnsBothRolesSorted() {
             User user = new User("seller@example.com", "Seller", "hash");
             user.setId(10L);
-            user.addRole(Role.SELLER);
+            user.addRole(UserRole.SELLER);
 
             Session session = new Session(user, "seller_token", "refresh",
                     Instant.now().plusSeconds(600), Instant.now().plusSeconds(86400));

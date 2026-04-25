@@ -10,11 +10,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import ru.hvostid.auth.dto.AddRoleRequest;
 import ru.hvostid.auth.dto.ProfileResponse;
 import ru.hvostid.auth.dto.UpdateProfileRequest;
-import ru.hvostid.auth.entity.Role;
 import ru.hvostid.auth.entity.User;
 import ru.hvostid.auth.exception.ForbiddenRoleException;
 import ru.hvostid.auth.exception.UserNotFoundException;
 import ru.hvostid.auth.repository.UserRepository;
+import ru.hvostid.common.security.UserRole;
 
 import java.util.Optional;
 
@@ -110,7 +110,7 @@ class ProfileServiceTest {
         @DisplayName("user with multiple roles - returns sorted roles")
         void getProfile_multipleRoles_returnsSorted() {
             User user = createUser(1L, "multi@example.com", "Multi");
-            user.addRole(Role.SELLER);
+            user.addRole(UserRole.SELLER);
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
             ProfileResponse response = profileService.getProfile(1L);
@@ -253,7 +253,7 @@ class ProfileServiceTest {
         @DisplayName("add seller twice - idempotent, no error")
         void addRole_sellerTwice_idempotent() {
             User user = createUser(1L, "test@example.com", "Test");
-            user.addRole(Role.SELLER);
+            user.addRole(UserRole.SELLER);
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 

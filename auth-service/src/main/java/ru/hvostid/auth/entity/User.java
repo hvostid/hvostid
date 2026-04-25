@@ -1,6 +1,7 @@
 package ru.hvostid.auth.entity;
 
 import jakarta.persistence.*;
+import ru.hvostid.common.security.UserRole;
 
 import java.time.Instant;
 import java.util.HashSet;
@@ -29,7 +30,7 @@ public class User {
     @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
     @Enumerated(EnumType.STRING)
     @Column(name = "role")
-    private Set<Role> roles = new HashSet<>();
+    private Set<UserRole> roles = new HashSet<>();
 
     @Column
     private String phone;
@@ -54,7 +55,7 @@ public class User {
         this.email = email;
         this.name = name;
         this.passwordHash = passwordHash;
-        this.roles.add(Role.BUYER);
+        this.roles.add(UserRole.BUYER);
         this.createdAt = Instant.now();
     }
 
@@ -90,11 +91,11 @@ public class User {
         this.passwordHash = passwordHash;
     }
 
-    public Set<Role> getRoles() {
+    public Set<UserRole> getRoles() {
         return roles;
     }
 
-    public void setRoles(Set<Role> roles) {
+    public void setRoles(Set<UserRole> roles) {
         this.roles = roles;
     }
 
@@ -103,7 +104,7 @@ public class User {
      *
      * @param role role to add
      */
-    public void addRole(Role role) {
+    public void addRole(UserRole role) {
         this.roles.add(role);
     }
 
@@ -113,7 +114,7 @@ public class User {
      * @param role role to check
      * @return true if user has the role
      */
-    public boolean hasRole(Role role) {
+    public boolean hasRole(UserRole role) {
         return this.roles.contains(role);
     }
 

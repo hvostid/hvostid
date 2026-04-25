@@ -1,16 +1,15 @@
-package ru.hvostid.auth.config;
+package ru.hvostid.listing.config;
 
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import ru.hvostid.common.security.GatewayPreAuthentication;
@@ -21,7 +20,7 @@ import ru.hvostid.common.security.GatewayPreAuthentication;
  */
 @Configuration
 @EnableWebSecurity
-@EnableConfigurationProperties(AuthTokenProperties.class)
+@EnableMethodSecurity
 public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager) throws Exception {
@@ -35,8 +34,7 @@ public class SecurityConfig {
                         UsernamePasswordAuthenticationFilter.class
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/internal/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/listings").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers(
                                 "/swagger-ui.html",
@@ -52,10 +50,5 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager() {
         return GatewayPreAuthentication.authenticationManager();
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
     }
 }
