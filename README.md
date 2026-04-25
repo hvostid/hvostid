@@ -82,9 +82,12 @@ docker compose up --build
 
 ### Hybrid Local Development
 
-For day-to-day development, it is recommended to run all supporting infrastructure and non-active services via Docker Compose, while starting the service currently being developed directly from the IDE or with Gradle.
+For day-to-day development, it is recommended to run all supporting infrastructure and non-active services via Docker
+Compose, while starting the service currently being developed directly from the IDE or with Gradle.
 
-This approach is especially useful for IntelliJ IDEA: when a Spring Boot service is started locally, Spring-specific IDE features such as the Spring plugin, environment inspection, configuration assistance, and debugger integration work as expected. If the service were also started inside Docker Compose, these capabilities would be limited or unavailable.
+This approach is especially useful for IntelliJ IDEA: when a Spring Boot service is started locally, Spring-specific IDE
+features such as the Spring plugin, environment inspection, configuration assistance, and debugger integration work as
+expected. If the service were also started inside Docker Compose, these capabilities would be limited or unavailable.
 
 Example workflow:
 

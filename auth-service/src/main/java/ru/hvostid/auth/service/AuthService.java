@@ -16,10 +16,10 @@ import ru.hvostid.auth.repository.SessionRepository;
 import ru.hvostid.auth.repository.UserRepository;
 import ru.hvostid.common.contract.auth.IntrospectRequest;
 import ru.hvostid.common.contract.auth.IntrospectResponse;
+import ru.hvostid.common.security.UserRole;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Core authentication service handling registration, login,
@@ -115,7 +115,7 @@ public class AuthService {
                 .map(session -> {
                     User user = session.getUser();
                     List<String> roles = user.getRoles().stream()
-                            .map(role -> role.name().toLowerCase(Locale.ROOT))
+                            .map(UserRole::value)
                             .sorted()
                             .toList();
                     log.debug("Introspect result: active=true userId={} roles={}", user.getId(), roles);
@@ -202,7 +202,7 @@ public class AuthService {
 
     private UserResponse toUserResponse(User user) {
         List<String> roles = user.getRoles().stream()
-                .map(role -> role.name().toLowerCase(Locale.ROOT))
+                .map(UserRole::value)
                 .sorted()
                 .toList();
         return new UserResponse(user.getId(), user.getEmail(), user.getName(), roles);

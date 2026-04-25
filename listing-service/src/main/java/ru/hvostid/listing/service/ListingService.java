@@ -11,7 +11,10 @@ import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
 import ru.hvostid.listing.entity.Listing;
 import ru.hvostid.listing.entity.ListingStatus;
-import ru.hvostid.listing.exception.*;
+import ru.hvostid.listing.exception.AccessDeniedException;
+import ru.hvostid.listing.exception.DuplicateListingException;
+import ru.hvostid.listing.exception.InvalidListingStatusException;
+import ru.hvostid.listing.exception.ListingNotFoundException;
 import ru.hvostid.listing.repository.ListingRepository;
 
 @Service
@@ -42,11 +45,11 @@ public class ListingService {
                 normalize(request.passportId())
         );
 
-        // репозиторий сохраняет entity
+        // Persist the listing entity.
         Listing saved = listingRepository.save(listing);
         log.info("Listing created id={} sellerId={}", saved.getId(), saved.getSellerId());
 
-        // сервис маппит entity в dto ответа
+        // Map the entity to the response DTO.
         return ListingResponse.from(saved);
     }
 

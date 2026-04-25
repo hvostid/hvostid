@@ -17,6 +17,7 @@ import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 import ru.hvostid.common.contract.auth.IntrospectResponse;
 import ru.hvostid.common.dto.ErrorResponse;
+import ru.hvostid.common.http.SecurityHeaders;
 import ru.hvostid.gateway.client.IntrospectionClient;
 import ru.hvostid.gateway.config.AuthProperties;
 import tools.jackson.databind.ObjectMapper;
@@ -33,12 +34,13 @@ import static ru.hvostid.common.http.SecurityHeaders.USER_ROLES;
  * For each non-public path the filter:
  * 1. Extracts the Bearer token from the Authorization header
  * 2. Calls Auth Service introspection endpoint via {@link IntrospectionClient}
- * 3. On success (active=true): injects X-User-Id and X-User-Roles headers into the request
+ * 3. On success (active=true): injects {@link SecurityHeaders#USER_ID}
+ * and {@link SecurityHeaders#USER_ROLES} into the request
  * 4. On failure (missing/invalid token or introspection error): returns 401
  * <p>
  * Public paths (login, register, actuator) bypass this filter entirely.
  * <p>
- * Ordered after {@link RequestIdFilter} so that X-Request-Id is available in logs.
+ * Ordered after {@link RequestIdFilter} so that Request ID is available in logs.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
@@ -118,7 +120,7 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Request wrapper that injects extra headers (X-User-Id, X-User-Roles)
+     * Request wrapper that injects identity headers
      * so downstream services receive authenticated user information.
      */
     static class UserInfoHeaderWrapper extends HttpServletRequestWrapper {

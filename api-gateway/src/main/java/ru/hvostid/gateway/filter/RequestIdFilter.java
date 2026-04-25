@@ -12,6 +12,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import ru.hvostid.common.http.SecurityHeaders;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -22,10 +23,10 @@ import java.util.UUID;
 import static ru.hvostid.common.http.SecurityHeaders.REQUEST_ID;
 
 /**
- * Global servlet filter that ensures every request has an X-Request-Id header.
+ * Global servlet filter that ensures every request has {@link SecurityHeaders#REQUEST_ID}.
  * <p>
- * If the incoming request already contains X-Request-Id, its value is reused.
- * Otherwise, a new UUID is generated. The header is:
+ * If the incoming request already contains {@link SecurityHeaders#REQUEST_ID}, its value is reused.
+ * Otherwise, a new UUID is generated. The value is:
  * - forwarded to downstream services (via request wrapper)
  * - added to the response so the client can see it
  * - placed into SLF4J MDC as "requestId" for structured logging
@@ -51,10 +52,10 @@ public class RequestIdFilter extends OncePerRequestFilter {
         try {
             log.debug("Request {} {} requestId={} (generated={})", request.getMethod(), request.getRequestURI(), requestId, generated);
 
-            // Wrap the request so the gateway forwards X-Request-Id to downstream services
+            // Wrap the request so the gateway forwards REQUEST_ID to downstream services.
             HttpServletRequest wrappedRequest = generated ? new RequestIdHeaderWrapper(request, requestId) : request;
 
-            // Add X-Request-Id to the response for the client
+            // Add REQUEST_ID to the response for the client.
             response.setHeader(REQUEST_ID, requestId);
 
             filterChain.doFilter(wrappedRequest, response);
@@ -64,7 +65,7 @@ public class RequestIdFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Wrapper that injects the X-Request-Id header into the request
+     * Wrapper that injects {@link SecurityHeaders#REQUEST_ID} into the request
      * when the client did not provide one.
      */
     static class RequestIdHeaderWrapper extends HttpServletRequestWrapper {

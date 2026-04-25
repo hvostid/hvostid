@@ -11,6 +11,7 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import ru.hvostid.auth.dto.RegisterRequest;
+import ru.hvostid.common.security.UserRole;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -55,7 +56,7 @@ class ProfileControllerTest {
     @DisplayName("GET /api/v1/profile/me")
     class GetProfileTests {
         @Test
-        @DisplayName("with valid X-User-Id - returns 200 with profile")
+        @DisplayName("with authenticated user id - returns 200 with profile")
         void getProfile_validUserId_returnsProfile() throws Exception {
             Long userId = registerAndGetUserId("profile@example.com", "Profile User");
 
@@ -65,12 +66,12 @@ class ProfileControllerTest {
                     .andExpect(jsonPath("$.id", is(userId.intValue())))
                     .andExpect(jsonPath("$.email", is("profile@example.com")))
                     .andExpect(jsonPath("$.name", is("Profile User")))
-                    .andExpect(jsonPath("$.roles", hasItem("buyer")))
+                    .andExpect(jsonPath("$.roles", hasItem(UserRole.BUYER.value())))
                     .andExpect(jsonPath("$.roles", hasSize(1)));
         }
 
         @Test
-        @DisplayName("without X-User-Id header - returns 401")
+        @DisplayName("without authenticated user - returns 401")
         void getProfile_noUserIdHeader_returns401() throws Exception {
             mockMvc.perform(get(PROFILE_ME_URL))
                     .andExpect(status().isUnauthorized());
@@ -160,7 +161,7 @@ class ProfileControllerTest {
         }
 
         @Test
-        @DisplayName("without X-User-Id header - returns 401")
+        @DisplayName("without authenticated user - returns 401")
         void updateProfile_noUserIdHeader_returns401() throws Exception {
             String body = """
                     { "name": "Name" }
@@ -246,7 +247,7 @@ class ProfileControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.roles", hasItem("buyer")))
+                    .andExpect(jsonPath("$.roles", hasItem(UserRole.BUYER.value())))
                     .andExpect(jsonPath("$.roles", hasSize(1)));
         }
     }
@@ -257,12 +258,12 @@ class ProfileControllerTest {
     @DisplayName("POST /api/v1/profile/me/roles")
     class AddRoleTests {
         @Test
-        @DisplayName("add seller role - returns 200 with updated roles")
+        @DisplayName("add SELLER role - returns 200 with updated roles")
         void addRole_seller_returnsUpdatedRoles() throws Exception {
             Long userId = registerAndGetUserId("seller@example.com", "Seller");
 
             String body = """
-                    { "role": "seller" }
+                    { "role": "SELLER" }
                     """;
 
             mockMvc.perform(post(PROFILE_ROLES_URL)
@@ -270,18 +271,18 @@ class ProfileControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.roles", hasItem("buyer")))
-                    .andExpect(jsonPath("$.roles", hasItem("seller")))
+                    .andExpect(jsonPath("$.roles", hasItem(UserRole.BUYER.value())))
+                    .andExpect(jsonPath("$.roles", hasItem(UserRole.SELLER.value())))
                     .andExpect(jsonPath("$.roles", hasSize(2)));
         }
 
         @Test
-        @DisplayName("add seller role persists across requests")
+        @DisplayName("add SELLER role persists across requests")
         void addRole_seller_persistsOnGetProfile() throws Exception {
             Long userId = registerAndGetUserId("persist@example.com", "Persist");
 
             String body = """
-                    { "role": "seller" }
+                    { "role": "SELLER" }
                     """;
 
             mockMvc.perform(post(PROFILE_ROLES_URL)
@@ -294,17 +295,17 @@ class ProfileControllerTest {
             mockMvc.perform(get(PROFILE_ME_URL)
                             .header(USER_ID, userId))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.roles", hasItem("seller")))
-                    .andExpect(jsonPath("$.roles", hasItem("buyer")));
+                    .andExpect(jsonPath("$.roles", hasItem(UserRole.SELLER.value())))
+                    .andExpect(jsonPath("$.roles", hasItem(UserRole.BUYER.value())));
         }
 
         @Test
-        @DisplayName("add moderator role - returns 403")
+        @DisplayName("add MODERATOR role - returns 403")
         void addRole_moderator_returns403() throws Exception {
             Long userId = registerAndGetUserId("mod@example.com", "Mod");
 
             String body = """
-                    { "role": "moderator" }
+                    { "role": "MODERATOR" }
                     """;
 
             mockMvc.perform(post(PROFILE_ROLES_URL)
@@ -316,12 +317,12 @@ class ProfileControllerTest {
         }
 
         @Test
-        @DisplayName("add admin role - returns 403")
+        @DisplayName("add ADMIN role - returns 403")
         void addRole_admin_returns403() throws Exception {
             Long userId = registerAndGetUserId("adm@example.com", "Admin");
 
             String body = """
-                    { "role": "admin" }
+                    { "role": "ADMIN" }
                     """;
 
             mockMvc.perform(post(PROFILE_ROLES_URL)
@@ -338,7 +339,7 @@ class ProfileControllerTest {
             Long userId = registerAndGetUserId("unknown@example.com", "Unknown");
 
             String body = """
-                    { "role": "superadmin" }
+                    { "role": "SUPERADMIN" }
                     """;
 
             mockMvc.perform(post(PROFILE_ROLES_URL)
@@ -365,10 +366,10 @@ class ProfileControllerTest {
         }
 
         @Test
-        @DisplayName("without X-User-Id header - returns 401")
+        @DisplayName("without authenticated user - returns 401")
         void addRole_noUserIdHeader_returns401() throws Exception {
             String body = """
-                    { "role": "seller" }
+                    { "role": "SELLER" }
                     """;
 
             mockMvc.perform(post(PROFILE_ROLES_URL)
@@ -381,7 +382,7 @@ class ProfileControllerTest {
         @DisplayName("non-existent user - returns 404")
         void addRole_nonExistentUser_returns404() throws Exception {
             String body = """
-                    { "role": "seller" }
+                    { "role": "SELLER" }
                     """;
 
             mockMvc.perform(post(PROFILE_ROLES_URL)
@@ -392,12 +393,12 @@ class ProfileControllerTest {
         }
 
         @Test
-        @DisplayName("add seller twice - idempotent, returns 200")
+        @DisplayName("add SELLER twice - idempotent, returns 200")
         void addRole_sellerTwice_idempotent() throws Exception {
             Long userId = registerAndGetUserId("twice@example.com", "Twice");
 
             String body = """
-                    { "role": "seller" }
+                    { "role": "SELLER" }
                     """;
 
             mockMvc.perform(post(PROFILE_ROLES_URL)

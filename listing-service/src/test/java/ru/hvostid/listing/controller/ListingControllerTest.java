@@ -5,12 +5,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import ru.hvostid.common.security.UserRole;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
 import ru.hvostid.listing.entity.Listing;
@@ -20,7 +21,10 @@ import tools.jackson.databind.ObjectMapper;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
+import static ru.hvostid.common.http.SecurityHeaders.USER_ROLES;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -29,24 +33,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ListingControllerTest {
 
     private static final String LISTINGS_URL = "/api/v1/listings";
-
+    private final Long testSellerId = 100L;
     @Autowired
     private MockMvc mockMvc;
-
     @Autowired
     private ObjectMapper objectMapper;
-
     @Autowired
     private ListingRepository listingRepository;
-
-    private Long testSellerId = 100L;
 
     @Nested
     @DisplayName("POST /api/v1/listings")
     class CreateListingTests {
 
         @Test
-        @DisplayName("seller can create listing - returns 201")
+        @DisplayName("SELLER can create listing - returns 201")
         void createListing_withSellerRole_returns201() throws Exception {
             ListingRequest request = new ListingRequest(
                     "Cute Puppy", "Friendly dog", "dog", "Labrador",
@@ -54,8 +54,8 @@ class ListingControllerTest {
             );
 
             mockMvc.perform(post(LISTINGS_URL)
-                            .header("X-User-Id", testSellerId)
-                            .header("X-User-Roles", "seller")
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
@@ -65,7 +65,7 @@ class ListingControllerTest {
         }
 
         @Test
-        @DisplayName("buyer cannot create listing - returns 403")
+        @DisplayName("BUYER cannot create listing - returns 403")
         void createListing_withBuyerRole_returns403() throws Exception {
             ListingRequest request = new ListingRequest(
                     "Cute Puppy", "Friendly dog", "dog", "Labrador",
@@ -73,8 +73,8 @@ class ListingControllerTest {
             );
 
             mockMvc.perform(post(LISTINGS_URL)
-                            .header("X-User-Id", 200L)
-                            .header("X-User-Roles", "buyer")
+                            .header(USER_ID, 200L)
+                            .header(USER_ROLES, UserRole.BUYER.value())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isForbidden());
@@ -89,8 +89,8 @@ class ListingControllerTest {
             );
 
             mockMvc.perform(post(LISTINGS_URL)
-                            .header("X-User-Id", testSellerId)
-                            .header("X-User-Roles", "seller")
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest())
@@ -98,18 +98,18 @@ class ListingControllerTest {
         }
 
         @Test
-        void create_invalidUserId_returns400() throws Exception {
+        void create_invalidUserId_returns401() throws Exception {
             ListingRequest request = new ListingRequest(
                     "Test", "Desc", "dog", "Labrador",
                     3, 10000, "Moscow", "p-1"
             );
 
             mockMvc.perform(post(LISTINGS_URL)
-                            .header("X-User-Id", -1)
-                            .header("X-User-Roles", "seller")
+                            .header(USER_ID, -1)
+                            .header(USER_ROLES, UserRole.SELLER.value())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest());
+                    .andExpect(status().isUnauthorized());
         }
     }
 
@@ -166,7 +166,7 @@ class ListingControllerTest {
 
         @BeforeEach
         void setUp() {
-            // создаем объявление в БД перед каждым тестом
+            // Create a listing in the database before each test.
             Listing listing = new Listing(
                     testSellerId, "Test Puppy", "Description", "dog",
                     "Husky", 6, 20000, "Moscow", "passport-1"
@@ -179,7 +179,7 @@ class ListingControllerTest {
         @DisplayName("published listing - accessible by any user")
         void getListing_published_returns200() throws Exception {
             mockMvc.perform(get(LISTINGS_URL + "/{id}", createdListingId)
-                            .header("X-User-Id", 999L))  // любой пользователь
+                            .header(USER_ID, 999L))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id", is(createdListingId.intValue())))
                     .andExpect(jsonPath("$.status", is("PUBLISHED")));
@@ -188,7 +188,7 @@ class ListingControllerTest {
         @Test
         @DisplayName("draft listing - accessible only by owner")
         void getListing_draftAndOwner_returns200() throws Exception {
-            // DRAFT объявление
+            // Draft listing.
             Listing draftListing = new Listing(
                     testSellerId, "Draft Puppy", "Description", "dog",
                     "Husky", 6, 20000, "Moscow", "passport-1"
@@ -197,7 +197,7 @@ class ListingControllerTest {
             Long draftId = listingRepository.save(draftListing).getId();
 
             mockMvc.perform(get(LISTINGS_URL + "/{id}", draftId)
-                            .header("X-User-Id", testSellerId))  // владелец
+                            .header(USER_ID, testSellerId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status", is("DRAFT")));
         }
@@ -205,7 +205,7 @@ class ListingControllerTest {
         @Test
         @DisplayName("draft listing - not accessible by other user")
         void getListing_draftAndNotOwner_returns403() throws Exception {
-            // DRAFT объявление
+            // Draft listing.
             Listing draftListing = new Listing(
                     testSellerId, "Draft Puppy", "Description", "dog",
                     "Husky", 6, 20000, "Moscow", "passport-1"
@@ -214,7 +214,7 @@ class ListingControllerTest {
             Long draftId = listingRepository.save(draftListing).getId();
 
             mockMvc.perform(get(LISTINGS_URL + "/{id}", draftId)
-                            .header("X-User-Id", 999L))  // не владелец
+                            .header(USER_ID, 999L))
                     .andExpect(status().isForbidden());
         }
     }
@@ -234,8 +234,8 @@ class ListingControllerTest {
 
             try {
                 String responseJson = mockMvc.perform(post(LISTINGS_URL)
-                                .header("X-User-Id", testSellerId)
-                                .header("X-User-Roles", "seller")
+                                .header(USER_ID, testSellerId)
+                                .header(USER_ROLES, UserRole.SELLER.value())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                         .andExpect(status().isCreated())
@@ -257,8 +257,8 @@ class ListingControllerTest {
             );
 
             mockMvc.perform(put(LISTINGS_URL + "/{id}", 99999L)
-                            .header("X-User-Id", testSellerId)
-                            .header("X-User-Roles", "seller")
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(updateRequest)))
                     .andExpect(status().isNotFound());
@@ -273,7 +273,8 @@ class ListingControllerTest {
             );
 
             mockMvc.perform(put(LISTINGS_URL + "/{id}", listingId)
-                            .header("X-User-Id", testSellerId)
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(invalidUpdate)))
                     .andExpect(status().isBadRequest())
@@ -288,7 +289,8 @@ class ListingControllerTest {
             );
 
             mockMvc.perform(put(LISTINGS_URL + "/{id}", listingId)
-                            .header("X-User-Id", testSellerId)
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(invalidUpdate)))
                     .andExpect(status().isBadRequest())
@@ -310,8 +312,8 @@ class ListingControllerTest {
             );
 
             String response = mockMvc.perform(post(LISTINGS_URL)
-                            .header("X-User-Id", testSellerId)
-                            .header("X-User-Roles", "seller")
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andReturn()
@@ -328,8 +330,8 @@ class ListingControllerTest {
             );
 
             mockMvc.perform(put(LISTINGS_URL + "/{id}", listingId)
-                            .header("X-User-Id", testSellerId)
-                            .header("X-User-Roles", "seller")
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req)))
                     .andExpect(status().isOk())
@@ -343,8 +345,8 @@ class ListingControllerTest {
             );
 
             mockMvc.perform(put(LISTINGS_URL + "/{id}", listingId)
-                            .header("X-User-Id", 999L)
-                            .header("X-User-Roles", "buyer")
+                            .header(USER_ID, 999L)
+                            .header(USER_ROLES, UserRole.SELLER.value())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req)))
                     .andExpect(status().isForbidden());

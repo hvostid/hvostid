@@ -1,9 +1,9 @@
 springdoc:
-  api-docs:
-    enabled: false
-  swagger-ui:
-    enabled: false
+    api-docs:
+        enabled: false
+    swagger-ui:
+        enabled: false
 
 logging:
-  level:
-    ru.hvostid: INFO
+    level:
+        ru.hvostid: INFO

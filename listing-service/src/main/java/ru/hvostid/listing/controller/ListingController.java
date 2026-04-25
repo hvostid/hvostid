@@ -16,15 +16,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-import ru.hvostid.common.http.SecurityHeaders;
+import ru.hvostid.common.security.GatewayPreAuthentication;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
-import ru.hvostid.listing.exception.AccessDeniedException;
 import ru.hvostid.listing.service.ListingService;
-
-import java.util.Arrays;
 
 @RestController
 @RequestMapping("/api/v1/listings")
@@ -40,7 +40,7 @@ public class ListingController {
 
     @Operation(
             summary = "Create a new listing",
-            description = "Creates a new animal listing with DRAFT status. Only users with seller role can create listings."
+            description = "Creates a new animal listing with DRAFT status. Only users with SELLER role can create listings."
     )
     @ApiResponses({
             @ApiResponse(
@@ -49,39 +49,33 @@ public class ListingController {
                     content = @Content(schema = @Schema(implementation = ListingResponse.class))),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Validation error or invalid userId",
+                    description = "Validation error",
                     content = @Content(schema = @Schema(implementation = ru.hvostid.listing.exception.GlobalExceptionHandler.ErrorResponse.class))),
             @ApiResponse(
+                    responseCode = "401",
+                    description = "Missing or invalid authenticated user",
+                    content = @Content),
+            @ApiResponse(
                     responseCode = "403",
-                    description = "User does not have seller role",
+                    description = "User does not have SELLER role",
                     content = @Content)
     })
     @PostMapping
+    @PreAuthorize("hasRole(T(ru.hvostid.common.security.UserRole).SELLER.value())")
     public ResponseEntity<ListingResponse> createListing(
             @Valid @RequestBody ListingRequest request,
-            @Parameter(description = "User ID from Gateway", required = true, example = "100")
-            @RequestHeader(value = SecurityHeaders.USER_ID, required = false) Long userId,
-            @Parameter(description = "User roles from Gateway (comma-separated)", required = true, example = "seller,buyer")
-            @RequestHeader(value = SecurityHeaders.USER_ROLES, required = false) String rolesHeader) {
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal UserDetails user) {
 
-        log.debug("POST /api/v1/listings, userId={}, roles={}", userId, rolesHeader);
-
-        if (userId == null || userId <= 0) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        if (!hasRole(rolesHeader, "seller")) {
-            log.warn("Create listing denied: user {} does not have seller role", userId);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-
+        long userId = GatewayPreAuthentication.currentUserId(user);
+        log.debug("POST /api/v1/listings, userId={}", userId);
         ListingResponse response = listingService.createListing(request, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @Operation(
             summary = "Get listing by ID",
-            description = "Returns a listing. Published listings are visible to everyone. Draft/Moderation listings are visible only to the owner."
+            description = "Returns a listing. Published listings are visible to authenticated users. Draft/Moderation listings are visible only to the owner."
     )
     @ApiResponses({
             @ApiResponse(
@@ -89,8 +83,8 @@ public class ListingController {
                     description = "Listing found",
                     content = @Content(schema = @Schema(implementation = ListingResponse.class))),
             @ApiResponse(
-                    responseCode = "400",
-                    description = "Invalid userId",
+                    responseCode = "401",
+                    description = "Missing or invalid authenticated user",
                     content = @Content),
             @ApiResponse(
                     responseCode = "403",
@@ -105,14 +99,11 @@ public class ListingController {
     public ResponseEntity<ListingResponse> getListing(
             @Parameter(description = "Listing ID", required = true, example = "1")
             @PathVariable Long id,
-            @Parameter(description = "User ID from Gateway", required = true, example = "100")
-            @RequestHeader(value = SecurityHeaders.USER_ID, required = false) Long userId) {
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal UserDetails user) {
 
+        long userId = GatewayPreAuthentication.currentUserId(user);
         log.debug("GET /api/v1/listings/{}, userId={}", id, userId);
-
-        if (userId == null || userId <= 0) {
-            return ResponseEntity.badRequest().build();
-        }
 
         ListingResponse response = listingService.getListing(id, userId);
         return ResponseEntity.ok(response);
@@ -129,7 +120,11 @@ public class ListingController {
                     content = @Content(schema = @Schema(implementation = ListingResponse.class))),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Validation error, invalid userId, or cannot edit listing in current status",
+                    description = "Validation error or cannot edit listing in current status",
+                    content = @Content),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Missing or invalid authenticated user",
                     content = @Content),
             @ApiResponse(
                     responseCode = "403",
@@ -141,24 +136,16 @@ public class ListingController {
                     content = @Content)
     })
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole(T(ru.hvostid.common.security.UserRole).SELLER.value())")
     public ResponseEntity<ListingResponse> updateListing(
             @Parameter(description = "Listing ID", required = true, example = "1")
             @PathVariable Long id,
             @Valid @RequestBody ListingUpdateRequest request,
-            @Parameter(description = "User ID from Gateway", required = true, example = "100")
-            @RequestHeader(value = SecurityHeaders.USER_ID, required = false) Long userId,
-            @Parameter(description = "User roles from Gateway (comma-separated)", required = true, example = "seller,buyer")
-            @RequestHeader(value = SecurityHeaders.USER_ROLES, required = false) String rolesHeader) {
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal UserDetails user) {
 
+        long userId = GatewayPreAuthentication.currentUserId(user);
         log.debug("PUT /api/v1/listings/{}, userId={}", id, userId);
-
-        if (userId == null || userId <= 0) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        if (!hasRole(rolesHeader, "seller")) {
-            throw new AccessDeniedException("User does not have seller role");
-        }
 
         ListingResponse response = listingService.updateListing(id, request, userId);
         return ResponseEntity.ok(response);
@@ -188,14 +175,5 @@ public class ListingController {
 
         Page<ListingResponse> responses = listingService.getPublishedListings(pageable);
         return ResponseEntity.ok(responses);
-    }
-
-    private boolean hasRole(String rolesHeader, String role) {
-        if (rolesHeader == null || rolesHeader.isBlank()) {
-            return false;
-        }
-        return Arrays.stream(rolesHeader.split(","))
-                .map(String::trim)
-                .anyMatch(r -> r.equalsIgnoreCase(role));
     }
 }

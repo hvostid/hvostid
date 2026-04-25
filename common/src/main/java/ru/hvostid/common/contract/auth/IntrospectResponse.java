@@ -7,6 +7,8 @@ import java.util.List;
 /**
  * Response body for token introspection.
  * <p>
+ * Roles are uppercase {@link ru.hvostid.common.security.UserRole} values.
+ * <p>
  * When {@code active} is false, {@code userId} and {@code roles} are omitted from JSON.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)

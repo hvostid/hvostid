@@ -13,7 +13,7 @@ public final class SecurityHeaders {
     public static final String USER_ID = "X-User-Id";
 
     /**
-     * Comma-separated list of user roles (e.g. "buyer,seller").
+     * Comma-separated list of user roles (e.g. "BUYER,SELLER").
      */
     public static final String USER_ROLES = "X-User-Roles";
 

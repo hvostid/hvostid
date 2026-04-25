@@ -33,8 +33,8 @@ class RequestIdFilterTest {
         });
 
         String responseId = response.getHeader(REQUEST_ID);
-        assertNotNull(responseId, "Response must contain X-Request-Id");
-        assertDoesNotThrow(() -> UUID.fromString(responseId), "Generated request id must be a valid UUID");
+        assertNotNull(responseId, "Response must contain Request ID");
+        assertDoesNotThrow(() -> UUID.fromString(responseId), "Generated Request ID must be a valid UUID");
     }
 
     @Test
@@ -47,7 +47,7 @@ class RequestIdFilterTest {
         filter.doFilterInternal(request, response, (_, _) -> {
         });
 
-        assertEquals(clientId, response.getHeader(REQUEST_ID), "Response must echo the client-provided X-Request-Id");
+        assertEquals(clientId, response.getHeader(REQUEST_ID), "Response must echo the client-provided Request ID");
     }
 
     @Test
@@ -75,8 +75,8 @@ class RequestIdFilterTest {
 
         filter.doFilterInternal(request, response, chain);
 
-        assertNotNull(downstreamHeader.get(), "Downstream must receive X-Request-Id via wrapped request");
-        assertEquals(response.getHeader(REQUEST_ID), downstreamHeader.get(), "Downstream and response X-Request-Id must match");
+        assertNotNull(downstreamHeader.get(), "Downstream must receive Request ID via wrapped request");
+        assertEquals(response.getHeader(REQUEST_ID), downstreamHeader.get(), "Downstream and response Request ID must match");
     }
 
     @Test

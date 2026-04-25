@@ -26,12 +26,12 @@ export default function Navbar() {
                 Recommendations
               </Link>
             )}
-            {hasRole('seller') && (
+            {hasRole('SELLER') && (
               <Link to="/my-listings" className="text-sm text-gray-600 hover:text-gray-900">
                 My listings
               </Link>
             )}
-            {hasRole('moderator') && (
+            {hasRole('MODERATOR') && (
               <Link to="/moderation" className="text-sm text-gray-600 hover:text-gray-900">
                 Moderation
               </Link>

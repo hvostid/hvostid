@@ -11,7 +11,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import ru.hvostid.auth.config.AuthTokenProperties;
 import ru.hvostid.auth.dto.*;
-import ru.hvostid.auth.entity.Role;
 import ru.hvostid.auth.entity.Session;
 import ru.hvostid.auth.entity.User;
 import ru.hvostid.auth.exception.EmailAlreadyExistsException;
@@ -21,6 +20,7 @@ import ru.hvostid.auth.repository.SessionRepository;
 import ru.hvostid.auth.repository.UserRepository;
 import ru.hvostid.common.contract.auth.IntrospectRequest;
 import ru.hvostid.common.contract.auth.IntrospectResponse;
+import ru.hvostid.common.security.UserRole;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -60,7 +60,7 @@ class AuthServiceTest {
     @DisplayName("register")
     class RegisterTests {
         @Test
-        @DisplayName("success - returns user profile with buyer role")
+        @DisplayName("success - returns user profile with BUYER role")
         void register_success() {
             RegisterRequest request = new RegisterRequest("test@example.com", "password123", "Test User");
 
@@ -77,7 +77,7 @@ class AuthServiceTest {
             assertEquals(1L, response.id());
             assertEquals("test@example.com", response.email());
             assertEquals("Test User", response.name());
-            assertTrue(response.roles().contains("buyer"));
+            assertTrue(response.roles().contains(UserRole.BUYER.value()));
 
             verify(userRepository).save(any(User.class));
         }
@@ -171,7 +171,7 @@ class AuthServiceTest {
 
             assertTrue(response.active());
             assertEquals(42L, response.userId());
-            assertEquals(List.of("buyer"), response.roles());
+            assertEquals(List.of(UserRole.BUYER.value()), response.roles());
         }
 
         @Test
@@ -207,11 +207,11 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("user with seller role - returns both roles in sorted order")
+        @DisplayName("user with SELLER role - returns both roles in sorted order")
         void introspect_sellerRole_returnsBothRolesSorted() {
             User user = new User("seller@example.com", "Seller", "hash");
             user.setId(10L);
-            user.addRole(Role.SELLER);
+            user.addRole(UserRole.SELLER);
 
             Session session = new Session(user, "seller_token", "refresh",
                     Instant.now().plusSeconds(600), Instant.now().plusSeconds(86400));
@@ -222,7 +222,7 @@ class AuthServiceTest {
             IntrospectResponse response = authService.introspect(new IntrospectRequest("seller_token"));
 
             assertTrue(response.active());
-            assertEquals(List.of("buyer", "seller"), response.roles());
+            assertEquals(List.of(UserRole.BUYER.value(), UserRole.SELLER.value()), response.roles());
         }
     }
 

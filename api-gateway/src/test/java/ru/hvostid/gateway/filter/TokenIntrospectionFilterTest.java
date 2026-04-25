@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import ru.hvostid.common.contract.auth.IntrospectResponse;
+import ru.hvostid.common.security.UserRole;
 import ru.hvostid.gateway.client.IntrospectionClient;
 import ru.hvostid.gateway.config.AuthProperties;
 import tools.jackson.databind.ObjectMapper;
@@ -135,7 +136,7 @@ class TokenIntrospectionFilterTest {
         @Test
         @DisplayName("active token forwards request with user headers")
         void activeToken_forwardsWithUserHeaders() throws ServletException, IOException {
-            IntrospectResponse activeResponse = new IntrospectResponse(true, 42L, List.of("buyer"));
+            IntrospectResponse activeResponse = new IntrospectResponse(true, 42L, List.of(UserRole.BUYER.value()));
             when(introspectionClient.introspect("valid-token")).thenReturn(Optional.of(activeResponse));
 
             MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/listings");
@@ -153,14 +154,14 @@ class TokenIntrospectionFilterTest {
             filter.doFilterInternal(request, response, chain);
 
             assertEquals("42", capturedUserId.get());
-            assertEquals("buyer", capturedRoles.get());
+            assertEquals(UserRole.BUYER.value(), capturedRoles.get());
             assertNotEquals(HttpStatus.UNAUTHORIZED.value(), response.getStatus());
         }
 
         @Test
         @DisplayName("active token with multiple roles joins them with comma")
         void activeToken_multipleRoles_joinedWithComma() throws ServletException, IOException {
-            IntrospectResponse activeResponse = new IntrospectResponse(true, 1L, List.of("seller", "admin"));
+            IntrospectResponse activeResponse = new IntrospectResponse(true, 1L, List.of(UserRole.SELLER.value(), UserRole.ADMIN.value()));
             when(introspectionClient.introspect("multi-role-token")).thenReturn(Optional.of(activeResponse));
 
             MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/listings");
@@ -173,7 +174,7 @@ class TokenIntrospectionFilterTest {
 
             filter.doFilterInternal(request, response, chain);
 
-            assertEquals("seller,admin", capturedRoles.get());
+            assertEquals("SELLER,ADMIN", capturedRoles.get());
         }
 
         @Test
@@ -212,7 +213,7 @@ class TokenIntrospectionFilterTest {
         @Test
         @DisplayName("getHeaderNames includes injected headers")
         void getHeaderNames_includesInjectedHeaders() throws ServletException, IOException {
-            IntrospectResponse activeResponse = new IntrospectResponse(true, 10L, List.of("buyer"));
+            IntrospectResponse activeResponse = new IntrospectResponse(true, 10L, List.of(UserRole.BUYER.value()));
             when(introspectionClient.introspect("token")).thenReturn(Optional.of(activeResponse));
 
             MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/listings");
@@ -231,8 +232,8 @@ class TokenIntrospectionFilterTest {
 
             filter.doFilterInternal(request, response, chain);
 
-            assertTrue(hasUserId.get(), "Header names must include X-User-Id");
-            assertTrue(hasRoles.get(), "Header names must include X-User-Roles");
+            assertTrue(hasUserId.get(), "Header names must include " + USER_ID);
+            assertTrue(hasRoles.get(), "Header names must include " + USER_ROLES);
         }
     }
 }
