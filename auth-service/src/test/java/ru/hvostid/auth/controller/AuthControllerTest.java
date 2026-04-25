@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import ru.hvostid.auth.dto.LoginRequest;
 import ru.hvostid.auth.dto.RegisterRequest;
+import ru.hvostid.common.security.UserRole;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -91,7 +92,7 @@ class AuthControllerTest {
                     .andExpect(jsonPath("$.id", notNullValue()))
                     .andExpect(jsonPath("$.email", is("user@example.com")))
                     .andExpect(jsonPath("$.name", is("John Doe")))
-                    .andExpect(jsonPath("$.roles", hasItem("buyer")));
+                    .andExpect(jsonPath("$.roles", hasItem(UserRole.BUYER.value())));
         }
 
         @Test
@@ -224,7 +225,7 @@ class AuthControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.active", is(true)))
                     .andExpect(jsonPath("$.userId", notNullValue()))
-                    .andExpect(jsonPath("$.roles", hasItem("buyer")));
+                    .andExpect(jsonPath("$.roles", hasItem(UserRole.BUYER.value())));
         }
 
         @Test

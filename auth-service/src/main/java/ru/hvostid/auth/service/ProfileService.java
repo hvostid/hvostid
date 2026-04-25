@@ -81,7 +81,7 @@ public class ProfileService {
 
     /**
      * Add a role to the current user.
-     * Only seller can be self-assigned; moderator and admin require admin privileges.
+     * Only SELLER can be self-assigned; MODERATOR and ADMIN require admin privileges.
      *
      * @param userId  authenticated user identifier
      * @param request contains the role to add
@@ -126,7 +126,7 @@ public class ProfileService {
                 user.getEmail(),
                 user.getName(),
                 user.getRoles().stream()
-                        .map(UserRole::lowerValue)
+                        .map(UserRole::value)
                         .sorted()
                         .toList(),
                 user.getPhone(),

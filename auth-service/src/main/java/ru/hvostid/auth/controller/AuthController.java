@@ -36,7 +36,7 @@ public class AuthController {
      */
     @Operation(
             summary = "Register a new user",
-            description = "Creates a new user account with buyer role by default.")
+            description = "Creates a new user account with BUYER role by default.")
     @ApiResponse(
             responseCode = "201",
             description = "User created successfully",

@@ -17,8 +17,13 @@ class UserRoleTest {
     }
 
     @Test
-    void fromValue_acceptsDifferentCase() {
-        assertEquals(UserRole.SELLER, UserRole.fromValue("seller"));
+    void fromValue_acceptsUppercaseValue() {
+        assertEquals(UserRole.SELLER, UserRole.fromValue("SELLER"));
+    }
+
+    @Test
+    void fromValue_rejectsLowercaseValue() {
+        assertThrows(IllegalArgumentException.class, () -> UserRole.fromValue("seller"));
     }
 
     @Test
