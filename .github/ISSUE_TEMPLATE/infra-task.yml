@@ -3,35 +3,35 @@ description: CI/CD, Docker, DevOps tasks
 title: "infra: "
 labels: [ "infra" ]
 body:
-  - type: dropdown
-    id: area
-    attributes:
-      label: Area
-      options:
-        - "CI/CD (GitHub Actions)"
-        - "Docker / Docker Compose"
-        - "SonarQube"
-        - "MinIO"
-        - "PostgreSQL"
-        - "Monitoring / Logging"
-        - "Other"
-    validations:
-      required: true
+    -   type: dropdown
+        id: area
+        attributes:
+            label: Area
+            options:
+                - "CI/CD (GitHub Actions)"
+                - "Docker / Docker Compose"
+                - "SonarQube"
+                - "MinIO"
+                - "PostgreSQL"
+                - "Monitoring / Logging"
+                - "Other"
+        validations:
+            required: true
 
-  - type: textarea
-    id: description
-    attributes:
-      label: Description
-      description: What needs to be done
-    validations:
-      required: true
+    -   type: textarea
+        id: description
+        attributes:
+            label: Description
+            description: What needs to be done
+        validations:
+            required: true
 
-  - type: textarea
-    id: acceptance
-    attributes:
-      label: Acceptance criteria
-      placeholder: |
-        - [ ] Criterion 1
-        - [ ] Criterion 2
-    validations:
-      required: true
+    -   type: textarea
+        id: acceptance
+        attributes:
+            label: Acceptance criteria
+            placeholder: |
+                - [ ] Criterion 1
+                - [ ] Criterion 2
+        validations:
+            required: true

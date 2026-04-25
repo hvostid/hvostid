@@ -1,220 +1,220 @@
 services:
 
-  # --- Infrastructure ---
+    # --- Infrastructure ---
 
-  postgres:
-    image: postgres:18-alpine
-    container_name: hvostid-postgres
-    environment:
-      POSTGRES_USER: ${DB_USER:-hvostid}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-hvostid}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./docker/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-hvostid}" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+    postgres:
+        image: postgres:18-alpine
+        container_name: hvostid-postgres
+        environment:
+            POSTGRES_USER: ${DB_USER:-hvostid}
+            POSTGRES_PASSWORD: ${DB_PASSWORD:-hvostid}
+        ports:
+            - "5432:5432"
+        volumes:
+            - postgres-data:/var/lib/postgresql/data
+            - ./docker/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+        healthcheck:
+            test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-hvostid}" ]
+            interval: 5s
+            timeout: 3s
+            retries: 5
 
-  minio:
-    image: minio/minio
-    container_name: hvostid-minio
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio-data:/data
-    healthcheck:
-      test: [ "CMD", "mc", "ready", "local" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+    minio:
+        image: minio/minio
+        container_name: hvostid-minio
+        command: server /data --console-address ":9001"
+        environment:
+            MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+            MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+        ports:
+            - "9000:9000"
+            - "9001:9001"
+        volumes:
+            - minio-data:/data
+        healthcheck:
+            test: [ "CMD", "mc", "ready", "local" ]
+            interval: 5s
+            timeout: 3s
+            retries: 5
 
-  minio-init:
-    image: minio/mc
-    container_name: hvostid-minio-init
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 $${MINIO_ACCESS_KEY:-minioadmin} $${MINIO_SECRET_KEY:-minioadmin};
-      mc mb --ignore-existing local/pet-documents;
-      exit 0;
-      "
+    minio-init:
+        image: minio/mc
+        container_name: hvostid-minio-init
+        depends_on:
+            minio:
+                condition: service_healthy
+        entrypoint: >
+            /bin/sh -c "
+            mc alias set local http://minio:9000 $${MINIO_ACCESS_KEY:-minioadmin} $${MINIO_SECRET_KEY:-minioadmin};
+            mc mb --ignore-existing local/pet-documents;
+            exit 0;
+            "
 
-  sonarqube:
-    image: sonarqube:community
-    container_name: hvostid-sonarqube
-    environment:
-      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
-    ports:
-      - "9090:9000"
-    volumes:
-      - sonarqube-data:/opt/sonarqube/data
-    profiles:
-      - quality
+    sonarqube:
+        image: sonarqube:community
+        container_name: hvostid-sonarqube
+        environment:
+            SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+        ports:
+            - "9090:9000"
+        volumes:
+            - sonarqube-data:/opt/sonarqube/data
+        profiles:
+            - quality
 
-  # --- Application Services ---
+    # --- Application Services ---
 
-  api-gateway:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_NAME: api-gateway
-        SERVICE_PORT: 8080
-    container_name: hvostid-gateway
-    ports:
-      - "8080:8080"
-    environment:
-      AUTH_SERVICE_HOST: auth-service
-      LISTING_SERVICE_HOST: listing-service
-      PASSPORT_SERVICE_HOST: passport-service
-      MATCHING_SERVICE_HOST: matching-service
-    depends_on:
-      auth-service:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+    api-gateway:
+        build:
+            context: .
+            dockerfile: Dockerfile
+            args:
+                SERVICE_NAME: api-gateway
+                SERVICE_PORT: 8080
+        container_name: hvostid-gateway
+        ports:
+            - "8080:8080"
+        environment:
+            AUTH_SERVICE_HOST: auth-service
+            LISTING_SERVICE_HOST: listing-service
+            PASSPORT_SERVICE_HOST: passport-service
+            MATCHING_SERVICE_HOST: matching-service
+        depends_on:
+            auth-service:
+                condition: service_healthy
+        healthcheck:
+            test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1" ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 30s
 
-  auth-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_NAME: auth-service
-        SERVICE_PORT: 8081
-    container_name: hvostid-auth
-    ports:
-      - "8081:8081"
-    environment:
-      SERVER_PORT: 8081
-      DB_HOST: postgres
-      DB_NAME: hvostid_auth
-      DB_USER: ${DB_USER:-hvostid}
-      DB_PASSWORD: ${DB_PASSWORD:-hvostid}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+    auth-service:
+        build:
+            context: .
+            dockerfile: Dockerfile
+            args:
+                SERVICE_NAME: auth-service
+                SERVICE_PORT: 8081
+        container_name: hvostid-auth
+        ports:
+            - "8081:8081"
+        environment:
+            SERVER_PORT: 8081
+            DB_HOST: postgres
+            DB_NAME: hvostid_auth
+            DB_USER: ${DB_USER:-hvostid}
+            DB_PASSWORD: ${DB_PASSWORD:-hvostid}
+        depends_on:
+            postgres:
+                condition: service_healthy
+        healthcheck:
+            test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1" ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 30s
 
-  listing-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_NAME: listing-service
-        SERVICE_PORT: 8082
-    container_name: hvostid-listing
-    ports:
-      - "8082:8082"
-    environment:
-      SERVER_PORT: 8082
-      DB_HOST: postgres
-      DB_NAME: hvostid_listing
-      DB_USER: ${DB_USER:-hvostid}
-      DB_PASSWORD: ${DB_PASSWORD:-hvostid}
-      PASSPORT_SERVICE_HOST: passport-service
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+    listing-service:
+        build:
+            context: .
+            dockerfile: Dockerfile
+            args:
+                SERVICE_NAME: listing-service
+                SERVICE_PORT: 8082
+        container_name: hvostid-listing
+        ports:
+            - "8082:8082"
+        environment:
+            SERVER_PORT: 8082
+            DB_HOST: postgres
+            DB_NAME: hvostid_listing
+            DB_USER: ${DB_USER:-hvostid}
+            DB_PASSWORD: ${DB_PASSWORD:-hvostid}
+            PASSPORT_SERVICE_HOST: passport-service
+        depends_on:
+            postgres:
+                condition: service_healthy
+        healthcheck:
+            test: [ "CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health || exit 1" ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 30s
 
-  passport-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_NAME: passport-service
-        SERVICE_PORT: 8083
-    container_name: hvostid-passport
-    ports:
-      - "8083:8083"
-    environment:
-      SERVER_PORT: 8083
-      DB_HOST: postgres
-      DB_NAME: hvostid_passport
-      DB_USER: ${DB_USER:-hvostid}
-      DB_PASSWORD: ${DB_PASSWORD:-hvostid}
-      MINIO_HOST: minio
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+    passport-service:
+        build:
+            context: .
+            dockerfile: Dockerfile
+            args:
+                SERVICE_NAME: passport-service
+                SERVICE_PORT: 8083
+        container_name: hvostid-passport
+        ports:
+            - "8083:8083"
+        environment:
+            SERVER_PORT: 8083
+            DB_HOST: postgres
+            DB_NAME: hvostid_passport
+            DB_USER: ${DB_USER:-hvostid}
+            DB_PASSWORD: ${DB_PASSWORD:-hvostid}
+            MINIO_HOST: minio
+            MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+            MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+        depends_on:
+            postgres:
+                condition: service_healthy
+            minio:
+                condition: service_healthy
+        healthcheck:
+            test: [ "CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health || exit 1" ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 30s
 
-  matching-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_NAME: matching-service
-        SERVICE_PORT: 8084
-    container_name: hvostid-matching
-    ports:
-      - "8084:8084"
-    environment:
-      SERVER_PORT: 8084
-      DB_HOST: postgres
-      DB_NAME: hvostid_matching
-      DB_USER: ${DB_USER:-hvostid}
-      DB_PASSWORD: ${DB_PASSWORD:-hvostid}
-      LISTING_SERVICE_HOST: listing-service
-      PASSPORT_SERVICE_HOST: passport-service
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+    matching-service:
+        build:
+            context: .
+            dockerfile: Dockerfile
+            args:
+                SERVICE_NAME: matching-service
+                SERVICE_PORT: 8084
+        container_name: hvostid-matching
+        ports:
+            - "8084:8084"
+        environment:
+            SERVER_PORT: 8084
+            DB_HOST: postgres
+            DB_NAME: hvostid_matching
+            DB_USER: ${DB_USER:-hvostid}
+            DB_PASSWORD: ${DB_PASSWORD:-hvostid}
+            LISTING_SERVICE_HOST: listing-service
+            PASSPORT_SERVICE_HOST: passport-service
+        depends_on:
+            postgres:
+                condition: service_healthy
+        healthcheck:
+            test: [ "CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health || exit 1" ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 30s
 
-  # --- Frontend ---
+    # --- Frontend ---
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: hvostid-frontend
-    ports:
-      - "3000:80"
-    depends_on:
-      api-gateway:
-        condition: service_healthy
+    frontend:
+        build:
+            context: ./frontend
+            dockerfile: Dockerfile
+        container_name: hvostid-frontend
+        ports:
+            - "3000:80"
+        depends_on:
+            api-gateway:
+                condition: service_healthy
 
 volumes:
-  postgres-data:
-  minio-data:
-  sonarqube-data:
+    postgres-data:
+    minio-data:
+    sonarqube-data:

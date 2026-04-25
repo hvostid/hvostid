@@ -18,6 +18,13 @@ public enum UserRole {
         this.value = value;
     }
 
+    public static UserRole fromValue(String value) {
+        return Arrays.stream(values())
+                .filter(role -> role.value.equalsIgnoreCase(value))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown user role: " + value));
+    }
+
     public String value() {
         return value;
     }
@@ -28,12 +35,5 @@ public enum UserRole {
 
     public String lowerValue() {
         return value.toLowerCase(Locale.ROOT);
-    }
-
-    public static UserRole fromValue(String value) {
-        return Arrays.stream(values())
-                .filter(role -> role.value.equalsIgnoreCase(value))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Unknown user role: " + value));
     }
 }

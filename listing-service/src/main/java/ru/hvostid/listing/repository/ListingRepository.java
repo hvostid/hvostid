@@ -8,5 +8,6 @@ import ru.hvostid.listing.entity.ListingStatus;
 
 public interface ListingRepository extends JpaRepository<Listing, Long> {
     Page<Listing> findByStatus(ListingStatus status, Pageable pageable);
+
     boolean existsBySellerIdAndTitleAndStatusNot(Long sellerId, String title, ListingStatus status);
 }

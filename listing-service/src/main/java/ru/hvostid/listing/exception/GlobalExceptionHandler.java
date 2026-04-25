@@ -66,5 +66,6 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("Internal server error", HttpStatus.INTERNAL_SERVER_ERROR.value(), Instant.now()));
     }
 
-    public record ErrorResponse(String message, int status, Instant timestamp) {}
+    public record ErrorResponse(String message, int status, Instant timestamp) {
+    }
 }
