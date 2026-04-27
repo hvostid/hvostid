@@ -9,13 +9,16 @@ dependencies {
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.spring.boot.starter.security)
+    implementation(libs.spring.boot.starter.flyway)
     implementation(libs.spring.doc.openapi.webmvc)
     implementation(project(":common"))
 
     runtimeOnly(libs.postgresql)
+    runtimeOnly(libs.flyway.database.postgresql)
 
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.boot.starter.webmvc.test)
+    testImplementation(libs.spring.boot.starter.flyway.test)
     testImplementation(libs.spring.security.test)
     testImplementation(libs.testcontainers.junit)
     testImplementation(libs.testcontainers.postgresql)
