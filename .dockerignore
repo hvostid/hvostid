@@ -1,0 +1,37 @@
+# VCS
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.idea
+.vscode
+*.iml
+*.ipr
+*.iws
+
+# Gradle build outputs and caches
+**/build
+**/.gradle
+.gradle
+build
+
+# Node / frontend build outputs (frontend has its own Dockerfile)
+**/node_modules
+**/dist
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Local env / secrets
+.env
+*.local
+
+# Docs and CI metadata not needed at build time
+.github
+README.md
+LICENSE
+postman
+k6
+docker
