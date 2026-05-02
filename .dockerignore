@@ -1,0 +1,40 @@
+# VCS
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.idea
+.vscode
+*.iml
+*.ipr
+*.iws
+
+# Gradle build outputs and caches
+**/build
+**/.gradle
+.gradle
+build
+
+# Frontend has its own Dockerfile (context: ./frontend); backend builds
+# never need frontend sources, so exclude the whole tree from the root
+# build context to keep the COPY cache stable across frontend edits.
+frontend
+**/node_modules
+**/dist
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Local env / secrets
+.env
+*.local
+
+# Docs and CI metadata not needed at build time
+.github
+README.md
+LICENSE
+postman
+k6
+docker

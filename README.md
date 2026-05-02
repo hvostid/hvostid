@@ -41,25 +41,38 @@ scoring.
 
 ### Quick Start
 
+Start the entire platform (8 containers: 5 services + PostgreSQL + MinIO + frontend) with one command:
+
 ```bash
 git clone https://github.com/hvostid/hvostid.git
 cd hvostid
 cp .env.example .env
+docker compose up --build
 ```
+
+Each backend service is built from source via a multi-stage Dockerfile, so no
+local `./gradlew build` is required first. Subsequent `docker compose up
+--build` runs reuse the Gradle dependency cache (BuildKit cache mount).
+
+Once everything is healthy:
+
+- Frontend: http://localhost:3000
+- API Gateway: http://localhost:8080
+- PostgreSQL: localhost:5432 (4 databases auto-created on first start: `hvostid_auth`, `hvostid_listing`, `hvostid_passport`, `hvostid_matching`)
+- MinIO Console: http://localhost:9001 (bucket `pet-documents` auto-created on first start)
 
 ### Local Development
 
-Start infrastructure:
+Start supporting infrastructure only:
 
 ```bash
 docker compose up -d postgres minio minio-init
 ```
 
-Build and run backend:
+Build and run backend from your IDE or:
 
 ```bash
-./gradlew build
-./gradlew :bootRun
+./gradlew :auth-service:bootRun
 ```
 
 Run frontend:
@@ -71,14 +84,6 @@ npm run dev
 ```
 
 Frontend dev server starts at http://localhost:3000 and proxies `/api` to Gateway at :8080.
-
-### Run Everything with Docker Compose
-
-```bash
-./gradlew build
-cd frontend && npm run build && cd ..
-docker compose up --build
-```
 
 ### Hybrid Local Development
 
@@ -97,6 +102,8 @@ docker compose up -d postgres minio minio-init listing-service passport-service 
 ```
 
 ### SonarQube (optional)
+
+The `quality` Compose profile keeps SonarQube out of the default startup. Bring it up only when needed:
 
 ```bash
 docker compose --profile quality up -d sonarqube
