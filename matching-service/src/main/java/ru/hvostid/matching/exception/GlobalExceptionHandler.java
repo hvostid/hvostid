@@ -35,12 +35,19 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
+    public ResponseEntity<ValidationErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
+        Map<String, String> fieldErrors = new HashMap<>();
         ex.getBindingResult().getFieldErrors().forEach(error ->
-                errors.put(error.getField(), error.getDefaultMessage())
+                fieldErrors.put(error.getField(), error.getDefaultMessage())
         );
-        return ResponseEntity.badRequest().body(errors);
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ValidationErrorResponse(
+                        "Validation failed",
+                        HttpStatus.BAD_REQUEST.value(),
+                        Instant.now(),
+                        fieldErrors
+                ));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -60,5 +67,13 @@ public class GlobalExceptionHandler {
     }
 
     public record ErrorResponse(String message, int status, Instant timestamp) {
+    }
+
+    public record ValidationErrorResponse(
+            String message,
+            int status,
+            Instant timestamp,
+            Map<String, String> fieldErrors
+    ) {
     }
 }

@@ -7,10 +7,11 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import ru.hvostid.common.http.SecurityHeaders;
+import ru.hvostid.common.openapi.OpenApiSecuritySchemes;
 
 @Configuration
 public class OpenApiConfig {
-
     @Bean
     public OpenAPI listingOpenAPI() {
         return new OpenAPI()
@@ -24,11 +25,10 @@ public class OpenApiConfig {
                 .addServersItem(new Server()
                         .url("http://localhost:8082")
                         .description("Listing Service (direct)"))
-
-                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
-                .schemaRequirement("bearerAuth", new SecurityScheme()
-                        .type(SecurityScheme.Type.HTTP)
-                        .scheme("bearer")
-                        .bearerFormat("Opaque token"));
+                .addSecurityItem(new SecurityRequirement().addList(OpenApiSecuritySchemes.USER_ID_SCHEME))
+                .schemaRequirement(OpenApiSecuritySchemes.USER_ID_SCHEME, new SecurityScheme()
+                        .type(SecurityScheme.Type.APIKEY)
+                        .in(SecurityScheme.In.HEADER)
+                        .name(SecurityHeaders.USER_ID));
     }
 }

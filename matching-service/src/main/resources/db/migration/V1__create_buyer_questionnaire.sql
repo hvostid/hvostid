@@ -21,5 +21,3 @@ CREATE TABLE buyer_questionnaire
     created_at           TIMESTAMP   NOT NULL DEFAULT now(),
     updated_at           TIMESTAMP   NOT NULL DEFAULT now()
 );
-
-CREATE INDEX idx_buyer_questionnaire_user_id ON buyer_questionnaire (user_id);
