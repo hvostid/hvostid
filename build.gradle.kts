@@ -37,6 +37,10 @@ subprojects {
 
     tasks.withType<Test> {
         useJUnitPlatform()
+        systemProperty(
+            "testcontainers.postgres.image",
+            rootProject.libs.versions.postgres.image.get()
+        )
     }
 
     tasks.jacocoTestReport {

@@ -17,7 +17,7 @@ jackson-core = "3.1.0"
 jakarta-validation = "4.0.0-M1"
 minio = "8.6.0"
 junit = "6.0.3"
-h2 = "2.4.240"
+postgres-image = "postgres:18-alpine"
 
 [libraries]
 # Spring Boot starters
@@ -49,7 +49,6 @@ awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" 
 
 # Database
 postgresql = { module = "org.postgresql:postgresql" }
-h2 = { module = "com.h2database:h2", version.ref = "h2" }
 
 # Flyway
 flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql" }
@@ -68,6 +67,7 @@ minio = { module = "io.minio:minio", version.ref = "minio" }
 # Testing
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-testcontainers" }
 testcontainers-junit = { module = "org.testcontainers:testcontainers-junit-jupiter" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
 testcontainers-minio = { module = "org.testcontainers:testcontainers-minio" }

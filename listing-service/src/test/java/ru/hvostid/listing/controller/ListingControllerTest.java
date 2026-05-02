@@ -8,10 +8,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import ru.hvostid.common.security.UserRole;
+import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
 import ru.hvostid.listing.entity.Listing;
@@ -28,9 +28,8 @@ import static ru.hvostid.common.http.SecurityHeaders.USER_ROLES;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("test")
 @Transactional
-class ListingControllerTest {
+class ListingControllerTest extends AbstractPostgresContainerTest {
 
     private static final String LISTINGS_URL = "/api/v1/listings";
     private final Long testSellerId = 100L;
