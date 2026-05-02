@@ -18,6 +18,7 @@ jakarta-validation = "4.0.0-M1"
 minio = "8.6.0"
 junit = "6.0.3"
 h2 = "2.4.240"
+postgres-image = "postgres:18-alpine"
 
 [libraries]
 # Spring Boot starters
@@ -68,6 +69,7 @@ minio = { module = "io.minio:minio", version.ref = "minio" }
 # Testing
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-testcontainers" }
 testcontainers-junit = { module = "org.testcontainers:testcontainers-junit-jupiter" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
 testcontainers-minio = { module = "org.testcontainers:testcontainers-minio" }

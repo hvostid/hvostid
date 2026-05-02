@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import ru.hvostid.auth.dto.RegisterRequest;
 import ru.hvostid.common.security.UserRole;
+import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -24,7 +25,7 @@ import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
 @SpringBootTest
 @AutoConfigureMockMvc
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-class ProfileControllerTest {
+class ProfileControllerTest extends AbstractPostgresContainerTest {
     private static final String PROFILE_ME_URL = "/api/v1/profile/me";
     private static final String PROFILE_ROLES_URL = "/api/v1/profile/me/roles";
     private static final String REGISTER_URL = "/api/v1/auth/register";

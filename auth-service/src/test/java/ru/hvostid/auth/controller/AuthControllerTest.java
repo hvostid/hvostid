@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import ru.hvostid.auth.dto.LoginRequest;
 import ru.hvostid.auth.dto.RegisterRequest;
 import ru.hvostid.common.security.UserRole;
+import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -24,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-class AuthControllerTest {
+class AuthControllerTest extends AbstractPostgresContainerTest {
     private static final String REGISTER_URL = "/api/v1/auth/register";
     private static final String LOGIN_URL = "/api/v1/auth/login";
     private static final String REFRESH_URL = "/api/v1/auth/refresh";
