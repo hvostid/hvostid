@@ -1,5 +1,6 @@
 package ru.hvostid.auth.controller;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -7,7 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
-import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import ru.hvostid.auth.dto.RegisterRequest;
@@ -24,7 +25,6 @@ import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class ProfileControllerTest extends AbstractPostgresContainerTest {
     private static final String PROFILE_ME_URL = "/api/v1/profile/me";
     private static final String PROFILE_ROLES_URL = "/api/v1/profile/me/roles";
@@ -35,6 +35,14 @@ class ProfileControllerTest extends AbstractPostgresContainerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @AfterEach
+    void cleanDatabase() {
+        jdbcTemplate.execute("TRUNCATE TABLE sessions, user_roles, users RESTART IDENTITY CASCADE");
+    }
 
     /**
      * Register a user and return their ID.
