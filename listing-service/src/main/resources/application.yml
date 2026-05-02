@@ -5,7 +5,7 @@ spring:
     application:
         name: listing-service
     datasource:
-        url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:hvostid_listing}
+        url: jdbc://${DB_HOST:localhost}:5432/${DB_NAME:hvostid_listing}
         username: ${DB_USER:hvostid}
         password: ${DB_PASSWORD:hvostid}
     jpa:
