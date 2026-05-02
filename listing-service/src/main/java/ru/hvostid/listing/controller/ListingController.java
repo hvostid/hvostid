@@ -5,7 +5,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -24,6 +23,7 @@ import ru.hvostid.common.security.GatewayPreAuthentication;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
+import ru.hvostid.listing.exception.GlobalExceptionHandler;
 import ru.hvostid.listing.service.ListingService;
 
 @RestController
@@ -42,31 +42,28 @@ public class ListingController {
             summary = "Create a new listing",
             description = "Creates a new animal listing with DRAFT status. Only users with SELLER role can create listings."
     )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "201",
-                    description = "Listing created successfully",
-                    content = @Content(schema = @Schema(implementation = ListingResponse.class))),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Validation error",
-                    content = @Content(schema = @Schema(implementation = ru.hvostid.listing.exception.GlobalExceptionHandler.ErrorResponse.class))),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Missing or invalid authenticated user",
-                    content = @Content),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "User does not have SELLER role",
-                    content = @Content)
-    })
+    @ApiResponse(
+            responseCode = "201",
+            description = "Listing created successfully",
+            content = @Content(schema = @Schema(implementation = ListingResponse.class)))
+    @ApiResponse(
+            responseCode = "400",
+            description = "Validation error",
+            content = @Content(schema = @Schema(implementation = GlobalExceptionHandler.ErrorResponse.class)))
+    @ApiResponse(
+            responseCode = "401",
+            description = "Missing or invalid authenticated user",
+            content = @Content)
+    @ApiResponse(
+            responseCode = "403",
+            description = "User does not have SELLER role",
+            content = @Content)
     @PostMapping
     @PreAuthorize("hasRole(T(ru.hvostid.common.security.UserRole).SELLER.value())")
     public ResponseEntity<ListingResponse> createListing(
             @Valid @RequestBody ListingRequest request,
             @Parameter(hidden = true)
             @AuthenticationPrincipal UserDetails user) {
-
         long userId = GatewayPreAuthentication.currentUserId(user);
         log.debug("POST /api/v1/listings, userId={}", userId);
         ListingResponse response = listingService.createListing(request, userId);
@@ -77,31 +74,28 @@ public class ListingController {
             summary = "Get listing by ID",
             description = "Returns a listing. Published listings are visible to authenticated users. Draft/Moderation listings are visible only to the owner."
     )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Listing found",
-                    content = @Content(schema = @Schema(implementation = ListingResponse.class))),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Missing or invalid authenticated user",
-                    content = @Content),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Access denied (draft listing belongs to another user)",
-                    content = @Content),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Listing not found",
-                    content = @Content(schema = @Schema(implementation = ru.hvostid.listing.exception.GlobalExceptionHandler.ErrorResponse.class)))
-    })
+    @ApiResponse(
+            responseCode = "200",
+            description = "Listing found",
+            content = @Content(schema = @Schema(implementation = ListingResponse.class)))
+    @ApiResponse(
+            responseCode = "401",
+            description = "Missing or invalid authenticated user",
+            content = @Content)
+    @ApiResponse(
+            responseCode = "403",
+            description = "Access denied (draft listing belongs to another user)",
+            content = @Content)
+    @ApiResponse(
+            responseCode = "404",
+            description = "Listing not found",
+            content = @Content(schema = @Schema(implementation = GlobalExceptionHandler.ErrorResponse.class)))
     @GetMapping("/{id}")
     public ResponseEntity<ListingResponse> getListing(
             @Parameter(description = "Listing ID", required = true, example = "1")
             @PathVariable Long id,
             @Parameter(hidden = true)
             @AuthenticationPrincipal UserDetails user) {
-
         long userId = GatewayPreAuthentication.currentUserId(user);
         log.debug("GET /api/v1/listings/{}, userId={}", id, userId);
 
@@ -113,28 +107,26 @@ public class ListingController {
             summary = "Update a listing",
             description = "Updates an existing listing. Only the owner can update. Only listings with DRAFT or PUBLISHED status can be updated. All fields are optional."
     )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Listing updated successfully",
-                    content = @Content(schema = @Schema(implementation = ListingResponse.class))),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Validation error or cannot edit listing in current status",
-                    content = @Content),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Missing or invalid authenticated user",
-                    content = @Content),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "User is not the owner of this listing",
-                    content = @Content),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Listing not found",
-                    content = @Content)
-    })
+    @ApiResponse(
+            responseCode = "200",
+            description = "Listing updated successfully",
+            content = @Content(schema = @Schema(implementation = ListingResponse.class)))
+    @ApiResponse(
+            responseCode = "400",
+            description = "Validation error or cannot edit listing in current status",
+            content = @Content)
+    @ApiResponse(
+            responseCode = "401",
+            description = "Missing or invalid authenticated user",
+            content = @Content)
+    @ApiResponse(
+            responseCode = "403",
+            description = "User is not the owner of this listing",
+            content = @Content)
+    @ApiResponse(
+            responseCode = "404",
+            description = "Listing not found",
+            content = @Content)
     @PutMapping("/{id}")
     @PreAuthorize("hasRole(T(ru.hvostid.common.security.UserRole).SELLER.value())")
     public ResponseEntity<ListingResponse> updateListing(
@@ -143,7 +135,6 @@ public class ListingController {
             @Valid @RequestBody ListingUpdateRequest request,
             @Parameter(hidden = true)
             @AuthenticationPrincipal UserDetails user) {
-
         long userId = GatewayPreAuthentication.currentUserId(user);
         log.debug("PUT /api/v1/listings/{}, userId={}", id, userId);
 
@@ -155,17 +146,14 @@ public class ListingController {
             summary = "Get published listings",
             description = "Returns a paginated list of all published listings. Draft, moderation, rejected, and archived listings are excluded."
     )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "List of published listings (may be empty)",
-                    content = @Content(schema = @Schema(implementation = Page.class)))
-    })
+    @ApiResponse(
+            responseCode = "200",
+            description = "List of published listings (may be empty)",
+            content = @Content(schema = @Schema(implementation = Page.class)))
     @GetMapping
     public ResponseEntity<Page<ListingResponse>> getListings(
             @Parameter(description = "Pagination parameters (page number, size, sort)")
             @PageableDefault(size = 20) Pageable pageable) {
-
         log.debug("GET /api/v1/listings, page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
 
         int maxSize = 100;
