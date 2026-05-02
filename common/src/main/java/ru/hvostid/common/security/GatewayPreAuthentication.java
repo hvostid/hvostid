@@ -91,7 +91,6 @@ public final class GatewayPreAuthentication {
             throws AuthenticationException {
         long userId = parseUserId(token.getName());
         return User.withUsername(Long.toString(userId))
-                .password("N/A")
                 .authorities(resolveAuthorities(token))
                 .build();
     }

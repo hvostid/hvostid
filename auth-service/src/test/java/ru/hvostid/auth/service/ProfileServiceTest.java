@@ -242,9 +242,10 @@ class ProfileServiceTest {
         void addRole_sellerLowerCase_throws() {
             User user = createUser(1L, "test@example.com", "Test");
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+            AddRoleRequest request = new AddRoleRequest("seller");
 
             assertThrows(ForbiddenRoleException.class,
-                    () -> profileService.addRole(1L, new AddRoleRequest("seller")));
+                    () -> profileService.addRole(1L, request));
             verify(userRepository, never()).save(any());
         }
 

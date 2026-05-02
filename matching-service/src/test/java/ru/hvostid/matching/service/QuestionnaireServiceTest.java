@@ -18,12 +18,10 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class QuestionnaireServiceTest {
-
     @Mock
     private BuyerQuestionnaireRepository repository;
 
@@ -56,7 +54,6 @@ class QuestionnaireServiceTest {
     @Nested
     @DisplayName("upsertQuestionnaire")
     class UpsertTests {
-
         @Test
         @DisplayName("creates a new questionnaire when none exists")
         void upsert_createsWhenAbsent() {

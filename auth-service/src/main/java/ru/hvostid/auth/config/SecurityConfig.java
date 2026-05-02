@@ -24,11 +24,11 @@ import ru.hvostid.common.security.GatewayPreAuthentication;
 @EnableConfigurationProperties(AuthTokenProperties.class)
 public class SecurityConfig {
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager) {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) ->
+                .exceptionHandling(ex -> ex.authenticationEntryPoint((_, response, _) ->
                         response.sendError(HttpStatus.UNAUTHORIZED.value())))
                 .addFilterBefore(
                         GatewayPreAuthentication.requestHeaderAuthenticationFilter(authenticationManager),
