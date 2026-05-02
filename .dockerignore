@@ -16,7 +16,10 @@
 .gradle
 build
 
-# Node / frontend build outputs (frontend has its own Dockerfile)
+# Frontend has its own Dockerfile (context: ./frontend); backend builds
+# never need frontend sources, so exclude the whole tree from the root
+# build context to keep the COPY cache stable across frontend edits.
+frontend
 **/node_modules
 **/dist
 
