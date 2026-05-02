@@ -1,4 +1,4 @@
-package ru.hvostid.listing.config;
+package ru.hvostid.matching.config;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
@@ -13,18 +13,18 @@ import ru.hvostid.common.openapi.OpenApiSecuritySchemes;
 @Configuration
 public class OpenApiConfig {
     @Bean
-    public OpenAPI listingOpenAPI() {
+    public OpenAPI matchingOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Listing Service API")
-                        .description("Manage animal listings (CRUD operations)")
+                        .title("Matching Service API")
+                        .description("Buyer questionnaire and pet matching")
                         .version("1.0.0"))
                 .addServersItem(new Server()
                         .url("http://localhost:8080")
                         .description("API Gateway (local)"))
                 .addServersItem(new Server()
-                        .url("http://localhost:8082")
-                        .description("Listing Service (direct)"))
+                        .url("http://localhost:8084")
+                        .description("Matching Service (direct)"))
                 .addSecurityItem(new SecurityRequirement().addList(OpenApiSecuritySchemes.USER_ID_SCHEME))
                 .schemaRequirement(OpenApiSecuritySchemes.USER_ID_SCHEME, new SecurityScheme()
                         .type(SecurityScheme.Type.APIKEY)
