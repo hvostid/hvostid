@@ -1,11 +1,10 @@
 package ru.hvostid.auth.entity;
 
 import jakarta.persistence.*;
-import ru.hvostid.common.security.UserRole;
-
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
+import ru.hvostid.common.security.UserRole;
 
 /**
  * Persistent entity representing a registered user with profile data.

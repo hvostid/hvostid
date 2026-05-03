@@ -1,10 +1,9 @@
 package ru.hvostid.listing.entity;
 
 import jakarta.persistence.*;
+import java.time.Instant;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.Instant;
 
 @Entity
 @Table(name = "listings")
@@ -49,11 +48,18 @@ public class Listing {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    protected Listing() {
-    }
+    protected Listing() {}
 
-    public Listing(Long sellerId, String title, String description, String species,
-                   String breed, Integer age, Integer price, String city, String passportId) {
+    public Listing(
+            Long sellerId,
+            String title,
+            String description,
+            String species,
+            String breed,
+            Integer age,
+            Integer price,
+            String city,
+            String passportId) {
         this.sellerId = sellerId;
         this.title = title;
         this.description = description;

@@ -1,7 +1,6 @@
 package ru.hvostid.common.contract.auth;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-
 import java.util.List;
 
 /**
@@ -12,11 +11,7 @@ import java.util.List;
  * When {@code active} is false, {@code userId} and {@code roles} are omitted from JSON.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record IntrospectResponse(
-        boolean active,
-        Long userId,
-        List<String> roles
-) {
+public record IntrospectResponse(boolean active, Long userId, List<String> roles) {
     /**
      * Factory for an inactive introspection result.
      */

@@ -19,6 +19,4 @@ public record UpdateProfileRequest(
         String city,
 
         @Size(max = 2000, message = "bio must be at most 2000 characters")
-        String bio
-) {
-}
+        String bio) {}

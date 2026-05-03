@@ -9,24 +9,16 @@ public record ListingRequest(
         @Size(min = 3, max = 255, message = "Title must be between 3 and 255 characters")
         String title,
 
-        @Size(max = 2000, message = "Description too long")
-        String description,
+        @Size(max = 2000, message = "Description too long") String description,
 
-        @NotBlank(message = "Species is required")
-        String species,
+        @NotBlank(message = "Species is required") String species,
 
         String breed,
 
-        @PositiveOrZero(message = "Age must be positive")
-        Integer age,
+        @PositiveOrZero(message = "Age must be positive") Integer age,
 
-        @PositiveOrZero(message = "Price must be positive")
-        Integer price,
+        @PositiveOrZero(message = "Price must be positive") Integer price,
 
-        @NotBlank(message = "City is required")
-        String city,
+        @NotBlank(message = "City is required") String city,
 
-        @NotBlank(message = "PassportId is required")
-        String passportId
-) {
-}
+        @NotBlank(message = "PassportId is required") String passportId) {}

@@ -1,5 +1,9 @@
 package ru.hvostid.auth.service;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -15,11 +19,6 @@ import ru.hvostid.auth.exception.ForbiddenRoleException;
 import ru.hvostid.auth.exception.UserNotFoundException;
 import ru.hvostid.auth.repository.UserRepository;
 import ru.hvostid.common.security.UserRole;
-
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ProfileServiceTest {
@@ -90,8 +89,7 @@ class ProfileServiceTest {
         void getProfile_nonExistentUser_throws() {
             when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
-            assertThrows(UserNotFoundException.class,
-                    () -> profileService.getProfile(999L));
+            assertThrows(UserNotFoundException.class, () -> profileService.getProfile(999L));
         }
 
         @Test
@@ -134,9 +132,7 @@ class ProfileServiceTest {
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            UpdateProfileRequest request = new UpdateProfileRequest(
-                    "New Name", "+79001234567", "Moscow", "My bio"
-            );
+            UpdateProfileRequest request = new UpdateProfileRequest("New Name", "+79001234567", "Moscow", "My bio");
 
             ProfileResponse response = profileService.updateProfile(1L, request);
 
@@ -157,9 +153,7 @@ class ProfileServiceTest {
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            UpdateProfileRequest request = new UpdateProfileRequest(
-                    "New Name", null, null, null
-            );
+            UpdateProfileRequest request = new UpdateProfileRequest("New Name", null, null, null);
 
             ProfileResponse response = profileService.updateProfile(1L, request);
 
@@ -191,12 +185,9 @@ class ProfileServiceTest {
         void updateProfile_nonExistentUser_throws() {
             when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
-            UpdateProfileRequest request = new UpdateProfileRequest(
-                    "Name", null, null, null
-            );
+            UpdateProfileRequest request = new UpdateProfileRequest("Name", null, null, null);
 
-            assertThrows(UserNotFoundException.class,
-                    () -> profileService.updateProfile(999L, request));
+            assertThrows(UserNotFoundException.class, () -> profileService.updateProfile(999L, request));
             verify(userRepository, never()).save(any());
         }
 
@@ -207,9 +198,7 @@ class ProfileServiceTest {
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            UpdateProfileRequest request = new UpdateProfileRequest(
-                    "New Name", "+70001112233", "SPb", "Bio"
-            );
+            UpdateProfileRequest request = new UpdateProfileRequest("New Name", "+70001112233", "SPb", "Bio");
 
             ProfileResponse response = profileService.updateProfile(1L, request);
 
@@ -244,8 +233,7 @@ class ProfileServiceTest {
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
             AddRoleRequest request = new AddRoleRequest("seller");
 
-            assertThrows(ForbiddenRoleException.class,
-                    () -> profileService.addRole(1L, request));
+            assertThrows(ForbiddenRoleException.class, () -> profileService.addRole(1L, request));
             verify(userRepository, never()).save(any());
         }
 
@@ -273,8 +261,7 @@ class ProfileServiceTest {
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
             AddRoleRequest request = new AddRoleRequest(UserRole.MODERATOR.value());
-            assertThrows(ForbiddenRoleException.class,
-                    () -> profileService.addRole(1L, request));
+            assertThrows(ForbiddenRoleException.class, () -> profileService.addRole(1L, request));
             verify(userRepository, never()).save(any());
         }
 
@@ -285,8 +272,7 @@ class ProfileServiceTest {
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
             AddRoleRequest request = new AddRoleRequest(UserRole.ADMIN.value());
-            assertThrows(ForbiddenRoleException.class,
-                    () -> profileService.addRole(1L, request));
+            assertThrows(ForbiddenRoleException.class, () -> profileService.addRole(1L, request));
             verify(userRepository, never()).save(any());
         }
 
@@ -298,8 +284,7 @@ class ProfileServiceTest {
 
             // BUYER is not in SELF_ASSIGNABLE_ROLES, so it throws
             AddRoleRequest request = new AddRoleRequest(UserRole.BUYER.value());
-            assertThrows(ForbiddenRoleException.class,
-                    () -> profileService.addRole(1L, request));
+            assertThrows(ForbiddenRoleException.class, () -> profileService.addRole(1L, request));
         }
 
         @Test
@@ -309,8 +294,7 @@ class ProfileServiceTest {
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
             AddRoleRequest request = new AddRoleRequest("SUPERADMIN");
-            assertThrows(ForbiddenRoleException.class,
-                    () -> profileService.addRole(1L, request));
+            assertThrows(ForbiddenRoleException.class, () -> profileService.addRole(1L, request));
         }
 
         @Test
@@ -319,8 +303,7 @@ class ProfileServiceTest {
             when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
             AddRoleRequest request = new AddRoleRequest(UserRole.SELLER.value());
-            assertThrows(UserNotFoundException.class,
-                    () -> profileService.addRole(999L, request));
+            assertThrows(UserNotFoundException.class, () -> profileService.addRole(999L, request));
         }
     }
 }

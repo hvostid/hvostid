@@ -13,6 +13,5 @@ public final class OpenApiSecuritySchemes {
      */
     public static final String USER_ID_SCHEME = "userIdHeader";
 
-    private OpenApiSecuritySchemes() {
-    }
+    private OpenApiSecuritySchemes() {}
 }

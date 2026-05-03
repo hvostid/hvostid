@@ -1,5 +1,10 @@
 package ru.hvostid.auth.controller;
 
+import static org.hamcrest.Matchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -18,11 +23,6 @@ import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
-import static org.hamcrest.Matchers.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 @SpringBootTest
 @AutoConfigureMockMvc
 class AuthControllerTest extends AbstractPostgresContainerTest {
@@ -34,8 +34,10 @@ class AuthControllerTest extends AbstractPostgresContainerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
     @Autowired
     private ObjectMapper objectMapper;
+
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
@@ -208,12 +210,9 @@ class AuthControllerTest extends AbstractPostgresContainerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(loginRequest)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.accessToken").value(
-                            org.hamcrest.Matchers.not(
-                                    org.hamcrest.Matchers.matchesPattern(
-                                            "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
-                                    ))
-                    ));
+                    .andExpect(jsonPath("$.accessToken")
+                            .value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.matchesPattern(
+                                    "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"))));
         }
     }
 
@@ -266,8 +265,7 @@ class AuthControllerTest extends AbstractPostgresContainerTest {
         @Test
         @DisplayName("valid refresh token - returns new token pair")
         void refresh_validToken_returnsNewPair() throws Exception {
-            String refreshToken = loginAndGetRefreshToken(
-                    "refresh@example.com", "password123", "Refresh");
+            String refreshToken = loginAndGetRefreshToken("refresh@example.com", "password123", "Refresh");
 
             mockMvc.perform(post(REFRESH_URL)
                             .contentType(MediaType.APPLICATION_JSON)
@@ -281,8 +279,7 @@ class AuthControllerTest extends AbstractPostgresContainerTest {
         @Test
         @DisplayName("refresh invalidates old token pair")
         void refresh_invalidatesOldTokens() throws Exception {
-            JsonNode tokens = loginAndGetTokens(
-                    "oldtoken@example.com", "password123", "Old");
+            JsonNode tokens = loginAndGetTokens("oldtoken@example.com", "password123", "Old");
 
             String oldAccessToken = tokens.get("accessToken").asString();
             String oldRefreshToken = tokens.get("refreshToken").asString();
@@ -310,8 +307,7 @@ class AuthControllerTest extends AbstractPostgresContainerTest {
         @Test
         @DisplayName("new tokens after refresh are valid")
         void refresh_newTokensAreValid() throws Exception {
-            String refreshToken = loginAndGetRefreshToken(
-                    "newvalid@example.com", "password123", "Valid");
+            String refreshToken = loginAndGetRefreshToken("newvalid@example.com", "password123", "Valid");
 
             MvcResult result = mockMvc.perform(post(REFRESH_URL)
                             .contentType(MediaType.APPLICATION_JSON)
@@ -348,23 +344,19 @@ class AuthControllerTest extends AbstractPostgresContainerTest {
         @Test
         @DisplayName("valid token - returns 204")
         void logout_validToken_returns204() throws Exception {
-            String accessToken = loginAndGetAccessToken(
-                    "logout@example.com", "password123", "Logout");
+            String accessToken = loginAndGetAccessToken("logout@example.com", "password123", "Logout");
 
-            mockMvc.perform(post(LOGOUT_URL)
-                            .header("Authorization", "Bearer " + accessToken))
+            mockMvc.perform(post(LOGOUT_URL).header("Authorization", "Bearer " + accessToken))
                     .andExpect(status().isNoContent());
         }
 
         @Test
         @DisplayName("after logout introspect returns active: false")
         void logout_thenIntrospect_returnsInactive() throws Exception {
-            String accessToken = loginAndGetAccessToken(
-                    "logoutcheck@example.com", "password123", "Check");
+            String accessToken = loginAndGetAccessToken("logoutcheck@example.com", "password123", "Check");
 
             // Logout
-            mockMvc.perform(post(LOGOUT_URL)
-                            .header("Authorization", "Bearer " + accessToken))
+            mockMvc.perform(post(LOGOUT_URL).header("Authorization", "Bearer " + accessToken))
                     .andExpect(status().isNoContent());
 
             // Introspect should return inactive
@@ -378,15 +370,12 @@ class AuthControllerTest extends AbstractPostgresContainerTest {
         @Test
         @DisplayName("double logout - still returns 204")
         void logout_twice_returns204() throws Exception {
-            String accessToken = loginAndGetAccessToken(
-                    "double@example.com", "password123", "Double");
+            String accessToken = loginAndGetAccessToken("double@example.com", "password123", "Double");
 
-            mockMvc.perform(post(LOGOUT_URL)
-                            .header("Authorization", "Bearer " + accessToken))
+            mockMvc.perform(post(LOGOUT_URL).header("Authorization", "Bearer " + accessToken))
                     .andExpect(status().isNoContent());
 
-            mockMvc.perform(post(LOGOUT_URL)
-                            .header("Authorization", "Bearer " + accessToken))
+            mockMvc.perform(post(LOGOUT_URL).header("Authorization", "Bearer " + accessToken))
                     .andExpect(status().isNoContent());
         }
     }

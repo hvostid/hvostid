@@ -40,22 +40,24 @@ public class IntrospectionController {
      */
     @Operation(
             summary = "Token introspection (internal only)",
-            description = "Validates an access token and returns user info if active. This endpoint is NOT routed through the Gateway. Called by Gateway on every protected request via internal network.")
+            description =
+                    "Validates an access token and returns user info if active. This endpoint is NOT routed through the Gateway. Called by Gateway on every protected request via internal network.")
     @ApiResponse(
             responseCode = "200",
             description = "Introspection result",
-            content = @Content(
-                    mediaType = MediaType.APPLICATION_JSON_VALUE,
-                    schema = @Schema(implementation = IntrospectResponse.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = IntrospectResponse.class)))
     @ApiResponse(
             responseCode = "400",
             description = "Validation error",
-            content = @Content(
-                    mediaType = MediaType.APPLICATION_JSON_VALUE,
-                    schema = @Schema(implementation = ErrorResponse.class)))
+            content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ErrorResponse.class)))
     @PostMapping("/introspect")
-    public ResponseEntity<IntrospectResponse> introspect(
-            @Valid @RequestBody IntrospectRequest request) {
+    public ResponseEntity<IntrospectResponse> introspect(@Valid @RequestBody IntrospectRequest request) {
         log.debug("POST /internal/auth/introspect");
         IntrospectResponse response = authService.introspect(request);
         log.debug("Introspect response: active={}", response.active());

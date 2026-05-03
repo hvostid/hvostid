@@ -1,9 +1,8 @@
 package ru.hvostid.listing.dto;
 
+import java.time.Instant;
 import ru.hvostid.listing.entity.Listing;
 import ru.hvostid.listing.entity.ListingStatus;
-
-import java.time.Instant;
 
 public record ListingResponse(
         Long id,
@@ -18,8 +17,7 @@ public record ListingResponse(
         ListingStatus status,
         String passportId,
         Instant createdAt,
-        Instant updatedAt
-) {
+        Instant updatedAt) {
     public static ListingResponse from(Listing listing) {
         return new ListingResponse(
                 listing.getId(),
@@ -34,7 +32,6 @@ public record ListingResponse(
                 listing.getStatus(),
                 listing.getPassportId(),
                 listing.getCreatedAt(),
-                listing.getUpdatedAt()
-        );
+                listing.getUpdatedAt());
     }
 }

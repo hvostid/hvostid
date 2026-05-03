@@ -1,8 +1,18 @@
 package ru.hvostid.gateway.filter;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
+import static ru.hvostid.common.http.SecurityHeaders.USER_ROLES;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
+import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -20,24 +30,10 @@ import ru.hvostid.gateway.client.IntrospectionClient;
 import ru.hvostid.gateway.config.AuthProperties;
 import tools.jackson.databind.ObjectMapper;
 
-import java.io.IOException;
-import java.time.Duration;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
-import static ru.hvostid.common.http.SecurityHeaders.USER_ROLES;
-
 @ExtendWith(MockitoExtension.class)
 class TokenIntrospectionFilterTest {
-    private static final List<String> PUBLIC_PATHS = List.of(
-            "/api/v1/auth/login",
-            "/api/v1/auth/register",
-            "/actuator/**"
-    );
+    private static final List<String> PUBLIC_PATHS =
+            List.of("/api/v1/auth/login", "/api/v1/auth/register", "/actuator/**");
 
     @Mock
     private IntrospectionClient introspectionClient;
@@ -49,10 +45,7 @@ class TokenIntrospectionFilterTest {
     void setUp() {
         objectMapper = new ObjectMapper();
         AuthProperties authProperties = new AuthProperties(
-                "http://localhost:8081/internal/auth/introspect",
-                Duration.ofSeconds(3),
-                PUBLIC_PATHS
-        );
+                "http://localhost:8081/internal/auth/introspect", Duration.ofSeconds(3), PUBLIC_PATHS);
         filter = new TokenIntrospectionFilter(introspectionClient, authProperties, objectMapper);
     }
 
@@ -161,7 +154,8 @@ class TokenIntrospectionFilterTest {
         @Test
         @DisplayName("active token with multiple roles joins them with comma")
         void activeToken_multipleRoles_joinedWithComma() throws ServletException, IOException {
-            IntrospectResponse activeResponse = new IntrospectResponse(true, 1L, List.of(UserRole.SELLER.value(), UserRole.ADMIN.value()));
+            IntrospectResponse activeResponse =
+                    new IntrospectResponse(true, 1L, List.of(UserRole.SELLER.value(), UserRole.ADMIN.value()));
             when(introspectionClient.introspect("multi-role-token")).thenReturn(Optional.of(activeResponse));
 
             MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/listings");
@@ -169,8 +163,7 @@ class TokenIntrospectionFilterTest {
             MockHttpServletResponse response = new MockHttpServletResponse();
             AtomicReference<String> capturedRoles = new AtomicReference<>();
 
-            FilterChain chain = (req, _) ->
-                    capturedRoles.set(((HttpServletRequest) req).getHeader(USER_ROLES));
+            FilterChain chain = (req, _) -> capturedRoles.set(((HttpServletRequest) req).getHeader(USER_ROLES));
 
             filter.doFilterInternal(request, response, chain);
 

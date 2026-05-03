@@ -1,13 +1,12 @@
 package ru.hvostid.auth.service;
 
+import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.hvostid.auth.repository.SessionRepository;
-
-import java.time.Instant;
 
 /**
  * Periodically removes expired sessions from the database.

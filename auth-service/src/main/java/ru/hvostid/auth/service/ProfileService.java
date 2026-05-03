@@ -1,5 +1,6 @@
 package ru.hvostid.auth.service;
 
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -12,8 +13,6 @@ import ru.hvostid.auth.exception.ForbiddenRoleException;
 import ru.hvostid.auth.exception.UserNotFoundException;
 import ru.hvostid.auth.repository.UserRepository;
 import ru.hvostid.common.security.UserRole;
-
-import java.util.Set;
 
 /**
  * Service handling user profile operations and role management.
@@ -113,11 +112,10 @@ public class ProfileService {
     }
 
     private User findUserOrThrow(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> {
-                    log.warn("User not found userId={}", userId);
-                    return new UserNotFoundException(userId);
-                });
+        return userRepository.findById(userId).orElseThrow(() -> {
+            log.warn("User not found userId={}", userId);
+            return new UserNotFoundException(userId);
+        });
     }
 
     private ProfileResponse toProfileResponse(User user) {
@@ -125,14 +123,10 @@ public class ProfileService {
                 user.getId(),
                 user.getEmail(),
                 user.getName(),
-                user.getRoles().stream()
-                        .map(UserRole::value)
-                        .sorted()
-                        .toList(),
+                user.getRoles().stream().map(UserRole::value).sorted().toList(),
                 user.getPhone(),
                 user.getCity(),
                 user.getBio(),
-                user.getRating()
-        );
+                user.getRating());
     }
 }

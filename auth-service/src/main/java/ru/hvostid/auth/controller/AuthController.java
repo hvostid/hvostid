@@ -34,9 +34,7 @@ public class AuthController {
     /**
      * Register a new user account.
      */
-    @Operation(
-            summary = "Register a new user",
-            description = "Creates a new user account with BUYER role by default.")
+    @Operation(summary = "Register a new user", description = "Creates a new user account with BUYER role by default.")
     @ApiResponse(
             responseCode = "201",
             description = "User created successfully",
@@ -61,15 +59,19 @@ public class AuthController {
      */
     @Operation(
             summary = "Log in with email and password",
-            description = "Authenticates the user and returns opaque access and refresh tokens. Tokens are random strings stored in the database (not JWT).")
+            description =
+                    "Authenticates the user and returns opaque access and refresh tokens. Tokens are random strings stored in the database (not JWT).")
     @ApiResponse(
-            responseCode = "200", description = "Login successful",
+            responseCode = "200",
+            description = "Login successful",
             content = @Content(schema = @Schema(implementation = LoginResponse.class)))
     @ApiResponse(
-            responseCode = "400", description = "Validation error",
+            responseCode = "400",
+            description = "Validation error",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(
-            responseCode = "401", description = "Invalid credentials",
+            responseCode = "401",
+            description = "Invalid credentials",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
@@ -84,7 +86,8 @@ public class AuthController {
      */
     @Operation(
             summary = "Refresh access token",
-            description = "Generates a new access + refresh token pair using a valid refresh token. The old session is deleted (token rotation).")
+            description =
+                    "Generates a new access + refresh token pair using a valid refresh token. The old session is deleted (token rotation).")
     @ApiResponse(
             responseCode = "200",
             description = "Tokens refreshed successfully",
@@ -109,19 +112,14 @@ public class AuthController {
      */
     @Operation(
             summary = "Logout and revoke session",
-            description = "Deletes the session associated with the Bearer token. Subsequent introspection of the token will return active: false.")
-    @ApiResponse(
-            responseCode = "204",
-            description = "Session revoked successfully",
-            content = @Content)
+            description =
+                    "Deletes the session associated with the Bearer token. Subsequent introspection of the token will return active: false.")
+    @ApiResponse(responseCode = "204", description = "Session revoked successfully", content = @Content)
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
-            @Parameter(
-                    description = "Bearer token",
-                    example = "Bearer dGhpcyBpcyBhIHNhbXBsZSB0b2tlbg",
-                    required = true)
-            @RequestHeader("Authorization")
-            String authHeader) {
+            @Parameter(description = "Bearer token", example = "Bearer dGhpcyBpcyBhIHNhbXBsZSB0b2tlbg", required = true)
+                    @RequestHeader("Authorization")
+                    String authHeader) {
         log.debug("POST /api/v1/auth/logout");
         String accessToken = extractBearerToken(authHeader);
         authService.logout(accessToken);

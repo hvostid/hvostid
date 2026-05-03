@@ -1,9 +1,8 @@
 package ru.hvostid.gateway.config;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
-
 import java.time.Duration;
 import java.util.List;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * Configuration properties for token introspection and public paths.
@@ -11,11 +10,7 @@ import java.util.List;
  * Bound to the "hvostid.auth" prefix in application.yml.
  */
 @ConfigurationProperties(prefix = "hvostid.auth")
-public record AuthProperties(
-        String introspectUrl,
-        Duration introspectTimeout,
-        List<String> publicPaths
-) {
+public record AuthProperties(String introspectUrl, Duration introspectTimeout, List<String> publicPaths) {
     public AuthProperties {
         if (introspectTimeout == null) {
             introspectTimeout = Duration.ofSeconds(3);

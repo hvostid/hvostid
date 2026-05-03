@@ -1,5 +1,7 @@
 package ru.hvostid.auth.service;
 
+import java.time.Instant;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -18,9 +20,6 @@ import ru.hvostid.common.contract.auth.IntrospectRequest;
 import ru.hvostid.common.contract.auth.IntrospectResponse;
 import ru.hvostid.common.security.UserRole;
 
-import java.time.Instant;
-import java.util.List;
-
 /**
  * Core authentication service handling registration, login,
  * token introspection, refresh, and logout.
@@ -35,11 +34,12 @@ public class AuthService {
     private final TokenService tokenService;
     private final AuthTokenProperties tokenProperties;
 
-    public AuthService(UserRepository userRepository,
-                       SessionRepository sessionRepository,
-                       PasswordEncoder passwordEncoder,
-                       TokenService tokenService,
-                       AuthTokenProperties tokenProperties) {
+    public AuthService(
+            UserRepository userRepository,
+            SessionRepository sessionRepository,
+            PasswordEncoder passwordEncoder,
+            TokenService tokenService,
+            AuthTokenProperties tokenProperties) {
         this.userRepository = userRepository;
         this.sessionRepository = sessionRepository;
         this.passwordEncoder = passwordEncoder;
@@ -67,8 +67,7 @@ public class AuthService {
         User user = new User(request.email(), request.name(), hashedPassword);
         user = userRepository.save(user);
 
-        log.info("User registered userId={} email={} roles={}",
-                user.getId(), user.getEmail(), user.getRoles());
+        log.info("User registered userId={} email={} roles={}", user.getId(), user.getEmail(), user.getRoles());
         return toUserResponse(user);
     }
 
@@ -83,11 +82,10 @@ public class AuthService {
     public LoginResponse login(LoginRequest request) {
         log.debug("Login attempt email={}", request.email());
 
-        User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> {
-                    log.warn("Login failed: user not found email={}", request.email());
-                    return new InvalidCredentialsException();
-                });
+        User user = userRepository.findByEmail(request.email()).orElseThrow(() -> {
+            log.warn("Login failed: user not found email={}", request.email());
+            return new InvalidCredentialsException();
+        });
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             log.warn("Login failed: wrong password userId={} email={}", user.getId(), user.getEmail());
@@ -110,7 +108,8 @@ public class AuthService {
     public IntrospectResponse introspect(IntrospectRequest request) {
         log.debug("Introspect requested");
 
-        return sessionRepository.findByAccessToken(request.token())
+        return sessionRepository
+                .findByAccessToken(request.token())
                 .filter(session -> session.getExpiresAt().isAfter(Instant.now()))
                 .map(session -> {
                     User user = session.getUser();
@@ -138,15 +137,18 @@ public class AuthService {
     public LoginResponse refresh(RefreshRequest request) {
         log.debug("Refresh token requested");
 
-        Session oldSession = sessionRepository.findByRefreshToken(request.refreshToken())
+        Session oldSession = sessionRepository
+                .findByRefreshToken(request.refreshToken())
                 .orElseThrow(() -> {
                     log.warn("Refresh failed: token not found");
                     return new InvalidRefreshTokenException();
                 });
 
         if (oldSession.getRefreshTokenExpiresAt().isBefore(Instant.now())) {
-            log.warn("Refresh failed: token expired userId={} sessionId={}",
-                    oldSession.getUser().getId(), oldSession.getId());
+            log.warn(
+                    "Refresh failed: token expired userId={} sessionId={}",
+                    oldSession.getUser().getId(),
+                    oldSession.getId());
             sessionRepository.delete(oldSession);
             throw new InvalidRefreshTokenException();
         }
@@ -168,15 +170,15 @@ public class AuthService {
     public void logout(String accessToken) {
         log.debug("Logout requested");
 
-        sessionRepository.findByAccessToken(accessToken)
+        sessionRepository
+                .findByAccessToken(accessToken)
                 .ifPresentOrElse(
                         session -> {
                             Long userId = session.getUser().getId();
                             sessionRepository.delete(session);
                             log.info("Logout successful userId={} sessionId={}", userId, session.getId());
                         },
-                        () -> log.debug("Logout: session not found, no-op")
-                );
+                        () -> log.debug("Logout: session not found, no-op"));
     }
 
     /**
@@ -191,20 +193,20 @@ public class AuthService {
         Instant accessExpiresAt = now.plusSeconds(accessTtlSeconds);
         Instant refreshExpiresAt = now.plus(tokenProperties.refreshTokenTtl());
 
-        Session session = new Session(user, accessToken, refreshToken,
-                accessExpiresAt, refreshExpiresAt);
+        Session session = new Session(user, accessToken, refreshToken, accessExpiresAt, refreshExpiresAt);
         sessionRepository.save(session);
 
-        log.debug("Session created userId={} accessTtl={}s refreshTtl={}",
-                user.getId(), accessTtlSeconds, tokenProperties.refreshTokenTtl());
+        log.debug(
+                "Session created userId={} accessTtl={}s refreshTtl={}",
+                user.getId(),
+                accessTtlSeconds,
+                tokenProperties.refreshTokenTtl());
         return new LoginResponse(accessToken, refreshToken, accessTtlSeconds);
     }
 
     private UserResponse toUserResponse(User user) {
-        List<String> roles = user.getRoles().stream()
-                .map(UserRole::value)
-                .sorted()
-                .toList();
+        List<String> roles =
+                user.getRoles().stream().map(UserRole::value).sorted().toList();
         return new UserResponse(user.getId(), user.getEmail(), user.getName(), roles);
     }
 }

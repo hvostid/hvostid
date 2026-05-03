@@ -19,16 +19,14 @@ public class OpenApiConfig {
                         .title("Matching Service API")
                         .description("Buyer questionnaire and pet matching")
                         .version("1.0.0"))
-                .addServersItem(new Server()
-                        .url("http://localhost:8080")
-                        .description("API Gateway (local)"))
-                .addServersItem(new Server()
-                        .url("http://localhost:8084")
-                        .description("Matching Service (direct)"))
+                .addServersItem(new Server().url("http://localhost:8080").description("API Gateway (local)"))
+                .addServersItem(new Server().url("http://localhost:8084").description("Matching Service (direct)"))
                 .addSecurityItem(new SecurityRequirement().addList(OpenApiSecuritySchemes.USER_ID_SCHEME))
-                .schemaRequirement(OpenApiSecuritySchemes.USER_ID_SCHEME, new SecurityScheme()
-                        .type(SecurityScheme.Type.APIKEY)
-                        .in(SecurityScheme.In.HEADER)
-                        .name(SecurityHeaders.USER_ID));
+                .schemaRequirement(
+                        OpenApiSecuritySchemes.USER_ID_SCHEME,
+                        new SecurityScheme()
+                                .type(SecurityScheme.Type.APIKEY)
+                                .in(SecurityScheme.In.HEADER)
+                                .name(SecurityHeaders.USER_ID));
     }
 }

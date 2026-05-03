@@ -1,5 +1,8 @@
 package ru.hvostid.common.security;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.ProviderManager;
@@ -16,16 +19,11 @@ import org.springframework.security.web.authentication.preauth.RequestHeaderAuth
 import org.springframework.security.web.context.NullSecurityContextRepository;
 import ru.hvostid.common.http.SecurityHeaders;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-
 /**
  * Shared Spring Security pre-authentication support for gateway-injected headers.
  */
 public final class GatewayPreAuthentication {
-    private GatewayPreAuthentication() {
-    }
+    private GatewayPreAuthentication() {}
 
     public static AuthenticationManager authenticationManager() {
         PreAuthenticatedAuthenticationProvider provider = new PreAuthenticatedAuthenticationProvider();
@@ -42,9 +40,7 @@ public final class GatewayPreAuthentication {
         filter.setAuthenticationManager(authenticationManager);
         filter.setSecurityContextRepository(new NullSecurityContextRepository());
         filter.setAuthenticationDetailsSource(request -> new PreAuthenticatedGrantedAuthoritiesWebAuthenticationDetails(
-                request,
-                parseAuthorities(request.getHeader(SecurityHeaders.USER_ROLES))
-        ));
+                request, parseAuthorities(request.getHeader(SecurityHeaders.USER_ROLES))));
         return filter;
     }
 
@@ -95,7 +91,8 @@ public final class GatewayPreAuthentication {
                 .build();
     }
 
-    private static Collection<? extends GrantedAuthority> resolveAuthorities(PreAuthenticatedAuthenticationToken token) {
+    private static Collection<? extends GrantedAuthority> resolveAuthorities(
+            PreAuthenticatedAuthenticationToken token) {
         if (token.getDetails() instanceof GrantedAuthoritiesContainer container) {
             return container.getGrantedAuthorities();
         }
