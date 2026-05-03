@@ -1,0 +1,28 @@
+# CODEOWNERS for hvostid
+#
+# Lines map a file pattern to one or more GitHub usernames or teams. The
+# last matching pattern wins, so more specific rules go further down.
+# See: https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for anything not matched by a more specific rule below.
+# Tech Lead / DevOps reviews repo-wide config, infrastructure, and
+# top-level documentation.
+*                       @alphaalexey
+
+# Backend services
+/api-gateway/           @alphaalexey
+/auth-service/          @alphaalexey
+/listing-service/       @yutsiro
+/passport-service/      @DonPancho-drd
+/matching-service/      @Freynet19
+
+# Shared backend module
+/common/                @alphaalexey
+
+# Frontend
+/frontend/              @DonPancho-drd
+
+# CI / repo hygiene
+/.github/               @Freynet19
+/Dockerfile             @alphaalexey
+/docker-compose*.yml    @alphaalexey

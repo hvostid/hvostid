@@ -34,7 +34,14 @@ Thumbs.db
 # Docs and CI metadata not needed at build time
 .github
 README.md
+CONTRIBUTING.md
 LICENSE
 postman
 k6
 docker
+
+# Repo-wide tooling (commitlint, husky). Not used by service images.
+package.json
+package-lock.json
+.husky
+commitlint.config.js
