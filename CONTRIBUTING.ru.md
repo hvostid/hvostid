@@ -27,8 +27,8 @@ cp .env.example .env
 
 Для повседневной разработки см.:
 
-- [`README.ru.md`](./README.ru.md) -- запуск всего стека через Compose.
-- [`README.ru.md`](./README.ru.md) -- IDE-workflow, команды Gradle и
+- [`README.ru.md`](./README.ru.md#quick-start) -- запуск всего стека через Compose.
+- [`README.ru.md`](./README.ru.md#разработка) -- IDE-workflow, команды Gradle и
   Vite, работа с миграциями.
 - Per-service `README.ru.md` -- зоны ответственности, эндпоинты,
   переменные окружения, зависимости от других сервисов.

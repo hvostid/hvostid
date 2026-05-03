@@ -56,6 +56,6 @@ docker compose up -d postgres minio minio-init auth-service listing-service pass
 
 ## Зависимости
 
-- **Обязательно в рантайме:** Auth Service (введение).
+- **Обязательно в рантайме:** Auth Service (интроспекция).
 - **Обязательно для проксирования трафика:** тот downstream-сервис, на
   который ведёт текущий путь.
