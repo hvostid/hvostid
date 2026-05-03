@@ -1,3 +1,5 @@
+**English** | [Русский](./CONTRIBUTING.ru.md)
+
 # Contributing to hvostid
 
 Thanks for working on hvostid. Read this end to end the first time

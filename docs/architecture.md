@@ -1,3 +1,5 @@
+**English** | [Русский](./architecture.ru.md)
+
 # Architecture
 
 This document expands on the high-level diagram in the

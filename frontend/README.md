@@ -1,3 +1,5 @@
+**English** | [Русский](./README.ru.md)
+
 # Frontend
 
 React 18 single-page app served via Vite in development and Nginx in

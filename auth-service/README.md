@@ -1,3 +1,5 @@
+**English** | [Русский](./README.ru.md)
+
 # Auth Service
 
 Owner of users, sessions, opaque access/refresh tokens, profile data,

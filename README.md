@@ -1,3 +1,5 @@
+**English** | [Русский](./README.ru.md)
+
 # HvostID
 
 [![CI](https://github.com/hvostid/hvostid/actions/workflows/ci-pr.yml/badge.svg)](https://github.com/hvostid/hvostid/actions/workflows/ci-pr.yml)
