@@ -1,13 +1,12 @@
 package ru.hvostid.auth.service;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Base64;
 import java.util.HashSet;
 import java.util.Set;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 class TokenServiceTest {
     private final TokenService tokenService = new TokenService();
@@ -37,7 +36,6 @@ class TokenServiceTest {
     void generateToken_isNotJwt() {
         String token = tokenService.generateToken();
         // JWT tokens have exactly 2 dots separating 3 parts
-        assertNotEquals(2, token.chars().filter(c -> c == '.').count(),
-                "Token must not look like a JWT");
+        assertNotEquals(2, token.chars().filter(c -> c == '.').count(), "Token must not look like a JWT");
     }
 }

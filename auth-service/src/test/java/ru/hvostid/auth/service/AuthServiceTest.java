@@ -1,5 +1,12 @@
 package ru.hvostid.auth.service;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -22,14 +29,6 @@ import ru.hvostid.common.contract.auth.IntrospectRequest;
 import ru.hvostid.common.contract.auth.IntrospectResponse;
 import ru.hvostid.common.security.UserRole;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
     private static final Duration ACCESS_TTL = Duration.ofMinutes(30);
@@ -37,10 +36,13 @@ class AuthServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
     @Mock
     private SessionRepository sessionRepository;
+
     @Mock
     private PasswordEncoder passwordEncoder;
+
     @Mock
     private TokenService tokenService;
 
@@ -49,9 +51,7 @@ class AuthServiceTest {
     @BeforeEach
     void setUp() {
         AuthTokenProperties props = new AuthTokenProperties(ACCESS_TTL, REFRESH_TTL);
-        authService = new AuthService(
-                userRepository, sessionRepository, passwordEncoder, tokenService, props
-        );
+        authService = new AuthService(userRepository, sessionRepository, passwordEncoder, tokenService, props);
     }
 
     // -- Registration tests --
@@ -108,9 +108,7 @@ class AuthServiceTest {
 
             when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
             when(passwordEncoder.matches("password123", "hashed_password")).thenReturn(true);
-            when(tokenService.generateToken())
-                    .thenReturn("access_token_value")
-                    .thenReturn("refresh_token_value");
+            when(tokenService.generateToken()).thenReturn("access_token_value").thenReturn("refresh_token_value");
 
             LoginResponse response = authService.login(request);
 
@@ -161,11 +159,14 @@ class AuthServiceTest {
             User user = new User("test@example.com", "Test User", "hash");
             user.setId(42L);
 
-            Session session = new Session(user, "valid_token", "refresh",
-                    Instant.now().plusSeconds(600), Instant.now().plusSeconds(86400));
+            Session session = new Session(
+                    user,
+                    "valid_token",
+                    "refresh",
+                    Instant.now().plusSeconds(600),
+                    Instant.now().plusSeconds(86400));
 
-            when(sessionRepository.findByAccessToken("valid_token"))
-                    .thenReturn(Optional.of(session));
+            when(sessionRepository.findByAccessToken("valid_token")).thenReturn(Optional.of(session));
 
             IntrospectResponse response = authService.introspect(new IntrospectRequest("valid_token"));
 
@@ -180,11 +181,14 @@ class AuthServiceTest {
             User user = new User("test@example.com", "Test User", "hash");
             user.setId(1L);
 
-            Session session = new Session(user, "expired_token", "refresh",
-                    Instant.now().minusSeconds(60), Instant.now().plusSeconds(86400));
+            Session session = new Session(
+                    user,
+                    "expired_token",
+                    "refresh",
+                    Instant.now().minusSeconds(60),
+                    Instant.now().plusSeconds(86400));
 
-            when(sessionRepository.findByAccessToken("expired_token"))
-                    .thenReturn(Optional.of(session));
+            when(sessionRepository.findByAccessToken("expired_token")).thenReturn(Optional.of(session));
 
             IntrospectResponse response = authService.introspect(new IntrospectRequest("expired_token"));
 
@@ -196,8 +200,7 @@ class AuthServiceTest {
         @Test
         @DisplayName("non-existent token - returns inactive")
         void introspect_unknownToken_returnsInactive() {
-            when(sessionRepository.findByAccessToken("unknown_token"))
-                    .thenReturn(Optional.empty());
+            when(sessionRepository.findByAccessToken("unknown_token")).thenReturn(Optional.empty());
 
             IntrospectResponse response = authService.introspect(new IntrospectRequest("unknown_token"));
 
@@ -213,11 +216,14 @@ class AuthServiceTest {
             user.setId(10L);
             user.addRole(UserRole.SELLER);
 
-            Session session = new Session(user, "seller_token", "refresh",
-                    Instant.now().plusSeconds(600), Instant.now().plusSeconds(86400));
+            Session session = new Session(
+                    user,
+                    "seller_token",
+                    "refresh",
+                    Instant.now().plusSeconds(600),
+                    Instant.now().plusSeconds(86400));
 
-            when(sessionRepository.findByAccessToken("seller_token"))
-                    .thenReturn(Optional.of(session));
+            when(sessionRepository.findByAccessToken("seller_token")).thenReturn(Optional.of(session));
 
             IntrospectResponse response = authService.introspect(new IntrospectRequest("seller_token"));
 
@@ -237,16 +243,16 @@ class AuthServiceTest {
             User user = new User("test@example.com", "Test User", "hash");
             user.setId(1L);
 
-            Session oldSession = new Session(user, "old_access", "old_refresh",
+            Session oldSession = new Session(
+                    user,
+                    "old_access",
+                    "old_refresh",
                     Instant.now().plusSeconds(600),
                     Instant.now().plusSeconds(86400));
             oldSession.setId(100L);
 
-            when(sessionRepository.findByRefreshToken("old_refresh"))
-                    .thenReturn(Optional.of(oldSession));
-            when(tokenService.generateToken())
-                    .thenReturn("new_access")
-                    .thenReturn("new_refresh");
+            when(sessionRepository.findByRefreshToken("old_refresh")).thenReturn(Optional.of(oldSession));
+            when(tokenService.generateToken()).thenReturn("new_access").thenReturn("new_refresh");
 
             LoginResponse response = authService.refresh(new RefreshRequest("old_refresh"));
 
@@ -261,12 +267,10 @@ class AuthServiceTest {
         @Test
         @DisplayName("non-existent refresh token - throws InvalidRefreshTokenException")
         void refresh_unknownToken_throws() {
-            when(sessionRepository.findByRefreshToken("bad_token"))
-                    .thenReturn(Optional.empty());
+            when(sessionRepository.findByRefreshToken("bad_token")).thenReturn(Optional.empty());
 
             RefreshRequest request = new RefreshRequest("bad_token");
-            assertThrows(InvalidRefreshTokenException.class,
-                    () -> authService.refresh(request));
+            assertThrows(InvalidRefreshTokenException.class, () -> authService.refresh(request));
             verify(sessionRepository, never()).save(any());
         }
 
@@ -276,17 +280,18 @@ class AuthServiceTest {
             User user = new User("test@example.com", "Test User", "hash");
             user.setId(1L);
 
-            Session expiredSession = new Session(user, "access", "expired_refresh",
+            Session expiredSession = new Session(
+                    user,
+                    "access",
+                    "expired_refresh",
                     Instant.now().minusSeconds(3600),
                     Instant.now().minusSeconds(60));
             expiredSession.setId(200L);
 
-            when(sessionRepository.findByRefreshToken("expired_refresh"))
-                    .thenReturn(Optional.of(expiredSession));
+            when(sessionRepository.findByRefreshToken("expired_refresh")).thenReturn(Optional.of(expiredSession));
 
             RefreshRequest request = new RefreshRequest("expired_refresh");
-            assertThrows(InvalidRefreshTokenException.class,
-                    () -> authService.refresh(request));
+            assertThrows(InvalidRefreshTokenException.class, () -> authService.refresh(request));
 
             verify(sessionRepository).delete(expiredSession);
             verify(sessionRepository, never()).save(any());
@@ -302,11 +307,14 @@ class AuthServiceTest {
         @DisplayName("existing session - deletes session")
         void logout_existingSession_deletesIt() {
             User user = new User("test@example.com", "Test User", "hash");
-            Session session = new Session(user, "token_to_revoke", "refresh",
-                    Instant.now().plusSeconds(600), Instant.now().plusSeconds(86400));
+            Session session = new Session(
+                    user,
+                    "token_to_revoke",
+                    "refresh",
+                    Instant.now().plusSeconds(600),
+                    Instant.now().plusSeconds(86400));
 
-            when(sessionRepository.findByAccessToken("token_to_revoke"))
-                    .thenReturn(Optional.of(session));
+            when(sessionRepository.findByAccessToken("token_to_revoke")).thenReturn(Optional.of(session));
 
             authService.logout("token_to_revoke");
 
@@ -316,8 +324,7 @@ class AuthServiceTest {
         @Test
         @DisplayName("non-existent session - no-op, no exception")
         void logout_unknownToken_noOp() {
-            when(sessionRepository.findByAccessToken("unknown"))
-                    .thenReturn(Optional.empty());
+            when(sessionRepository.findByAccessToken("unknown")).thenReturn(Optional.empty());
 
             assertDoesNotThrow(() -> authService.logout("unknown"));
             verify(sessionRepository, never()).delete(any(Session.class));

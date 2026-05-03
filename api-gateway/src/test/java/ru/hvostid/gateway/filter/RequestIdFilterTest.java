@@ -1,20 +1,19 @@
 package ru.hvostid.gateway.filter;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static ru.hvostid.common.http.SecurityHeaders.REQUEST_ID;
+import static ru.hvostid.gateway.filter.RequestIdFilter.MDC_REQUEST_ID_KEY;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import java.io.IOException;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
-
-import java.io.IOException;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static ru.hvostid.common.http.SecurityHeaders.REQUEST_ID;
-import static ru.hvostid.gateway.filter.RequestIdFilter.MDC_REQUEST_ID_KEY;
 
 class RequestIdFilterTest {
     private final RequestIdFilter filter = new RequestIdFilter();
@@ -29,8 +28,7 @@ class RequestIdFilterTest {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/listings");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        filter.doFilterInternal(request, response, (_, _) -> {
-        });
+        filter.doFilterInternal(request, response, (_, _) -> {});
 
         String responseId = response.getHeader(REQUEST_ID);
         assertNotNull(responseId, "Response must contain Request ID");
@@ -44,8 +42,7 @@ class RequestIdFilterTest {
         request.addHeader(REQUEST_ID, clientId);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        filter.doFilterInternal(request, response, (_, _) -> {
-        });
+        filter.doFilterInternal(request, response, (_, _) -> {});
 
         assertEquals(clientId, response.getHeader(REQUEST_ID), "Response must echo the client-provided Request ID");
     }
@@ -56,8 +53,7 @@ class RequestIdFilterTest {
         request.addHeader(REQUEST_ID, "   ");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        filter.doFilterInternal(request, response, (_, _) -> {
-        });
+        filter.doFilterInternal(request, response, (_, _) -> {});
 
         String responseId = response.getHeader(REQUEST_ID);
         assertNotNull(responseId);
@@ -71,12 +67,16 @@ class RequestIdFilterTest {
         AtomicReference<String> downstreamHeader = new AtomicReference<>();
 
         // The filter chain simulates reading the header from the (possibly wrapped) request
-        FilterChain chain = (req, _) -> downstreamHeader.set(((jakarta.servlet.http.HttpServletRequest) req).getHeader(REQUEST_ID));
+        FilterChain chain =
+                (req, _) -> downstreamHeader.set(((jakarta.servlet.http.HttpServletRequest) req).getHeader(REQUEST_ID));
 
         filter.doFilterInternal(request, response, chain);
 
         assertNotNull(downstreamHeader.get(), "Downstream must receive Request ID via wrapped request");
-        assertEquals(response.getHeader(REQUEST_ID), downstreamHeader.get(), "Downstream and response Request ID must match");
+        assertEquals(
+                response.getHeader(REQUEST_ID),
+                downstreamHeader.get(),
+                "Downstream and response Request ID must match");
     }
 
     @Test
@@ -87,7 +87,8 @@ class RequestIdFilterTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
         AtomicReference<String> downstreamHeader = new AtomicReference<>();
 
-        FilterChain chain = (req, _) -> downstreamHeader.set(((jakarta.servlet.http.HttpServletRequest) req).getHeader(REQUEST_ID));
+        FilterChain chain =
+                (req, _) -> downstreamHeader.set(((jakarta.servlet.http.HttpServletRequest) req).getHeader(REQUEST_ID));
 
         filter.doFilterInternal(request, response, chain);
 
@@ -113,8 +114,7 @@ class RequestIdFilterTest {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/listings");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        filter.doFilterInternal(request, response, (_, _) -> {
-        });
+        filter.doFilterInternal(request, response, (_, _) -> {});
 
         assertNull(MDC.get(MDC_REQUEST_ID_KEY), "MDC must be cleaned after the filter completes");
     }

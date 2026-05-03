@@ -1,11 +1,10 @@
 package ru.hvostid.common.contract.auth;
 
-import org.junit.jupiter.api.Test;
-import ru.hvostid.common.security.UserRole;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+import ru.hvostid.common.security.UserRole;
 
 class IntrospectResponseTest {
     @Test

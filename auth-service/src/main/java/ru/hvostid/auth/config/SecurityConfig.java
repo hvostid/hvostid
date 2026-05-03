@@ -25,27 +25,23 @@ import ru.hvostid.common.security.GatewayPreAuthentication;
 public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager) {
-        http
-                .csrf(AbstractHttpConfigurer::disable)
+        http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(ex -> ex.authenticationEntryPoint((_, response, _) ->
-                        response.sendError(HttpStatus.UNAUTHORIZED.value())))
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(
+                        (_, response, _) -> response.sendError(HttpStatus.UNAUTHORIZED.value())))
                 .addFilterBefore(
                         GatewayPreAuthentication.requestHeaderAuthenticationFilter(authenticationManager),
-                        UsernamePasswordAuthenticationFilter.class
-                )
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/internal/**").permitAll()
-                        .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers(
-                                "/swagger-ui.html",
-                                "/swagger-ui/**",
-                                "/v3/api-docs",
-                                "/v3/api-docs/**"
-                        ).permitAll()
-                        .anyRequest().authenticated()
-                );
+                        UsernamePasswordAuthenticationFilter.class)
+                .authorizeHttpRequests(auth -> auth.requestMatchers("/api/v1/auth/**")
+                        .permitAll()
+                        .requestMatchers("/internal/**")
+                        .permitAll()
+                        .requestMatchers("/actuator/**")
+                        .permitAll()
+                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**")
+                        .permitAll()
+                        .anyRequest()
+                        .authenticated());
         return http.build();
     }
 

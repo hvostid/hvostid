@@ -23,20 +23,19 @@ public class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("HvostID Auth Service")
-                        .description("Authentication API - registration, login, introspection, refresh, logout with opaque tokens")
+                        .description(
+                                "Authentication API - registration, login, introspection, refresh, logout with opaque tokens")
                         .version("1.1.0"))
-                .addServersItem(new Server()
-                        .url("http://localhost:8080")
-                        .description("API Gateway (local)"))
-                .addServersItem(new Server()
-                        .url("http://localhost:8081")
-                        .description("Auth Service (direct)"))
+                .addServersItem(new Server().url("http://localhost:8080").description("API Gateway (local)"))
+                .addServersItem(new Server().url("http://localhost:8081").description("Auth Service (direct)"))
                 .addSecurityItem(new SecurityRequirement().addList(BEARER_SCHEME))
                 .components(new Components()
-                        .addSecuritySchemes(BEARER_SCHEME, new SecurityScheme()
-                                .name(BEARER_SCHEME)
-                                .type(SecurityScheme.Type.HTTP)
-                                .scheme("bearer")
-                                .bearerFormat("opaque")));
+                        .addSecuritySchemes(
+                                BEARER_SCHEME,
+                                new SecurityScheme()
+                                        .name(BEARER_SCHEME)
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("opaque")));
     }
 }

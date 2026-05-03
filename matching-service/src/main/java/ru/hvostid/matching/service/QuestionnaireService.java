@@ -24,8 +24,8 @@ public class QuestionnaireService {
     public QuestionnaireResponse upsertQuestionnaire(QuestionnaireRequest request, Long userId) {
         log.debug("Upserting questionnaire for userId={}", userId);
 
-        BuyerQuestionnaire questionnaire = repository.findByUserId(userId)
-                .orElseGet(() -> new BuyerQuestionnaire(userId));
+        BuyerQuestionnaire questionnaire =
+                repository.findByUserId(userId).orElseGet(() -> new BuyerQuestionnaire(userId));
 
         applyRequest(questionnaire, request);
 
@@ -39,9 +39,9 @@ public class QuestionnaireService {
     public QuestionnaireResponse getQuestionnaire(Long userId) {
         log.debug("Getting questionnaire for userId={}", userId);
 
-        BuyerQuestionnaire questionnaire = repository.findByUserId(userId)
-                .orElseThrow(() -> new QuestionnaireNotFoundException(
-                        "Questionnaire not found for user: " + userId));
+        BuyerQuestionnaire questionnaire = repository
+                .findByUserId(userId)
+                .orElseThrow(() -> new QuestionnaireNotFoundException("Questionnaire not found for user: " + userId));
 
         return QuestionnaireResponse.from(questionnaire);
     }

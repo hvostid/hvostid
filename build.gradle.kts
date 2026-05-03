@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.spring.boot) apply false
     alias(libs.plugins.spring.dependency.management) apply false
     alias(libs.plugins.sonarqube)
+    alias(libs.plugins.spotless) apply false
     jacoco
 }
 
@@ -28,6 +29,7 @@ subprojects {
     apply(plugin = "java")
     apply(plugin = "jacoco")
     apply(plugin = rootProject.libs.plugins.sonarqube.get().pluginId)
+    apply(plugin = rootProject.libs.plugins.spotless.get().pluginId)
 
     java {
         toolchain {
@@ -47,5 +49,19 @@ subprojects {
         reports {
             xml.required = true
         }
+    }
+
+    configure<com.diffplug.gradle.spotless.SpotlessExtension> {
+        java {
+            target("src/**/*.java")
+            palantirJavaFormat(rootProject.libs.versions.palantir.java.format.get())
+            removeUnusedImports()
+            trimTrailingWhitespace()
+            endWithNewline()
+        }
+    }
+
+    tasks.named("check") {
+        dependsOn("spotlessCheck")
     }
 }

@@ -1,5 +1,13 @@
 package ru.hvostid.matching.controller;
 
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -12,14 +20,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
 import tools.jackson.databind.ObjectMapper;
-
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -116,8 +116,7 @@ class QuestionnaireControllerTest extends AbstractPostgresContainerTest {
                     .andExpect(jsonPath("$.petExperience", is("EXPERIENCED")));
 
             Integer count = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM buyer_questionnaire WHERE user_id = 1",
-                    Integer.class);
+                    "SELECT COUNT(*) FROM buyer_questionnaire WHERE user_id = 1", Integer.class);
             assert count != null && count == 1 : "expected exactly 1 row, got " + count;
         }
 
@@ -195,8 +194,7 @@ class QuestionnaireControllerTest extends AbstractPostgresContainerTest {
                             .content(validRequestBody()))
                     .andExpect(status().isOk());
 
-            mockMvc.perform(get(QUESTIONNAIRE_URL)
-                            .header(USER_ID, 1L))
+            mockMvc.perform(get(QUESTIONNAIRE_URL).header(USER_ID, 1L))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.userId", is(1)))
                     .andExpect(jsonPath("$.livingSpace", is("APARTMENT")))
@@ -206,8 +204,7 @@ class QuestionnaireControllerTest extends AbstractPostgresContainerTest {
         @Test
         @DisplayName("user without questionnaire - returns 404")
         void get_noQuestionnaire_returns404() throws Exception {
-            mockMvc.perform(get(QUESTIONNAIRE_URL)
-                            .header(USER_ID, 999L))
+            mockMvc.perform(get(QUESTIONNAIRE_URL).header(USER_ID, 999L))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.status", is(404)));
         }
@@ -215,8 +212,7 @@ class QuestionnaireControllerTest extends AbstractPostgresContainerTest {
         @Test
         @DisplayName("no X-User-Id header - returns 401")
         void get_noUserId_returns401() throws Exception {
-            mockMvc.perform(get(QUESTIONNAIRE_URL))
-                    .andExpect(status().isUnauthorized());
+            mockMvc.perform(get(QUESTIONNAIRE_URL)).andExpect(status().isUnauthorized());
         }
 
         @Test
@@ -228,9 +224,7 @@ class QuestionnaireControllerTest extends AbstractPostgresContainerTest {
                             .content(validRequestBody()))
                     .andExpect(status().isOk());
 
-            mockMvc.perform(get(QUESTIONNAIRE_URL)
-                            .header(USER_ID, 2L))
-                    .andExpect(status().isNotFound());
+            mockMvc.perform(get(QUESTIONNAIRE_URL).header(USER_ID, 2L)).andExpect(status().isNotFound());
         }
     }
 }

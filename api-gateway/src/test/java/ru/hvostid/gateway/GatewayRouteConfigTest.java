@@ -1,13 +1,13 @@
 package ru.hvostid.gateway;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.Environment;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 class GatewayRouteConfigTest {
@@ -20,16 +20,15 @@ class GatewayRouteConfigTest {
             String id = environment.getProperty(routeKey(i, "id"));
             assertNotNull(id, "Route at index " + i + " should be defined");
         }
-        assertNull(environment.getProperty(routeKey(4, "id")),
-                "There should be no fifth route");
+        assertNull(environment.getProperty(routeKey(4, "id")), "There should be no fifth route");
     }
 
     @ParameterizedTest
     @CsvSource({
-            "0, auth-service,     http://localhost:8081",
-            "1, listing-service,  http://localhost:8082",
-            "2, passport-service, http://localhost:8083",
-            "3, matching-service, http://localhost:8084"
+        "0, auth-service,     http://localhost:8081",
+        "1, listing-service,  http://localhost:8082",
+        "2, passport-service, http://localhost:8083",
+        "3, matching-service, http://localhost:8084"
     })
     void shouldConfigureRouteIdAndUri(int index, String expectedId, String expectedUri) {
         assertEquals(expectedId, environment.getProperty(routeKey(index, "id")));
@@ -41,23 +40,16 @@ class GatewayRouteConfigTest {
         // Single Path predicate with two comma-separated patterns
         String predicate = environment.getProperty(predicateKey(0, 0));
         assertNotNull(predicate, "Auth route must have a path predicate");
-        assertTrue(predicate.contains("/api/v1/auth/**"),
-                "Auth route should match /api/v1/auth/**");
-        assertTrue(predicate.contains("/api/v1/profile/**"),
-                "Auth route should match /api/v1/profile/**");
+        assertTrue(predicate.contains("/api/v1/auth/**"), "Auth route should match /api/v1/auth/**");
+        assertTrue(predicate.contains("/api/v1/profile/**"), "Auth route should match /api/v1/profile/**");
     }
 
     @ParameterizedTest
-    @CsvSource({
-            "1, /api/v1/listings/**",
-            "2, /api/v1/passports/**",
-            "3, /api/v1/match/**"
-    })
+    @CsvSource({"1, /api/v1/listings/**", "2, /api/v1/passports/**", "3, /api/v1/match/**"})
     void shouldConfigurePathPredicateForRoute(int index, String expectedPath) {
         String predicate = environment.getProperty(predicateKey(index, 0));
         assertNotNull(predicate, "Route at index " + index + " should have a path predicate");
-        assertTrue(predicate.contains(expectedPath),
-                "Route predicate should contain " + expectedPath);
+        assertTrue(predicate.contains(expectedPath), "Route predicate should contain " + expectedPath);
     }
 
     @Test

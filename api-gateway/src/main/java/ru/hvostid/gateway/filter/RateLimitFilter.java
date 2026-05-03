@@ -4,6 +4,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -15,9 +17,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import ru.hvostid.common.dto.ErrorResponse;
 import ru.hvostid.gateway.config.RateLimitProperties;
 import tools.jackson.databind.ObjectMapper;
-
-import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Rate limiting filter using the token bucket algorithm.
@@ -44,15 +43,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String clientIp = resolveClientIp(request);
-        TokenBucket bucket = buckets.computeIfAbsent(clientIp, _ -> new TokenBucket(
-                properties.replenishRate(),
-                properties.burstCapacity()
-        ));
+        TokenBucket bucket = buckets.computeIfAbsent(
+                clientIp, _ -> new TokenBucket(properties.replenishRate(), properties.burstCapacity()));
 
         if (!bucket.tryConsume()) {
             log.warn("Rate limit exceeded for ip={} on {}", clientIp, request.getRequestURI());
@@ -65,8 +60,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                     HttpStatus.TOO_MANY_REQUESTS.value(),
                     HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase(),
                     "Rate limit exceeded. Try again later.",
-                    request.getRequestURI()
-            );
+                    request.getRequestURI());
 
             objectMapper.writeValue(response.getWriter(), error);
             return;

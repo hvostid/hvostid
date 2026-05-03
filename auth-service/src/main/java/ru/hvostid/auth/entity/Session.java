@@ -1,7 +1,6 @@
 package ru.hvostid.auth.entity;
 
 import jakarta.persistence.*;
-
 import java.time.Instant;
 
 /**
@@ -37,8 +36,8 @@ public class Session {
         // JPA requires a no-arg constructor
     }
 
-    public Session(User user, String accessToken, String refreshToken,
-                   Instant expiresAt, Instant refreshTokenExpiresAt) {
+    public Session(
+            User user, String accessToken, String refreshToken, Instant expiresAt, Instant refreshTokenExpiresAt) {
         this.user = user;
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;

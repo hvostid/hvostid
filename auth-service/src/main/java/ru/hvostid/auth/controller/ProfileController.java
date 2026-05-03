@@ -39,9 +39,7 @@ public class ProfileController {
     /**
      * Get the current user's profile.
      */
-    @Operation(
-            summary = "Get current user profile",
-            description = "Returns the profile of the authenticated user.")
+    @Operation(summary = "Get current user profile", description = "Returns the profile of the authenticated user.")
     @ApiResponse(
             responseCode = "200",
             description = "Profile retrieved successfully",
@@ -56,8 +54,7 @@ public class ProfileController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @GetMapping("/me")
     public ResponseEntity<ProfileResponse> getMyProfile(
-            @Parameter(hidden = true)
-            @AuthenticationPrincipal UserDetails user) {
+            @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
         long userId = GatewayPreAuthentication.currentUserId(user);
         log.debug("GET /api/v1/profile/me userId={}", userId);
         ProfileResponse response = profileService.getProfile(userId);
@@ -69,8 +66,8 @@ public class ProfileController {
      */
     @Operation(
             summary = "Update current user profile",
-            description = "Updates editable profile fields (name, phone, city, bio). "
-                    + "Only non-null fields are applied.")
+            description =
+                    "Updates editable profile fields (name, phone, city, bio). " + "Only non-null fields are applied.")
     @ApiResponse(
             responseCode = "200",
             description = "Profile updated successfully",
@@ -89,8 +86,7 @@ public class ProfileController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @PutMapping("/me")
     public ResponseEntity<ProfileResponse> updateMyProfile(
-            @Parameter(hidden = true)
-            @AuthenticationPrincipal UserDetails user,
+            @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user,
             @Valid @RequestBody UpdateProfileRequest request) {
         long userId = GatewayPreAuthentication.currentUserId(user);
         log.debug("PUT /api/v1/profile/me userId={}", userId);
@@ -125,8 +121,7 @@ public class ProfileController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @PostMapping("/me/roles")
     public ResponseEntity<ProfileResponse> addRole(
-            @Parameter(hidden = true)
-            @AuthenticationPrincipal UserDetails user,
+            @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user,
             @Valid @RequestBody AddRoleRequest request) {
         long userId = GatewayPreAuthentication.currentUserId(user);
         log.debug("POST /api/v1/profile/me/roles userId={} role={}", userId, request.role());

@@ -42,8 +42,7 @@ public class ListingService {
                 request.age(),
                 request.price(),
                 normalize(request.city()),
-                normalize(request.passportId())
-        );
+                normalize(request.passportId()));
 
         // Persist the listing entity.
         Listing saved = listingRepository.save(listing);
@@ -57,15 +56,15 @@ public class ListingService {
     public ListingResponse getListing(Long id, Long userId) {
         log.debug("Getting listing id={} for userId={}", id, userId);
 
-        Listing listing = listingRepository.findById(id)
+        Listing listing = listingRepository
+                .findById(id)
                 .orElseThrow(() -> new ListingNotFoundException("Listing not found with id: " + id));
 
         boolean isOwner = listing.getSellerId().equals(userId);
         boolean isPublished = listing.getStatus() == ListingStatus.PUBLISHED;
 
         if (!isPublished && !isOwner) {
-            log.warn("Access denied to listing id={} for userId={}, status={}",
-                    id, userId, listing.getStatus());
+            log.warn("Access denied to listing id={} for userId={}, status={}", id, userId, listing.getStatus());
             throw new AccessDeniedException("You don't have permission to view this listing");
         }
 
@@ -76,7 +75,8 @@ public class ListingService {
     public ListingResponse updateListing(Long id, ListingUpdateRequest request, Long userId) {
         log.debug("Updating listing id={} for userId={}", id, userId);
 
-        Listing listing = listingRepository.findById(id)
+        Listing listing = listingRepository
+                .findById(id)
                 .orElseThrow(() -> new ListingNotFoundException("Listing not found with id: " + id));
 
         if (!listing.getSellerId().equals(userId)) {
@@ -84,13 +84,11 @@ public class ListingService {
             throw new AccessDeniedException("You don't have permission to edit this listing");
         }
 
-        if (listing.getStatus() != ListingStatus.DRAFT &&
-                listing.getStatus() != ListingStatus.PUBLISHED &&
-                listing.getStatus() != ListingStatus.REJECTED) {
-            throw new InvalidListingStatusException(
-                    "Cannot edit listing in status: " + listing.getStatus() +
-                            ". Only DRAFT/PUBLISHED/REJECTED listings can be edited."
-            );
+        if (listing.getStatus() != ListingStatus.DRAFT
+                && listing.getStatus() != ListingStatus.PUBLISHED
+                && listing.getStatus() != ListingStatus.REJECTED) {
+            throw new InvalidListingStatusException("Cannot edit listing in status: " + listing.getStatus()
+                    + ". Only DRAFT/PUBLISHED/REJECTED listings can be edited.");
         }
 
         if (request.title() != null) listing.setTitle(normalize(request.title()));
@@ -110,16 +108,12 @@ public class ListingService {
     @Transactional(readOnly = true)
     public Page<ListingResponse> getPublishedListings(Pageable pageable) {
         log.debug("Getting published listings, page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
-        return listingRepository.findByStatus(ListingStatus.PUBLISHED, pageable)
-                .map(ListingResponse::from);
+        return listingRepository.findByStatus(ListingStatus.PUBLISHED, pageable).map(ListingResponse::from);
     }
 
     private void checkForDuplicate(ListingRequest request, Long sellerId) {
         boolean exists = listingRepository.existsBySellerIdAndTitleAndStatusNot(
-                sellerId,
-                normalize(request.title()),
-                ListingStatus.ARCHIVED
-        );
+                sellerId, normalize(request.title()), ListingStatus.ARCHIVED);
         if (exists) {
             throw new DuplicateListingException("You already have a listing with this title");
         }

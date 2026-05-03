@@ -1,5 +1,7 @@
 package ru.hvostid.gateway.client;
 
+import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -7,9 +9,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import ru.hvostid.common.contract.auth.IntrospectResponse;
-
-import java.util.Map;
-import java.util.Optional;
 
 /**
  * Client that calls Auth Service token introspection endpoint.
@@ -35,7 +34,8 @@ public class IntrospectionClient {
      */
     public Optional<IntrospectResponse> introspect(String token) {
         try {
-            IntrospectResponse response = restClient.post()
+            IntrospectResponse response = restClient
+                    .post()
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of("token", token))
                     .retrieve()

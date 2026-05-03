@@ -1,10 +1,17 @@
 package ru.hvostid.gateway.filter;
 
+import static ru.hvostid.common.http.SecurityHeaders.REQUEST_ID;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -13,14 +20,6 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import ru.hvostid.common.http.SecurityHeaders;
-
-import java.io.IOException;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.UUID;
-
-import static ru.hvostid.common.http.SecurityHeaders.REQUEST_ID;
 
 /**
  * Global servlet filter that ensures every request has {@link SecurityHeaders#REQUEST_ID}.
@@ -38,7 +37,8 @@ public class RequestIdFilter extends OncePerRequestFilter {
     private static final Logger log = LoggerFactory.getLogger(RequestIdFilter.class);
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
         String requestId = request.getHeader(REQUEST_ID);
         boolean generated = false;
 
@@ -50,7 +50,12 @@ public class RequestIdFilter extends OncePerRequestFilter {
         MDC.put(MDC_REQUEST_ID_KEY, requestId);
 
         try {
-            log.debug("Request {} {} requestId={} (generated={})", request.getMethod(), request.getRequestURI(), requestId, generated);
+            log.debug(
+                    "Request {} {} requestId={} (generated={})",
+                    request.getMethod(),
+                    request.getRequestURI(),
+                    requestId,
+                    generated);
 
             // Wrap the request so the gateway forwards REQUEST_ID to downstream services.
             HttpServletRequest wrappedRequest = generated ? new RequestIdHeaderWrapper(request, requestId) : request;

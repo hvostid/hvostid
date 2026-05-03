@@ -1,10 +1,9 @@
 package ru.hvostid.matching.entity;
 
 import jakarta.persistence.*;
+import java.time.Instant;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.Instant;
 
 @Entity
 @Table(name = "buyer_questionnaire")
@@ -70,8 +69,7 @@ public class BuyerQuestionnaire {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    protected BuyerQuestionnaire() {
-    }
+    protected BuyerQuestionnaire() {}
 
     public BuyerQuestionnaire(Long userId) {
         this.userId = userId;

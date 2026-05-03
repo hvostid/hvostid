@@ -1,5 +1,10 @@
 package ru.hvostid.matching.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.*;
+
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -13,12 +18,6 @@ import ru.hvostid.matching.dto.QuestionnaireResponse;
 import ru.hvostid.matching.entity.*;
 import ru.hvostid.matching.exception.QuestionnaireNotFoundException;
 import ru.hvostid.matching.repository.BuyerQuestionnaireRepository;
-
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class QuestionnaireServiceTest {
@@ -47,8 +46,7 @@ class QuestionnaireServiceTest {
                 WorkSchedule.HYBRID,
                 true,
                 "dog",
-                null
-        );
+                null);
     }
 
     @Nested
@@ -58,12 +56,11 @@ class QuestionnaireServiceTest {
         @DisplayName("creates a new questionnaire when none exists")
         void upsert_createsWhenAbsent() {
             when(repository.findByUserId(1L)).thenReturn(Optional.empty());
-            when(repository.save(any(BuyerQuestionnaire.class)))
-                    .thenAnswer(inv -> {
-                        BuyerQuestionnaire q = inv.getArgument(0);
-                        q.setId(42L);
-                        return q;
-                    });
+            when(repository.save(any(BuyerQuestionnaire.class))).thenAnswer(inv -> {
+                BuyerQuestionnaire q = inv.getArgument(0);
+                q.setId(42L);
+                return q;
+            });
 
             QuestionnaireResponse response = service.upsertQuestionnaire(validRequest(), 1L);
 
@@ -86,8 +83,7 @@ class QuestionnaireServiceTest {
             existing.setMonthlyBudget(8000);
 
             when(repository.findByUserId(1L)).thenReturn(Optional.of(existing));
-            when(repository.save(any(BuyerQuestionnaire.class)))
-                    .thenAnswer(inv -> inv.getArgument(0));
+            when(repository.save(any(BuyerQuestionnaire.class))).thenAnswer(inv -> inv.getArgument(0));
 
             QuestionnaireResponse response = service.upsertQuestionnaire(validRequest(), 1L);
 
@@ -105,14 +101,23 @@ class QuestionnaireServiceTest {
         @DisplayName("trims whitespace on optional string fields")
         void upsert_trimsStrings() {
             QuestionnaireRequest request = new QuestionnaireRequest(
-                    LivingSpace.HOUSE, 100, true, false, null, true, "  cats   ",
-                    PetExperience.EXPERIENCED, ActivityLevel.HIGH, 10000,
-                    WorkSchedule.HOME, true, "  dog  ", "  Labrador  "
-            );
+                    LivingSpace.HOUSE,
+                    100,
+                    true,
+                    false,
+                    null,
+                    true,
+                    "  cats   ",
+                    PetExperience.EXPERIENCED,
+                    ActivityLevel.HIGH,
+                    10000,
+                    WorkSchedule.HOME,
+                    true,
+                    "  dog  ",
+                    "  Labrador  ");
 
             when(repository.findByUserId(2L)).thenReturn(Optional.empty());
-            when(repository.save(any(BuyerQuestionnaire.class)))
-                    .thenAnswer(inv -> inv.getArgument(0));
+            when(repository.save(any(BuyerQuestionnaire.class))).thenAnswer(inv -> inv.getArgument(0));
 
             QuestionnaireResponse response = service.upsertQuestionnaire(request, 2L);
 

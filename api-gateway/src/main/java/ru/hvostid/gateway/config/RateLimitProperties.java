@@ -10,10 +10,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * per second up to a maximum of {@code burstCapacity}.
  */
 @ConfigurationProperties(prefix = "hvostid.rate-limit")
-public record RateLimitProperties(
-        int replenishRate,
-        int burstCapacity
-) {
+public record RateLimitProperties(int replenishRate, int burstCapacity) {
     public RateLimitProperties {
         if (replenishRate <= 0) {
             replenishRate = 20;

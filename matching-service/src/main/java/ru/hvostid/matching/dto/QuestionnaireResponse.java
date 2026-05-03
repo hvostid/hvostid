@@ -1,8 +1,7 @@
 package ru.hvostid.matching.dto;
 
-import ru.hvostid.matching.entity.*;
-
 import java.time.Instant;
+import ru.hvostid.matching.entity.*;
 
 public record QuestionnaireResponse(
         Long id,
@@ -22,8 +21,7 @@ public record QuestionnaireResponse(
         String preferredSpecies,
         String preferredBreed,
         Instant createdAt,
-        Instant updatedAt
-) {
+        Instant updatedAt) {
     public static QuestionnaireResponse from(BuyerQuestionnaire q) {
         return new QuestionnaireResponse(
                 q.getId(),
@@ -43,7 +41,6 @@ public record QuestionnaireResponse(
                 q.getPreferredSpecies(),
                 q.getPreferredBreed(),
                 q.getCreatedAt(),
-                q.getUpdatedAt()
-        );
+                q.getUpdatedAt());
     }
 }

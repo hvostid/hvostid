@@ -1,10 +1,15 @@
 package ru.hvostid.gateway.filter;
 
+import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
+import static ru.hvostid.common.http.SecurityHeaders.USER_ROLES;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -21,12 +26,6 @@ import ru.hvostid.common.http.SecurityHeaders;
 import ru.hvostid.gateway.client.IntrospectionClient;
 import ru.hvostid.gateway.config.AuthProperties;
 import tools.jackson.databind.ObjectMapper;
-
-import java.io.IOException;
-import java.util.*;
-
-import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
-import static ru.hvostid.common.http.SecurityHeaders.USER_ROLES;
 
 /**
  * Servlet filter that performs token introspection on every protected request.
@@ -54,9 +53,8 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
     private final AuthProperties authProperties;
     private final ObjectMapper objectMapper;
 
-    public TokenIntrospectionFilter(IntrospectionClient introspectionClient,
-                                    AuthProperties authProperties,
-                                    ObjectMapper objectMapper) {
+    public TokenIntrospectionFilter(
+            IntrospectionClient introspectionClient, AuthProperties authProperties, ObjectMapper objectMapper) {
         this.introspectionClient = introspectionClient;
         this.authProperties = authProperties;
         this.objectMapper = objectMapper;
@@ -65,14 +63,11 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return authProperties.publicPaths().stream()
-                .anyMatch(pattern -> PATH_MATCHER.match(pattern, path));
+        return authProperties.publicPaths().stream().anyMatch(pattern -> PATH_MATCHER.match(pattern, path));
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
 
@@ -98,10 +93,8 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
 
         log.debug("Authenticated userId={} roles={} for {}", userId, roles, request.getRequestURI());
 
-        HttpServletRequest wrappedRequest = new UserInfoHeaderWrapper(
-                request,
-                Map.of(USER_ID, userId, USER_ROLES, roles)
-        );
+        HttpServletRequest wrappedRequest =
+                new UserInfoHeaderWrapper(request, Map.of(USER_ID, userId, USER_ROLES, roles));
         filterChain.doFilter(wrappedRequest, response);
     }
 
@@ -110,11 +103,7 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
         ErrorResponse error = new ErrorResponse(
-                HttpStatus.UNAUTHORIZED.value(),
-                HttpStatus.UNAUTHORIZED.getReasonPhrase(),
-                message,
-                path
-        );
+                HttpStatus.UNAUTHORIZED.value(), HttpStatus.UNAUTHORIZED.getReasonPhrase(), message, path);
 
         objectMapper.writeValue(response.getWriter(), error);
     }

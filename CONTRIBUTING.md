@@ -56,14 +56,45 @@ that runs `commitlint`. The first time you clone the repo, run:
 
 ```sh
 npm install
+npm install --prefix frontend
 ```
 
-at the repo root. The `prepare` script wires up Husky automatically, so
-the hook is active for every subsequent commit. Invalid messages are
-rejected before the commit is created.
+The first command installs root tooling (commitlint, husky) and wires up
+Husky via the `prepare` script. The second installs frontend tooling
+(eslint, prettier, lint-staged) so the `pre-commit` hook can run on
+staged frontend files.
 
-Allowed types and the task-id rule are defined in
+After this, both hooks are active for every subsequent commit:
+
+* `commit-msg` -- validates the commit message against `commitlint.config.js`.
+* `pre-commit` -- runs `lint-staged` from `frontend/`, which applies
+  `eslint --fix` and `prettier --write` to staged JS/JSX/CSS/HTML/JSON
+  files. Files outside `frontend/` are ignored by this hook.
+
+Allowed commit types and the task-id rule are defined in
 [`commitlint.config.js`](./commitlint.config.js).
+
+### Code formatting
+
+* **Backend (Java).** Spotless is wired into every Gradle module with
+  the [palantir-java-format](https://github.com/palantir/palantir-java-format)
+  formatter. `./gradlew spotlessCheck` runs as part of `./gradlew check`
+  (and therefore CI). Run `./gradlew spotlessApply` to fix violations
+  locally.
+* **Frontend (JS/JSX).** ESLint and Prettier are configured in
+  `frontend/`. Use `npm run lint` / `npm run lint:fix` and
+  `npm run format` / `npm run format:check` from inside `frontend/`.
+  The pre-commit hook fixes staged files automatically.
+
+Repository-wide editor defaults (UTF-8, LF line endings, 4-space indent)
+are pinned in [`.editorconfig`](./.editorconfig).
+
+### Bypassing hooks
+
+In rare cases (typos in WIP commits, emergency hotfixes), you can skip
+the hooks with `git commit --no-verify`. Do not use this routinely --
+formatting and lint failures should be fixed before commit, not pushed
+to CI.
 
 ### Reviewers
 

@@ -1,5 +1,10 @@
 package ru.hvostid.listing.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,12 +25,6 @@ import ru.hvostid.listing.exception.InvalidListingStatusException;
 import ru.hvostid.listing.exception.ListingNotFoundException;
 import ru.hvostid.listing.repository.ListingRepository;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 @SpringBootTest
 @Transactional
 class ListingServiceTest extends AbstractPostgresContainerTest {
@@ -41,15 +40,7 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
     @BeforeEach
     void setUp() {
         validRequest = new ListingRequest(
-                "Cute Puppy",
-                "Friendly and healthy puppy",
-                "dog",
-                "Labrador",
-                3,
-                15000,
-                "Moscow",
-                "passport-1"
-        );
+                "Cute Puppy", "Friendly and healthy puppy", "dog", "Labrador", 3, 15000, "Moscow", "passport-1");
     }
 
     // ==================== CREATE LISTING TESTS ====================
@@ -70,9 +61,8 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
     void createListing_duplicateTitle_shouldThrow() {
         listingService.createListing(validRequest, 1L);
 
-        assertThatThrownBy(() ->
-                listingService.createListing(validRequest, 1L)
-        ).isInstanceOf(DuplicateListingException.class);
+        assertThatThrownBy(() -> listingService.createListing(validRequest, 1L))
+                .isInstanceOf(DuplicateListingException.class);
     }
 
     // ==================== GET LISTING TESTS ====================
@@ -133,9 +123,7 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
         // given
         ListingResponse created = listingService.createListing(validRequest, 1L);
         ListingUpdateRequest updateRequest = new ListingUpdateRequest(
-                "Updated Title", "Updated Description", "cat", "Siamese",
-                12, 20000, "Saint Petersburg", "passport-1"
-        );
+                "Updated Title", "Updated Description", "cat", "Siamese", 12, 20000, "Saint Petersburg", "passport-1");
 
         // when
         ListingResponse updated = listingService.updateListing(created.id(), updateRequest, 1L);
@@ -155,9 +143,8 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
         listing.setStatus(ListingStatus.PUBLISHED);
         listingRepository.save(listing);
 
-        ListingUpdateRequest updateRequest = new ListingUpdateRequest(
-                "Updated Published Title", null, null, null, null, null, null, null
-        );
+        ListingUpdateRequest updateRequest =
+                new ListingUpdateRequest("Updated Published Title", null, null, null, null, null, null, null);
 
         // when
         ListingResponse updated = listingService.updateListing(created.id(), updateRequest, 1L);
@@ -171,9 +158,8 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
     void updateListing_WhenNotOwner_ShouldThrowAccessDenied() {
         // given
         ListingResponse created = listingService.createListing(validRequest, 1L);
-        ListingUpdateRequest updateRequest = new ListingUpdateRequest(
-                "Hacked Title", null, null, null, null, null, null, null
-        );
+        ListingUpdateRequest updateRequest =
+                new ListingUpdateRequest("Hacked Title", null, null, null, null, null, null, null);
 
         // when/then - user 2 tries to update
         assertThatThrownBy(() -> listingService.updateListing(created.id(), updateRequest, 2L))
@@ -186,8 +172,8 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
         // given
         ListingResponse created = listingService.createListing(validRequest, 1L);
         ListingUpdateRequest updateRequest = new ListingUpdateRequest(
-                null, null, null, null, null, 25000, null, null  // only price updated
-        );
+                null, null, null, null, null, 25000, null, null // only price updated
+                );
 
         // when
         ListingResponse updated = listingService.updateListing(created.id(), updateRequest, 1L);
@@ -203,23 +189,16 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
     @Test
     void getPublishedListings_ShouldReturnOnlyPublishedListings() {
         // given - create 3 listings: 2 published, 1 draft
-        ListingRequest request1 = new ListingRequest(
-                "Unique Puppy 1", "Description", "dog", "Labrador",
-                3, 15000, "Moscow", null
-        );
-        ListingRequest request2 = new ListingRequest(
-                "Unique Puppy 2", "Description", "dog", "Labrador",
-                3, 15000, "Moscow", null
-        );
-        ListingRequest request3 = new ListingRequest(
-                "Unique Puppy 3", "Description", "dog", "Labrador",
-                3, 15000, "Moscow", null
-        );
+        ListingRequest request1 =
+                new ListingRequest("Unique Puppy 1", "Description", "dog", "Labrador", 3, 15000, "Moscow", null);
+        ListingRequest request2 =
+                new ListingRequest("Unique Puppy 2", "Description", "dog", "Labrador", 3, 15000, "Moscow", null);
+        ListingRequest request3 =
+                new ListingRequest("Unique Puppy 3", "Description", "dog", "Labrador", 3, 15000, "Moscow", null);
 
         ListingResponse listing1 = listingService.createListing(request1, 1L);
         ListingResponse listing2 = listingService.createListing(request2, 1L);
         ListingResponse listing3 = listingService.createListing(request3, 1L);
-
 
         setStatus(listing1.id(), ListingStatus.PUBLISHED);
         setStatus(listing2.id(), ListingStatus.PUBLISHED);
@@ -245,9 +224,13 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
         for (int i = 0; i < 5; i++) {
             ListingRequest request = new ListingRequest(
                     "Puppy " + i + " " + System.currentTimeMillis(),
-                    "Description", "dog", "Labrador",
-                    3, 15000 + i, "Moscow", null
-            );
+                    "Description",
+                    "dog",
+                    "Labrador",
+                    3,
+                    15000 + i,
+                    "Moscow",
+                    null);
             ListingResponse created = listingService.createListing(request, 1L);
             setStatus(created.id(), ListingStatus.PUBLISHED);
             createdIds.add(created.id());
@@ -269,8 +252,10 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
         assertThat(page1.getTotalPages()).isEqualTo(3);
 
         // verify different content on different pages (no order assumption)
-        List<Long> page1Ids = page1.getContent().stream().map(ListingResponse::id).toList();
-        List<Long> page2Ids = page2.getContent().stream().map(ListingResponse::id).toList();
+        List<Long> page1Ids =
+                page1.getContent().stream().map(ListingResponse::id).toList();
+        List<Long> page2Ids =
+                page2.getContent().stream().map(ListingResponse::id).toList();
 
         assertThat(page1Ids).doesNotContainAnyElementsOf(page2Ids);
 
@@ -285,14 +270,10 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
     @Test
     void getPublishedListings_WhenNoPublishedListings_ShouldReturnEmptyPage() {
         // given - create only draft listings
-        ListingRequest request1 = new ListingRequest(
-                "Draft Puppy 1", "Description", "dog", "Labrador",
-                3, 15000, "Moscow", null
-        );
-        ListingRequest request2 = new ListingRequest(
-                "Draft Puppy 2", "Description", "dog", "Labrador",
-                3, 15000, "Moscow", null
-        );
+        ListingRequest request1 =
+                new ListingRequest("Draft Puppy 1", "Description", "dog", "Labrador", 3, 15000, "Moscow", null);
+        ListingRequest request2 =
+                new ListingRequest("Draft Puppy 2", "Description", "dog", "Labrador", 3, 15000, "Moscow", null);
 
         listingService.createListing(request1, 1L);
         listingService.createListing(request2, 1L);
@@ -317,9 +298,8 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
         // change status to MODERATION
         setStatus(created.id(), ListingStatus.MODERATION);
 
-        ListingUpdateRequest updateRequest = new ListingUpdateRequest(
-                "Updated Title", null, null, null, null, null, null, null
-        );
+        ListingUpdateRequest updateRequest =
+                new ListingUpdateRequest("Updated Title", null, null, null, null, null, null, null);
 
         // when/then
         assertThatThrownBy(() -> listingService.updateListing(created.id(), updateRequest, 1L))
@@ -333,9 +313,8 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
         ListingResponse created = listingService.createListing(validRequest, 1L);
         setStatus(created.id(), ListingStatus.REJECTED);
 
-        ListingUpdateRequest updateRequest = new ListingUpdateRequest(
-                "Updated Title", null, null, null, null, null, null, null
-        );
+        ListingUpdateRequest updateRequest =
+                new ListingUpdateRequest("Updated Title", null, null, null, null, null, null, null);
 
         // when
         ListingResponse updated = listingService.updateListing(created.id(), updateRequest, 1L);
@@ -352,8 +331,7 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
         setStatus(created.id(), ListingStatus.MODERATION);
 
         // when/then
-        assertThatThrownBy(() -> listingService.getListing(created.id(), 2L))
-                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> listingService.getListing(created.id(), 2L)).isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
@@ -370,15 +348,13 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
         assertThat(response.status()).isEqualTo(ListingStatus.ARCHIVED);
     }
 
-// ==================== EDGE CASES ====================
+    // ==================== EDGE CASES ====================
 
     @Test
     void createListing_WithNullAgeAndPrice_ShouldSucceed() {
         // given
-        ListingRequest requestWithoutAgeAndPrice = new ListingRequest(
-                "Free Puppy", "Need good home", "dog", "Mixed",
-                null, null, "Moscow", "passport-1"
-        );
+        ListingRequest requestWithoutAgeAndPrice =
+                new ListingRequest("Free Puppy", "Need good home", "dog", "Mixed", null, null, "Moscow", "passport-1");
 
         // when
         ListingResponse response = listingService.createListing(requestWithoutAgeAndPrice, 1L);
@@ -393,10 +369,8 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
     void createListing_WithVeryLongDescription_ShouldSucceed() {
         // given
         String longDescription = "a".repeat(2000);
-        ListingRequest requestWithLongDesc = new ListingRequest(
-                "Puppy", longDescription, "dog", "Labrador",
-                3, 15000, "Moscow", "passport-1"
-        );
+        ListingRequest requestWithLongDesc =
+                new ListingRequest("Puppy", longDescription, "dog", "Labrador", 3, 15000, "Moscow", "passport-1");
 
         // when
         ListingResponse response = listingService.createListing(requestWithLongDesc, 1L);
@@ -410,9 +384,7 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
     void updateListing_WithEmptyUpdate_ShouldNotChangeAnything() {
         // given
         ListingResponse created = listingService.createListing(validRequest, 1L);
-        ListingUpdateRequest emptyUpdate = new ListingUpdateRequest(
-                null, null, null, null, null, null, null, null
-        );
+        ListingUpdateRequest emptyUpdate = new ListingUpdateRequest(null, null, null, null, null, null, null, null);
 
         // when
         ListingResponse updated = listingService.updateListing(created.id(), emptyUpdate, 1L);

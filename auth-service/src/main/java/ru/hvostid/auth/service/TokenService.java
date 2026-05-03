@@ -1,9 +1,8 @@
 package ru.hvostid.auth.service;
 
-import org.springframework.stereotype.Service;
-
 import java.security.SecureRandom;
 import java.util.Base64;
+import org.springframework.stereotype.Service;
 
 /**
  * Generates cryptographically secure opaque tokens.

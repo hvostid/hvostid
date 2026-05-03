@@ -1,5 +1,11 @@
 package ru.hvostid.auth.controller;
 
+import static org.hamcrest.Matchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -16,12 +22,6 @@ import ru.hvostid.common.security.UserRole;
 import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-
-import static org.hamcrest.Matchers.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -69,8 +69,7 @@ class ProfileControllerTest extends AbstractPostgresContainerTest {
         void getProfile_validUserId_returnsProfile() throws Exception {
             Long userId = registerAndGetUserId("profile@example.com", "Profile User");
 
-            mockMvc.perform(get(PROFILE_ME_URL)
-                            .header(USER_ID, userId))
+            mockMvc.perform(get(PROFILE_ME_URL).header(USER_ID, userId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id", is(userId.intValue())))
                     .andExpect(jsonPath("$.email", is("profile@example.com")))
@@ -82,15 +81,13 @@ class ProfileControllerTest extends AbstractPostgresContainerTest {
         @Test
         @DisplayName("without authenticated user - returns 401")
         void getProfile_noUserIdHeader_returns401() throws Exception {
-            mockMvc.perform(get(PROFILE_ME_URL))
-                    .andExpect(status().isUnauthorized());
+            mockMvc.perform(get(PROFILE_ME_URL)).andExpect(status().isUnauthorized());
         }
 
         @Test
         @DisplayName("with non-existent user id - returns 404")
         void getProfile_nonExistentUser_returns404() throws Exception {
-            mockMvc.perform(get(PROFILE_ME_URL)
-                            .header(USER_ID, 99999))
+            mockMvc.perform(get(PROFILE_ME_URL).header(USER_ID, 99999))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.status", is(404)));
         }
@@ -100,8 +97,7 @@ class ProfileControllerTest extends AbstractPostgresContainerTest {
         void getProfile_defaultNullFields() throws Exception {
             Long userId = registerAndGetUserId("defaults@example.com", "Defaults");
 
-            mockMvc.perform(get(PROFILE_ME_URL)
-                            .header(USER_ID, userId))
+            mockMvc.perform(get(PROFILE_ME_URL).header(USER_ID, userId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.phone").doesNotExist())
                     .andExpect(jsonPath("$.city").doesNotExist())
@@ -301,8 +297,7 @@ class ProfileControllerTest extends AbstractPostgresContainerTest {
                     .andExpect(status().isOk());
 
             // Verify via GET profile
-            mockMvc.perform(get(PROFILE_ME_URL)
-                            .header(USER_ID, userId))
+            mockMvc.perform(get(PROFILE_ME_URL).header(USER_ID, userId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.roles", hasItem(UserRole.SELLER.value())))
                     .andExpect(jsonPath("$.roles", hasItem(UserRole.BUYER.value())));

@@ -7,6 +7,5 @@ import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
 @SpringBootTest
 class PassportServiceApplicationTest extends AbstractPostgresContainerTest {
     @Test
-    void contextLoads() {
-    }
+    void contextLoads() {}
 }
