@@ -1,47 +1,119 @@
+**English** | [Русский](./README.ru.md)
+
 # HvostID
 
-Distributed platform for responsible pet sales and transfers with a digital trust passport and owner-pet compatibility
-scoring.
+[![CI](https://github.com/hvostid/hvostid/actions/workflows/ci-pr.yml/badge.svg)](https://github.com/hvostid/hvostid/actions/workflows/ci-pr.yml)
+[![CD](https://github.com/hvostid/hvostid/actions/workflows/cd-main.yml/badge.svg)](https://github.com/hvostid/hvostid/actions/workflows/cd-main.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Java](https://img.shields.io/badge/java-25-orange.svg)](https://openjdk.org/projects/jdk/25/)
+
+Distributed platform for responsible pet sales and transfers. The
+platform issues a digital trust passport for each pet and computes an
+owner-pet compatibility score so buyers and sellers are matched on more
+than just price and breed.
+
+## Contents
+
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Quick Start](#quick-start)
+- [Development](#development)
+- [API Documentation](#api-documentation)
+- [CI/CD](#cicd)
+- [Testing](#testing)
+- [Project Structure](#project-structure)
+- [Team](#team)
+- [License](#license)
+
+## Architecture
+
+Five Spring Boot services behind a Spring Cloud Gateway, plus a React
+SPA. PostgreSQL hosts a separate database per service; MinIO stores
+passport documents.
+
+```mermaid
+flowchart TB
+    subgraph Client
+        FE[Frontend SPA<br/>:3000]
+    end
+
+    subgraph Edge
+        GW[API Gateway<br/>:8080]
+    end
+
+    subgraph Services
+        AUTH[Auth Service<br/>:8081]
+        LIST[Listing Service<br/>:8082]
+        PASS[Passport Service<br/>:8083]
+        MATCH[Matching Service<br/>:8084]
+    end
+
+    subgraph Data
+        PG[(PostgreSQL 18<br/>4 databases)]
+        MINIO[(MinIO<br/>pet-documents)]
+    end
+
+    FE -->|HTTPS /api/v1| GW
+    GW --> AUTH
+    GW --> LIST
+    GW --> PASS
+    GW --> MATCH
+    GW -. token introspect .-> AUTH
+
+    LIST -->|enrich with passport| PASS
+    MATCH -->|read listings| LIST
+    MATCH -->|read passports| PASS
+
+    AUTH --> PG
+    LIST --> PG
+    PASS --> PG
+    MATCH --> PG
+    PASS --> MINIO
+```
+
+Detailed diagrams (sequence, deployment) and design notes live in
+[`docs/architecture.md`](./docs/architecture.md).
+
+| Service                                | Port | Database           | Description                                             |
+|----------------------------------------|------|--------------------|---------------------------------------------------------|
+| [Frontend](./frontend)                 | 3000 | --                 | React SPA, served via Nginx in prod                     |
+| [API Gateway](./api-gateway)           | 8080 | --                 | Routing, opaque-token validation, IP-based rate limit   |
+| [Auth Service](./auth-service)         | 8081 | `hvostid_auth`     | Registration, login, token introspection, profile/roles |
+| [Listing Service](./listing-service)   | 8082 | `hvostid_listing`  | Pet listings CRUD, search, filters                      |
+| [Passport Service](./passport-service) | 8083 | `hvostid_passport` | Digital pet passport, documents, trust score            |
+| [Matching Service](./matching-service) | 8084 | `hvostid_matching` | Buyer questionnaire, compatibility score                |
 
 ## Tech Stack
 
-**Backend:**
+**Backend**
 
-- Java 25, Spring Boot 4.0.x, Spring Cloud Gateway
-- Gradle multi-module (Kotlin DSL)
-- PostgreSQL 18, MinIO (S3-compatible)
-- Docker + Docker Compose
-- GitHub Actions (CI/CD)
-- SonarQube, k6
+- Java 25, Spring Boot 4.0, Spring Cloud Gateway
+- Gradle multi-module (Kotlin DSL) with version catalog
+- PostgreSQL 18, Flyway migrations
+- MinIO (S3-compatible)
+- Spotless + palantir-java-format, JUnit 5, Testcontainers
 
-**Frontend:**
+**Frontend**
 
 - React 18, Vite, React Router 6
 - Tailwind CSS, Axios
+- ESLint 9 (flat config) + Prettier
 
-## Services
+**Infrastructure**
 
-| Service          | Port | Description                                  |
-|------------------|------|----------------------------------------------|
-| Frontend         | 3000 | React SPA                                    |
-| API Gateway      | 8080 | Routing, token validation, rate limiting     |
-| Auth Service     | 8081 | Registration, login, opaque tokens, roles    |
-| Listing Service  | 8082 | CRUD for pet listings, search, filters       |
-| Passport Service | 8083 | Digital pet passport, documents, trust score |
-| Matching Service | 8084 | Buyer questionnaire, compatibility score     |
+- Docker, Docker Compose
+- GitHub Actions (PR CI + main CD to GHCR)
+- SonarQube (optional `quality` profile), k6 load tests
+- Husky + commitlint + lint-staged
 
-## Getting Started
+## Quick Start
 
-### Prerequisites
+**Requirements**
 
-- Java 25
-- Node.js 24+
-- Docker and Docker Compose
-- Gradle 9.x (or use the included wrapper)
+- Docker 24+ and Docker Compose v2
+- Optional for local IDE work: JDK 25, Node.js 24+
 
-### Quick Start
-
-Start the entire platform (8 containers: 5 services + PostgreSQL + MinIO + frontend) with one command:
+**Bring up the whole platform**
 
 ```bash
 git clone https://github.com/hvostid/hvostid.git
@@ -50,32 +122,40 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Each backend service is built from source via a multi-stage Dockerfile, so no
-local `./gradlew build` is required first. Subsequent `docker compose up
---build` runs reuse the Gradle dependency cache (BuildKit cache mount).
+Each backend service builds from source via a multi-stage Dockerfile
+(BuildKit cache mount reuses Gradle dependencies between rebuilds), so
+no local `./gradlew build` is required first.
 
 Once everything is healthy:
 
-- Frontend: http://localhost:3000
-- API Gateway: http://localhost:8080
-- PostgreSQL: localhost:5432 (4 databases auto-created on first start: `hvostid_auth`, `hvostid_listing`, `hvostid_passport`, `hvostid_matching`)
-- MinIO Console: http://localhost:9001 (bucket `pet-documents` auto-created on first start)
+| What                      | URL                                          |
+|---------------------------|----------------------------------------------|
+| Frontend                  | http://localhost:3000                        |
+| API Gateway               | http://localhost:8080                        |
+| Auth Swagger UI           | http://localhost:8081/swagger-ui.html        |
+| Listing Swagger UI        | http://localhost:8082/swagger-ui.html        |
+| Passport Swagger UI       | http://localhost:8083/swagger-ui.html        |
+| Matching Swagger UI       | http://localhost:8084/swagger-ui.html        |
+| PostgreSQL                | localhost:5432 (4 databases auto-created)    |
+| MinIO Console             | http://localhost:9001 (`minioadmin` default) |
 
-### Local Development
+**Demo data.** Seed loader is tracked in T42; until then, register a
+user via the frontend or the Auth service `register` endpoint.
 
-Start supporting infrastructure only:
+## Development
+
+### Run a single service from your IDE
+
+Bring up infrastructure and the services you are not actively editing,
+then run the service under development from the IDE for fast feedback
+and full Spring tooling support:
 
 ```bash
-docker compose up -d postgres minio minio-init
-```
-
-Build and run backend from your IDE or:
-
-```bash
+docker compose up -d postgres minio minio-init listing-service passport-service matching-service api-gateway
 ./gradlew :auth-service:bootRun
 ```
 
-Run frontend:
+### Run the frontend dev server
 
 ```bash
 cd frontend
@@ -83,65 +163,25 @@ npm install
 npm run dev
 ```
 
-Frontend dev server starts at http://localhost:3000 and proxies `/api` to Gateway at :8080.
+Vite serves on http://localhost:3000 and proxies `/api` to the gateway
+on `:8080`.
 
-### Hybrid Local Development
-
-For day-to-day development, it is recommended to run all supporting infrastructure and non-active services via Docker
-Compose, while starting the service currently being developed directly from the IDE or with Gradle.
-
-This approach is especially useful for IntelliJ IDEA: when a Spring Boot service is started locally, Spring-specific IDE
-features such as the Spring plugin, environment inspection, configuration assistance, and debugger integration work as
-expected. If the service were also started inside Docker Compose, these capabilities would be limited or unavailable.
-
-Example workflow:
+### Build and test the backend
 
 ```bash
-docker compose up -d postgres minio minio-init listing-service passport-service matching-service api-gateway
-./gradlew :auth-service:bootRun
+./gradlew build         # compile + Spotless + tests for every module
+./gradlew :auth-service:test
 ```
 
-### SonarQube (optional)
+### Database migrations
 
-The `quality` Compose profile keeps SonarQube out of the default startup. Bring it up only when needed:
+Each service owns its schema in
+`src/main/resources/db/migration` and Flyway runs migrations on
+startup. JPA is set to `ddl-auto: validate`, so divergence between
+entities and migrations fails the boot. Migration workflow details
+live in T37.
 
-```bash
-docker compose --profile quality up -d sonarqube
-./gradlew sonar -Dsonar.host.url=http://localhost:9090 -Dsonar.token=squ_...
-```
-
-## Project Structure
-
-```
-hvostid/
-  .github/workflows/
-  api-gateway/
-  auth-service/
-  common/
-  docker/
-  frontend/                -- React SPA
-    src/
-      api/                 -- axios client
-      context/             -- AuthContext
-      components/          -- shared components
-      pages/               -- page components
-  k6/
-  listing-service/
-  matching-service/
-  passport-service/
-  postman/
-  build.gradle.kts
-  docker-compose.yml
-  settings.gradle.kts
-```
-
-## Git Workflow
-
-- Main branch: `main`
-- Feature branches: `feature/TXX-short-name`
-- Merge via Pull Request with at least 1 reviewer
-- CI runs automatically on every PR
-- Release tags: `v1.0.0`, `v1.1.0`, etc.
+### Pre-commit hooks
 
 After cloning, install hook tooling once:
 
@@ -150,18 +190,94 @@ npm install                  # commitlint + husky at the repo root
 npm install --prefix frontend  # eslint + prettier + lint-staged for the pre-commit hook
 ```
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md#local-enforcement) for hook
-details, formatting commands (`./gradlew spotlessApply`,
-`npm run lint:fix`), and the `--no-verify` escape hatch.
+The hooks then validate every commit:
+
+- `commit-msg` -- enforces Conventional Commits with a task id (see
+  [`commitlint.config.js`](./commitlint.config.js)).
+- `pre-commit` -- runs `eslint --fix` and `prettier --write` on staged
+  frontend files via `lint-staged`.
+
+Backend formatting is enforced separately by Spotless: `./gradlew
+spotlessCheck` runs as part of `check` (so `build` and CI). Use
+`./gradlew spotlessApply` to fix violations.
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full workflow,
+commit-message rules, code-style decisions, and review checklist.
 
 ## API Documentation
 
-Swagger UI (when services are running):
+- **Swagger UI** -- per-service, on the URLs in the [Quick
+  Start](#quick-start) table above. Each spec uses the `X-User-Id`
+  header security scheme; the gateway adds it automatically after
+  successful token introspection.
+- **OpenAPI JSON** -- served at `/v3/api-docs` on each service.
+- **Postman collection** -- tracked in T36 (TODO).
 
-- Auth: http://localhost:8081/swagger-ui.html
-- Listing: http://localhost:8082/swagger-ui.html
-- Passport: http://localhost:8083/swagger-ui.html
-- Matching: http://localhost:8084/swagger-ui.html
+## CI/CD
+
+Two GitHub Actions workflows live in [`.github/workflows`](./.github/workflows):
+
+- [`ci-pr.yml`](./.github/workflows/ci-pr.yml) runs on every pull
+  request: `./gradlew build` (which runs Spotless, JUnit, and JaCoCo),
+  optional SonarQube scan, backend Docker builds, frontend lint +
+  format check + build.
+- [`cd-main.yml`](./.github/workflows/cd-main.yml) runs on merges to
+  `main`: rebuilds and pushes per-service images to GitHub Container
+  Registry (parallel matrix), then runs a smoke test that brings up the
+  full Compose stack and waits for every `/actuator/health` to return
+  200.
+
+Image tags follow `ghcr.io/hvostid/hvostid-<service>:<short-sha>` plus
+`latest`.
+
+## Testing
+
+- **Unit tests** -- JUnit 5 + Mockito + Spring `WebMvcTest`. Run with
+  `./gradlew test` or `./gradlew :auth-service:test`.
+- **Integration tests** -- Testcontainers boots a PostgreSQL container
+  per test class via the shared
+  `common.testfixtures.AbstractPostgresContainerTest`. Tracked in T22.
+- **Coverage** -- JaCoCo XML reports at
+  `<module>/build/reports/jacoco/test/jacocoTestReport.xml`, picked up
+  by SonarQube.
+- **Load tests** -- k6 scripts in [`k6/`](./k6) (catalog search, listing
+  create, match score). Tracked in T24.
+
+```bash
+# Single load test, against a running stack
+k6 run k6/search-listings.js
+```
+
+## Project Structure
+
+```
+hvostid/
+  .github/
+    workflows/             -- CI (PR) and CD (main) pipelines
+    CODEOWNERS
+    pull_request_template.md
+  api-gateway/             -- Spring Cloud Gateway
+  auth-service/            -- registration, login, token introspection
+  listing-service/         -- pet listings
+  passport-service/        -- pet passports + MinIO documents
+  matching-service/        -- buyer questionnaire + compatibility
+  common/                  -- shared DTOs, security, test fixtures
+  frontend/                -- React SPA (Vite + Tailwind)
+    src/
+      api/                 -- axios client
+      context/             -- AuthContext
+      components/
+      pages/
+  k6/                      -- load tests
+  docker/                  -- compose helpers (db init, etc.)
+  docs/                    -- architecture and design notes
+  postman/                 -- API collection (T36, TODO)
+  build.gradle.kts
+  settings.gradle.kts
+  gradle/libs.versions.toml
+  docker-compose.yml
+  Dockerfile               -- shared multi-stage backend Dockerfile
+```
 
 ## Team
 
@@ -173,6 +289,9 @@ Swagger UI (when services are running):
 | 4 | Passport/Moderation | Passport Service        | Profile, matching result                                  |
 | 5 | Matching + QA       | Matching Service, tests | --                                                        |
 
+Reviewers are assigned automatically via
+[`.github/CODEOWNERS`](./.github/CODEOWNERS).
+
 ## License
 
-MIT
+[MIT](./LICENSE)

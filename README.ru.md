@@ -1,0 +1,302 @@
+[English](./README.md) | **Русский**
+
+# HvostID
+
+[![CI](https://github.com/hvostid/hvostid/actions/workflows/ci-pr.yml/badge.svg)](https://github.com/hvostid/hvostid/actions/workflows/ci-pr.yml)
+[![CD](https://github.com/hvostid/hvostid/actions/workflows/cd-main.yml/badge.svg)](https://github.com/hvostid/hvostid/actions/workflows/cd-main.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Java](https://img.shields.io/badge/java-25-orange.svg)](https://openjdk.org/projects/jdk/25/)
+
+Распределённая платформа для ответственной продажи и передачи
+домашних животных. Платформа выпускает цифровой паспорт доверия для
+каждого питомца и рассчитывает оценку совместимости владельца и
+питомца, чтобы покупатели и продавцы подбирались не только по цене и
+породе.
+
+## Содержание
+
+- [Архитектура](#архитектура)
+- [Технологический стек](#технологический-стек)
+- [Quick Start](#quick-start)
+- [Разработка](#разработка)
+- [Документация API](#документация-api)
+- [CI/CD](#cicd)
+- [Тестирование](#тестирование)
+- [Структура проекта](#структура-проекта)
+- [Команда](#команда)
+- [Лицензия](#лицензия)
+
+## Архитектура
+
+Пять Spring Boot сервисов за Spring Cloud Gateway плюс React SPA.
+PostgreSQL хранит отдельную базу данных на каждый сервис; MinIO
+хранит документы паспортов.
+
+```mermaid
+flowchart TB
+    subgraph Client
+        FE[Frontend SPA<br/>:3000]
+    end
+
+    subgraph Edge
+        GW[API Gateway<br/>:8080]
+    end
+
+    subgraph Services
+        AUTH[Auth Service<br/>:8081]
+        LIST[Listing Service<br/>:8082]
+        PASS[Passport Service<br/>:8083]
+        MATCH[Matching Service<br/>:8084]
+    end
+
+    subgraph Data
+        PG[(PostgreSQL 18<br/>4 databases)]
+        MINIO[(MinIO<br/>pet-documents)]
+    end
+
+    FE -->|HTTPS /api/v1| GW
+    GW --> AUTH
+    GW --> LIST
+    GW --> PASS
+    GW --> MATCH
+    GW -. token introspect .-> AUTH
+
+    LIST -->|enrich with passport| PASS
+    MATCH -->|read listings| LIST
+    MATCH -->|read passports| PASS
+
+    AUTH --> PG
+    LIST --> PG
+    PASS --> PG
+    MATCH --> PG
+    PASS --> MINIO
+```
+
+Подробные диаграммы (последовательности, развёртывания) и проектные
+заметки находятся в
+[`docs/architecture.ru.md`](./docs/architecture.ru.md).
+
+| Сервис                                 | Порт | База данных        | Описание                                                          |
+|----------------------------------------|------|--------------------|-------------------------------------------------------------------|
+| [Frontend](./frontend)                 | 3000 | --                 | React SPA, в проде раздаётся через Nginx                          |
+| [API Gateway](./api-gateway)           | 8080 | --                 | Маршрутизация, валидация opaque-токенов, rate limit по IP         |
+| [Auth Service](./auth-service)         | 8081 | `hvostid_auth`     | Регистрация, логин, интроспекция токенов, профиль, роли           |
+| [Listing Service](./listing-service)   | 8082 | `hvostid_listing`  | CRUD объявлений о питомцах, поиск, фильтры                        |
+| [Passport Service](./passport-service) | 8083 | `hvostid_passport` | Цифровой паспорт питомца, документы, оценка доверия               |
+| [Matching Service](./matching-service) | 8084 | `hvostid_matching` | Анкета покупателя, оценка совместимости                           |
+
+## Технологический стек
+
+**Бэкенд**
+
+- Java 25, Spring Boot 4.0, Spring Cloud Gateway
+- Gradle multi-module (Kotlin DSL) с version catalog
+- PostgreSQL 18, миграции Flyway
+- MinIO (S3-совместимый)
+- Spotless + palantir-java-format, JUnit 5, Testcontainers
+
+**Фронтенд**
+
+- React 18, Vite, React Router 6
+- Tailwind CSS, Axios
+- ESLint 9 (flat config) + Prettier
+
+**Инфраструктура**
+
+- Docker, Docker Compose
+- GitHub Actions (CI на PR + CD из main в GHCR)
+- SonarQube (опциональный профиль `quality`), нагрузочные тесты k6
+- Husky + commitlint + lint-staged
+
+## Quick Start
+
+**Требования**
+
+- Docker 24+ и Docker Compose v2
+- Опционально для локальной разработки в IDE: JDK 25, Node.js 24+
+
+**Запустить всю платформу**
+
+```bash
+git clone https://github.com/hvostid/hvostid.git
+cd hvostid
+cp .env.example .env
+docker compose up --build
+```
+
+Каждый бэкенд-сервис собирается из исходников через многоступенчатый
+Dockerfile (BuildKit cache mount переиспользует Gradle-зависимости
+между пересборками), поэтому локальный `./gradlew build` не нужен.
+
+Когда всё стало healthy:
+
+| Что                 | URL                                                    |
+|---------------------|--------------------------------------------------------|
+| Frontend            | http://localhost:3000                                  |
+| API Gateway         | http://localhost:8080                                  |
+| Auth Swagger UI     | http://localhost:8081/swagger-ui.html                  |
+| Listing Swagger UI  | http://localhost:8082/swagger-ui.html                  |
+| Passport Swagger UI | http://localhost:8083/swagger-ui.html                  |
+| Matching Swagger UI | http://localhost:8084/swagger-ui.html                  |
+| PostgreSQL          | localhost:5432 (4 базы данных создаются автоматически) |
+| MinIO Console       | http://localhost:9001 (`minioadmin` по умолчанию)      |
+
+**Демо-данные.** Загрузчик seed отслеживается в T42; до этого момента
+зарегистрируйте пользователя через фронтенд или эндпоинт `register`
+Auth-сервиса.
+
+## Разработка
+
+### Запуск отдельного сервиса из IDE
+
+Поднимите инфраструктуру и сервисы, которые сейчас не редактируете, а
+сервис под разработкой запускайте из IDE для быстрого фидбэка и полной
+поддержки Spring-инструментов:
+
+```bash
+docker compose up -d postgres minio minio-init listing-service passport-service matching-service api-gateway
+./gradlew :auth-service:bootRun
+```
+
+### Запуск dev-сервера фронтенда
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Vite работает на http://localhost:3000 и проксирует `/api` на gateway
+(`:8080`).
+
+### Сборка и тесты бэкенда
+
+```bash
+./gradlew build         # компиляция + Spotless + тесты по всем модулям
+./gradlew :auth-service:test
+```
+
+### Миграции БД
+
+Каждый сервис владеет своей схемой в
+`src/main/resources/db/migration`, и Flyway применяет миграции при
+старте. JPA настроена на `ddl-auto: validate`, поэтому расхождение
+между сущностями и миграциями приводит к падению при загрузке.
+Подробности по работе с миграциями -- в T37.
+
+### Pre-commit hooks
+
+После клонирования один раз установите тулинг для хуков:
+
+```bash
+npm install                  # commitlint + husky на корне репозитория
+npm install --prefix frontend  # eslint + prettier + lint-staged для pre-commit hook
+```
+
+После этого хуки валидируют каждый коммит:
+
+- `commit-msg` -- проверяет соответствие сообщения Conventional Commits
+  с task id (см. [`commitlint.config.js`](./commitlint.config.js)).
+- `pre-commit` -- запускает `eslint --fix` и `prettier --write` на
+  staged-файлах фронтенда через `lint-staged`.
+
+Форматирование бэкенда обеспечивается отдельно через Spotless:
+`./gradlew spotlessCheck` запускается как часть `check` (то есть и в
+`build`, и в CI). Используйте `./gradlew spotlessApply`, чтобы
+автоматически починить нарушения.
+
+См. [CONTRIBUTING.ru.md](./CONTRIBUTING.ru.md) -- полный workflow,
+правила сообщений коммитов, решения по code style и чек-лист ревью.
+
+## Документация API
+
+- **Swagger UI** -- по сервисам, по URL из таблицы [Quick
+  Start](#quick-start) выше. Каждая спецификация использует security
+  scheme с заголовком `X-User-Id`; gateway добавляет его автоматически
+  после успешной интроспекции токена.
+- **OpenAPI JSON** -- доступен по `/v3/api-docs` на каждом сервисе.
+- **Postman-коллекция** -- отслеживается в T36 (TODO).
+
+## CI/CD
+
+Два workflow GitHub Actions лежат в [`.github/workflows`](./.github/workflows):
+
+- [`ci-pr.yml`](./.github/workflows/ci-pr.yml) запускается на каждый
+  pull request: `./gradlew build` (включает Spotless, JUnit и JaCoCo),
+  опциональный сканер SonarQube, сборка Docker-образов бэкенда, lint +
+  format check + сборка фронтенда.
+- [`cd-main.yml`](./.github/workflows/cd-main.yml) запускается при
+  мерже в `main`: пересобирает и пушит образы каждого сервиса в GitHub
+  Container Registry (параллельная matrix), затем запускает smoke-тест,
+  поднимающий весь стек через Compose и ожидающий 200 от
+  `/actuator/health` каждого сервиса.
+
+Теги образов: `ghcr.io/hvostid/hvostid-<service>:<short-sha>` и
+`latest`.
+
+## Тестирование
+
+- **Unit-тесты** -- JUnit 5 + Mockito + Spring `WebMvcTest`. Запуск
+  через `./gradlew test` или `./gradlew :auth-service:test`.
+- **Интеграционные тесты** -- Testcontainers поднимает контейнер
+  PostgreSQL на тестовый класс через общий
+  `common.testfixtures.AbstractPostgresContainerTest`. Отслеживается в
+  T22.
+- **Покрытие** -- JaCoCo XML-отчёты в
+  `<module>/build/reports/jacoco/test/jacocoTestReport.xml`,
+  собираются SonarQube.
+- **Нагрузочные тесты** -- k6 скрипты в [`k6/`](./k6) (поиск каталога,
+  создание объявления, оценка совместимости). Отслеживается в T24.
+
+```bash
+# Один нагрузочный тест против запущенного стека
+k6 run k6/search-listings.js
+```
+
+## Структура проекта
+
+```
+hvostid/
+  .github/
+    workflows/             -- CI (PR) и CD (main) пайплайны
+    CODEOWNERS
+    pull_request_template.md
+  api-gateway/             -- Spring Cloud Gateway
+  auth-service/            -- регистрация, логин, интроспекция токенов
+  listing-service/         -- объявления о питомцах
+  passport-service/        -- паспорта питомцев + документы в MinIO
+  matching-service/        -- анкета покупателя + совместимость
+  common/                  -- общие DTO, security, тестовые фикстуры
+  frontend/                -- React SPA (Vite + Tailwind)
+    src/
+      api/                 -- axios-клиент
+      context/             -- AuthContext
+      components/
+      pages/
+  k6/                      -- нагрузочные тесты
+  docker/                  -- помощники для compose (init БД и т.п.)
+  docs/                    -- архитектура и проектные заметки
+  postman/                 -- API-коллекция (T36, TODO)
+  build.gradle.kts
+  settings.gradle.kts
+  gradle/libs.versions.toml
+  docker-compose.yml
+  Dockerfile               -- общий многоступенчатый Dockerfile бэкенда
+```
+
+## Команда
+
+| # | Роль                | Бэкенд                  | Фронтенд                                                          |
+|---|---------------------|-------------------------|-------------------------------------------------------------------|
+| 1 | Tech Lead / DevOps  | Gateway, CI/CD, Docker  | --                                                                |
+| 2 | Auth/Profile        | Auth Service            | React-каркас, страницы auth, страницы продавца, панель модератора |
+| 3 | Catalog/Search      | Listing Service         | Каталог, страница объявления                                      |
+| 4 | Passport/Moderation | Passport Service        | Профиль, результат подбора                                        |
+| 5 | Matching + QA       | Matching Service, тесты | --                                                                |
+
+Ревьюеры назначаются автоматически через
+[`.github/CODEOWNERS`](./.github/CODEOWNERS).
+
+## Лицензия
+
+[MIT](./LICENSE)
