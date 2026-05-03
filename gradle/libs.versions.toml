@@ -9,6 +9,8 @@ spring-doc = "3.0.2"
 
 # Plugins
 sonarqube = "7.2.2.6593"
+spotless = "8.4.0"
+palantir-java-format = "2.90.0"
 
 # Libraries
 awaitility = "4.3.0"
@@ -76,3 +78,4 @@ testcontainers-minio = { module = "org.testcontainers:testcontainers-minio" }
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
 spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
 sonarqube = { id = "org.sonarqube", version.ref = "sonarqube" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

@@ -143,6 +143,17 @@ hvostid/
 - CI runs automatically on every PR
 - Release tags: `v1.0.0`, `v1.1.0`, etc.
 
+After cloning, install hook tooling once:
+
+```bash
+npm install                  # commitlint + husky at the repo root
+npm install --prefix frontend  # eslint + prettier + lint-staged for the pre-commit hook
+```
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md#local-enforcement) for hook
+details, formatting commands (`./gradlew spotlessApply`,
+`npm run lint:fix`), and the `--no-verify` escape hatch.
+
 ## API Documentation
 
 Swagger UI (when services are running):
