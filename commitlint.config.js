@@ -26,10 +26,10 @@ module.exports = {
           if (subject == null) {
             return [false, 'subject is required'];
           }
-          const hasTaskId = /\bT\d{1,3}\b/.test(subject);
+          const hasTaskId = /^T\d+\b/.test(subject);
           return [
             hasTaskId,
-            'subject must reference a task id like T07 (e.g. "T07 add CRUD endpoints")',
+            'subject must start with a task id like T07 (e.g. "T07 add CRUD endpoints")',
           ];
         },
       },

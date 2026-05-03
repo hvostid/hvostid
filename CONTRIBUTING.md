@@ -8,16 +8,18 @@ remaining sections (project setup, code style, testing, review process).
 
 ### Branch naming
 
-All work happens on a feature branch named after its task:
+All work happens on a branch named after its task:
 
 ```
-feature/TXX-short-name
+feature/TXX-short-name   # new functionality
+fix/TXX-short-name       # bug fix on something already merged
 ```
 
 `TXX` is the task id (for example `T07`); `short-name` is a kebab-case
-summary of the work. Long-running infrastructure work may use the
-`feature/` prefix as well; one-off fixes for a previously merged feature
-may use `fix/short-name` without a task id.
+summary of the work. Every change must trace back to a task -- if a fix
+does not have one yet, open a ticket first and use its id. The same id
+is required in the commit subject (see below), so branch and commit
+stay in sync.
 
 ### Commit messages -- Conventional Commits
 
@@ -31,7 +33,7 @@ its task id.
 
 * `<type>` -- one of `feat`, `fix`, `docs`, `style`, `refactor`, `test`,
   `chore`, `ci`.
-* `<scope>` -- optional, kebab-case. Typically the affected service or
+* `<scope>` -- optional, kebab-case. Typically, the affected service or
   package: `auth`, `listing`, `gateway`, `frontend`, `docker`.
 * `TXX` -- task id; the commit is rejected if missing.
 * `<subject>` -- short imperative summary, no trailing period.

@@ -4,7 +4,7 @@
   "description": "Repo-wide tooling for hvostid (commitlint, husky). Service code lives in subprojects (Gradle for backend, frontend/ for the SPA).",
   "scripts": {
     "prepare": "husky",
-    "commitlint": "commitlint --edit"
+    "commitlint": "commitlint"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.6.1",
