@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.7-labs
 
 # --- Dependencies stage ---------------------------------------------------
 # Pre-warms the Gradle dependency cache once and bakes it into a Docker
@@ -14,33 +14,27 @@ FROM eclipse-temurin:25-jdk-alpine AS deps
 
 WORKDIR /workspace
 
-# Gradle wrapper and root configuration.
-COPY gradlew gradlew
+# Gradle wrapper and root configuration. --chmod=755 guarantees gradlew is
+# executable regardless of the host's filesystem (e.g. Windows contexts
+# that do not preserve the Unix exec bit).
+COPY --chmod=755 gradlew gradlew
 COPY gradle gradle
 COPY settings.gradle.kts build.gradle.kts gradle.properties ./
 
-# Per-module build scripts. Only the files required for dependency
-# resolution are copied; sources are intentionally excluded so that source
-# changes do not invalidate this layer.
-COPY common/build.gradle.kts common/
-COPY api-gateway/build.gradle.kts api-gateway/
-COPY auth-service/build.gradle.kts auth-service/
-COPY listing-service/build.gradle.kts listing-service/
-COPY passport-service/build.gradle.kts passport-service/
-COPY matching-service/build.gradle.kts matching-service/
+# Per-module build scripts. --parents preserves the directory layout so
+# every <module>/build.gradle.kts lands under its own directory. Sources
+# are deliberately excluded so source changes do not invalidate this layer.
+COPY --parents */build.gradle.kts ./
 
-# Resolve dependencies for every module. The `dependencies` task forces
-# resolution of all configurations, which triggers downloads of POMs and
-# artifacts into /root/.gradle. No cache mount is used here on purpose:
-# we want the warmed cache to persist in the image layer.
-RUN chmod +x ./gradlew && \
-    ./gradlew --no-daemon \
-        :common:dependencies \
-        :api-gateway:dependencies \
-        :auth-service:dependencies \
-        :listing-service:dependencies \
-        :passport-service:dependencies \
-        :matching-service:dependencies
+# Resolve dependencies for every subproject discovered on disk. The
+# `dependencies` task forces resolution of all configurations, which
+# triggers downloads of POMs and artifacts into /root/.gradle. No cache
+# mount is used here on purpose: we want the warmed cache to persist in
+# the image layer.
+RUN set -eu; \
+    TASKS=""; \
+    for d in */build.gradle.kts; do TASKS="$TASKS :$(dirname "$d"):dependencies"; done; \
+    ./gradlew --no-daemon $TASKS
 
 # --- Build stage ----------------------------------------------------------
 # Builds the bootJar for the requested service. Every parallel invocation
@@ -54,12 +48,14 @@ ARG SERVICE_NAME
 # outputs, .gradle, frontend, etc.
 COPY . .
 
-# A per-service cache id is used so that incremental rebuilds of a single
-# service (e.g. on a developer machine) reuse Gradle's task output cache.
-# sharing=locked is a defensive measure: even if the same SERVICE_NAME is
-# accidentally built twice in parallel, BuildKit will serialize access.
-RUN --mount=type=cache,id=gradle-build-${SERVICE_NAME},target=/root/.gradle,sharing=locked \
-    ./gradlew :${SERVICE_NAME}:bootJar --no-daemon -x test && \
+# Reapply the exec bit on gradlew: COPY . . above overwrites it with the
+# host copy, which may be missing the Unix exec bit on Windows contexts.
+COPY --chmod=755 gradlew gradlew
+
+# No cache mount on /root/.gradle: the deps stage already baked the
+# resolved dependencies into this layer, and a BuildKit cache mount would
+# shadow them with an empty volume on every build.
+RUN ./gradlew :${SERVICE_NAME}:bootJar --no-daemon -x test && \
     find ${SERVICE_NAME}/build/libs/ -name "${SERVICE_NAME}-*.jar" ! -name "*-plain.jar" -exec cp {} /workspace/app.jar \;
 
 # --- Runtime stage --------------------------------------------------------
