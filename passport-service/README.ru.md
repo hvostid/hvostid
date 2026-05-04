@@ -34,9 +34,10 @@
 | `MINIO_HOST`       | `localhost`         | Хост MinIO                        |
 | `MINIO_ACCESS_KEY` | `minioadmin`        | Access key MinIO                  |
 | `MINIO_SECRET_KEY` | `minioadmin`        | Secret key MinIO                  |
+| `MINIO_DOCUMENTS_BUCKET` | `pet-documents` | Бакет для документов паспорта |
+| `MINIO_PHOTOS_BUCKET` | `pet-photos` | Бакет для фото паспорта |
 
-Имя MinIO-бакета (`pet-documents`) и лимиты multipart upload
-(10 MB / 20 MB) зафиксированы в
+Лимиты multipart upload (10 MB / 20 MB) зафиксированы в
 [`application.yml`](./src/main/resources/application.yml).
 
 ## Локальный запуск
