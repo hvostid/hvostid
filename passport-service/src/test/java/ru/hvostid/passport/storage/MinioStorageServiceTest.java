@@ -50,7 +50,7 @@ class MinioStorageServiceTest {
         String objectName = "seller-id/passport-id/document.txt";
         byte[] content = "passport document".getBytes(StandardCharsets.UTF_8);
 
-        storageService.upload(BUCKET, objectName, new ByteArrayInputStream(content), "text/plain");
+        storageService.upload(BUCKET, objectName, new ByteArrayInputStream(content), content.length, "text/plain");
         String downloaded =
                 new String(storageService.download(BUCKET, objectName).readAllBytes(), StandardCharsets.UTF_8);
         String presignedUrl = storageService.getPresignedUrl(BUCKET, objectName, Duration.ofMinutes(5));
@@ -59,5 +59,18 @@ class MinioStorageServiceTest {
         assertThat(downloaded).isEqualTo("passport document");
         assertThat(presignedUrl).contains(objectName).contains("X-Amz-Expires=300");
         assertThatThrownBy(() -> storageService.download(BUCKET, objectName)).isInstanceOf(MinioStorageException.class);
+    }
+
+    @Test
+    void getPresignedUrlRejectsInvalidExpiry() {
+        assertThatThrownBy(() -> storageService.getPresignedUrl(BUCKET, "object.txt", Duration.ZERO))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("expiry must be positive");
+        assertThatThrownBy(() -> storageService.getPresignedUrl(BUCKET, "object.txt", Duration.ofSeconds(-1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("expiry must be positive");
+        assertThatThrownBy(() -> storageService.getPresignedUrl(BUCKET, "object.txt", Duration.ofDays(8)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("expiry must not exceed 7 days");
     }
 }

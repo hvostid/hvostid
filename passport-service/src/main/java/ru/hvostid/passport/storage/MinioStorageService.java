@@ -16,8 +16,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class MinioStorageService {
-    private static final long UNKNOWN_OBJECT_SIZE = -1L;
     private static final long PART_SIZE = 10L * 1024L * 1024L;
+    private static final Duration MAX_PRESIGNED_URL_EXPIRY = Duration.ofDays(7);
 
     private final MinioClient minioClient;
 
@@ -37,18 +37,25 @@ public class MinioStorageService {
         }
     }
 
-    public void upload(String bucket, String objectName, InputStream inputStream, String contentType) {
+    public void upload(String bucket, String objectName, InputStream inputStream, long objectSize, String contentType) {
         Objects.requireNonNull(inputStream, "inputStream must not be null");
+        if (objectSize < 0) {
+            throw new IllegalArgumentException("objectSize must not be negative");
+        }
         try {
-            minioClient.putObject(PutObjectArgs.builder().bucket(bucket).object(objectName).stream(
-                            inputStream, UNKNOWN_OBJECT_SIZE, PART_SIZE)
-                    .contentType(contentType)
-                    .build());
+            minioClient.putObject(
+                    PutObjectArgs.builder().bucket(bucket).object(objectName).stream(inputStream, objectSize, PART_SIZE)
+                            .contentType(contentType)
+                            .build());
         } catch (Exception ex) {
             throw new MinioStorageException("Failed to upload MinIO object: " + objectName, ex);
         }
     }
 
+    /**
+     * Returns an open stream backed by the MinIO HTTP response. Callers must close the returned stream
+     * after reading it to release the underlying connection.
+     */
     public InputStream download(String bucket, String objectName) {
         try {
             return minioClient.getObject(
@@ -59,6 +66,7 @@ public class MinioStorageService {
     }
 
     public String getPresignedUrl(String bucket, String objectName, Duration expiry) {
+        validatePresignedUrlExpiry(expiry);
         try {
             return minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
                     .method(Method.GET)
@@ -68,6 +76,16 @@ public class MinioStorageService {
                     .build());
         } catch (Exception ex) {
             throw new MinioStorageException("Failed to create MinIO presigned URL: " + objectName, ex);
+        }
+    }
+
+    private void validatePresignedUrlExpiry(Duration expiry) {
+        Objects.requireNonNull(expiry, "expiry must not be null");
+        if (expiry.isZero() || expiry.isNegative()) {
+            throw new IllegalArgumentException("expiry must be positive");
+        }
+        if (expiry.compareTo(MAX_PRESIGNED_URL_EXPIRY) > 0) {
+            throw new IllegalArgumentException("expiry must not exceed 7 days");
         }
     }
 
