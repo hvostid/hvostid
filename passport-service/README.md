@@ -24,16 +24,18 @@ controllers land.
 
 ## Environment variables
 
-| Name               | Default             | Description                       |
-|--------------------|---------------------|-----------------------------------|
-| `SERVER_PORT`      | `8083`              | HTTP port                         |
-| `DB_HOST`          | `localhost`         | PostgreSQL host                   |
-| `DB_NAME`          | `hvostid_passport`  | Database name                     |
-| `DB_USER`          | `hvostid`           | Database user                     |
-| `DB_PASSWORD`      | `hvostid`           | Database password                 |
-| `MINIO_HOST`       | `localhost`         | MinIO host                        |
-| `MINIO_ACCESS_KEY` | `minioadmin`        | MinIO access key                  |
-| `MINIO_SECRET_KEY` | `minioadmin`        | MinIO secret key                  |
+| Name               | Default             | Description       |
+|--------------------|---------------------|-------------------|
+| `SERVER_PORT`      | `8083`              | HTTP port         |
+| `DB_HOST`          | `localhost`         | PostgreSQL host   |
+| `DB_NAME`          | `hvostid_passport`  | Database name     |
+| `DB_USER`          | `hvostid`           | Database user     |
+| `DB_PASSWORD`      | `hvostid`           | Database password |
+| `MINIO_HOST`       | `localhost`         | MinIO host        |
+| `MINIO_ACCESS_KEY` | `minioadmin`        | MinIO access key  |
+| `MINIO_SECRET_KEY` | `minioadmin`        | MinIO secret key  |
+| `MINIO_DOCUMENTS_BUCKET` | `pet-documents` | Documents bucket  |
+| `MINIO_PHOTOS_BUCKET` | `pet-photos` | Photo bucket      |
 
 The MinIO bucket name (`pet-documents`) and multipart upload limits
 (10 MB / 20 MB) are pinned in

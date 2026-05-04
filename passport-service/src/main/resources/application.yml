@@ -22,7 +22,9 @@ hvostid:
         url: http://${MINIO_HOST:localhost}:9000
         access-key: ${MINIO_ACCESS_KEY:minioadmin}
         secret-key: ${MINIO_SECRET_KEY:minioadmin}
-        bucket: pet-documents
+        buckets:
+            documents: ${MINIO_DOCUMENTS_BUCKET:pet-documents}
+            photos: ${MINIO_PHOTOS_BUCKET:pet-photos}
 
 management:
     endpoints:
