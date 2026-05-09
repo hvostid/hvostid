@@ -21,6 +21,7 @@ than just price and breed.
 - [API Documentation](#api-documentation)
 - [CI/CD](#cicd)
 - [Testing](#testing)
+- [Security](#security)
 - [Project Structure](#project-structure)
 - [Team](#team)
 - [License](#license)
@@ -218,14 +219,14 @@ commit-message rules, code-style decisions, and review checklist.
 Two GitHub Actions workflows live in [`.github/workflows`](./.github/workflows):
 
 - [`ci-pr.yml`](./.github/workflows/ci-pr.yml) runs on every pull
-  request: `./gradlew build` (which runs Spotless, JUnit, and JaCoCo),
-  optional SonarQube scan, backend Docker builds, frontend lint +
-  format check + build.
+  request: `./gradlew check` (Spotless, JUnit, JaCoCo, OWASP Dependency
+  Check), optional SonarQube scan, backend and frontend Docker builds.
 - [`cd-main.yml`](./.github/workflows/cd-main.yml) runs on merges to
   `main`: rebuilds and pushes per-service images to GitHub Container
-  Registry (parallel matrix), then runs a smoke test that brings up the
-  full Compose stack and waits for every `/actuator/health` to return
-  200.
+  Registry (parallel matrix), scans every image with Trivy (SARIF
+  results visible in the Security tab), then runs a smoke test that
+  brings up the full Compose stack and waits for every
+  `/actuator/health` to return 200.
 
 Image tags follow `ghcr.io/hvostid/hvostid-<service>:<short-sha>` plus
 `latest`.
@@ -248,11 +249,30 @@ Image tags follow `ghcr.io/hvostid/hvostid-<service>:<short-sha>` plus
 k6 run k6/search-listings.js
 ```
 
+## Security
+
+See [SECURITY.md](./SECURITY.md) for the full vulnerability response
+process. A brief overview of the automated security layers:
+
+- **Dependabot** -- automatically opens PRs for outdated dependencies
+  across Gradle, npm, Docker, and GitHub Actions ecosystems (weekly
+  schedule, patch/minor updates are grouped).
+- **OWASP Dependency Check** -- runs on every PR via
+  `./gradlew dependencyCheckAggregate`. Fails the build on CVSS >= 7.0
+  (high/critical). Known false positives are suppressed in
+  [`dependency-check-suppressions.xml`](./dependency-check-suppressions.xml).
+  The check runs with `continue-on-error: true` until the initial
+  backlog is cleared.
+- **Trivy** -- scans every Docker image pushed to GHCR after each merge
+  to `main`. Fails on CRITICAL severity. Results are uploaded as SARIF
+  and are visible in the repository **Security -> Code scanning** tab.
+
 ## Project Structure
 
 ```
 hvostid/
   .github/
+    dependabot.yml         -- automatic dependency updates
     workflows/             -- CI (PR) and CD (main) pipelines
     CODEOWNERS
     pull_request_template.md
@@ -275,8 +295,10 @@ hvostid/
   build.gradle.kts
   settings.gradle.kts
   gradle/libs.versions.toml
+  dependency-check-suppressions.xml
   docker-compose.yml
   Dockerfile               -- shared multi-stage backend Dockerfile
+  SECURITY.md
 ```
 
 ## Team

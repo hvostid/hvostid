@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <!--
+        Add suppression entries here for known false positives.
+
+        Example:
+        <suppress>
+            <notes>CVE-XXXX-XXXXX is a false positive for this library because ...</notes>
+            <cve>CVE-XXXX-XXXXX</cve>
+        </suppress>
+    -->
+</suppressions>

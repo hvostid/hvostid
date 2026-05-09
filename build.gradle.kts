@@ -1,5 +1,6 @@
 plugins {
     java
+    alias(libs.plugins.owasp.dependency.check)
     alias(libs.plugins.spring.boot) apply false
     alias(libs.plugins.spring.dependency.management) apply false
     alias(libs.plugins.sonarqube)
@@ -12,6 +13,17 @@ sonarqube {
         property("sonar.projectKey", "hvostid")
         property("sonar.projectName", "HvostID")
     }
+}
+
+dependencyCheck {
+    failBuildOnCVSS = 7.0f
+    suppressionFile = "dependency-check-suppressions.xml"
+    data.directory = "${rootProject.layout.buildDirectory.get()}/dependency-check-data"
+    nvd {
+        apiKey = System.getenv("NVD_API_KEY")
+        validForHours = 24
+    }
+    formats = listOf("HTML", "JSON", "SARIF")
 }
 
 allprojects {
