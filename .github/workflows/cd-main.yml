@@ -123,6 +123,12 @@ jobs:
         needs: [ publish-backend, publish-frontend ]
         runs-on: ubuntu-latest
 
+        env:
+            DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
+            DEFECTDOJO_TOKEN: ${{ secrets.DEFECTDOJO_TOKEN }}
+            DEFECTDOJO_PRODUCT: HvostID
+            DEFECTDOJO_ENGAGEMENT: CI/CD
+
         strategy:
             fail-fast: false
             matrix:
@@ -159,6 +165,16 @@ jobs:
                     exit-code: 0
                     trivyignores: .trivyignore
 
+            -   name: Generate Trivy JSON for ${{ matrix.service }}
+                uses: aquasecurity/trivy-action@v0.36.0
+                with:
+                    image-ref: ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ steps.sha.outputs.short }}
+                    format: json
+                    output: trivy-${{ matrix.service }}.json
+                    severity: CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN
+                    ignore-unfixed: false
+                    exit-code: 0
+
             -   name: Scan ${{ matrix.service }} with Trivy
                 uses: aquasecurity/trivy-action@v0.36.0
                 with:
@@ -176,6 +192,58 @@ jobs:
                 with:
                     sarif_file: trivy-${{ matrix.service }}.sarif
                     category: trivy-${{ matrix.service }}
+
+            -   name: Reimport ${{ matrix.service }} into DefectDojo
+                if: always() && env.DEFECTDOJO_URL != ''
+                continue-on-error: true
+                env:
+                    SCAN_FILE: trivy-${{ matrix.service }}.json
+                    SERVICE: ${{ matrix.service }}
+                    SHA: ${{ github.sha }}
+                    SHORT_SHA: ${{ steps.sha.outputs.short }}
+                    BRANCH: ${{ github.ref_name }}
+                run: |
+                    set -euo pipefail
+
+                    if [ ! -s "${SCAN_FILE}" ]; then
+                        echo "WARN: ${SCAN_FILE} is missing or empty, skipping upload"
+                        exit 0
+                    fi
+
+                    SCAN_DATE="$(date -u +%Y-%m-%d)"
+
+                    HTTP_STATUS=$(curl --silent --show-error \
+                        --output /tmp/dojo-response.json \
+                        --write-out "%{http_code}" \
+                        --request POST \
+                        "${DEFECTDOJO_URL%/}/api/v2/reimport-scan/" \
+                        --header "Authorization: Token ${DEFECTDOJO_TOKEN}" \
+                        --header "accept: application/json" \
+                        --form "scan_type=Trivy Scan" \
+                        --form "file=@${SCAN_FILE};type=application/json" \
+                        --form "product_name=${DEFECTDOJO_PRODUCT}" \
+                        --form "engagement_name=${DEFECTDOJO_ENGAGEMENT}" \
+                        --form "test_title=trivy-${SERVICE}" \
+                        --form "auto_create_context=true" \
+                        --form "close_old_findings=true" \
+                        --form "close_old_findings_product_scope=false" \
+                        --form "minimum_severity=Info" \
+                        --form "active=true" \
+                        --form "verified=false" \
+                        --form "scan_date=${SCAN_DATE}" \
+                        --form "branch_tag=${BRANCH}" \
+                        --form "commit_hash=${SHA}" \
+                        --form "version=${SHORT_SHA}" \
+                        --form "tags=service:${SERVICE},branch:${BRANCH}")
+
+                    echo "DefectDojo HTTP ${HTTP_STATUS}"
+                    cat /tmp/dojo-response.json || true
+                    echo ""
+
+                    if [ "${HTTP_STATUS}" -lt 200 ] || [ "${HTTP_STATUS}" -ge 300 ]; then
+                        echo "ERROR: DefectDojo upload failed for ${SERVICE}"
+                        exit 1
+                    fi
 
     smoke-test:
         runs-on: ubuntu-latest
