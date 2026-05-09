@@ -8,6 +8,7 @@ spring-dependency-management = "1.1.7"
 spring-doc = "3.0.2"
 
 # Plugins
+owasp-dependency-check = "12.1.3"
 sonarqube = "7.2.2.6593"
 spotless = "8.4.0"
 palantir-java-format = "2.90.0"
@@ -75,6 +76,7 @@ testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgr
 testcontainers-minio = { module = "org.testcontainers:testcontainers-minio" }
 
 [plugins]
+owasp-dependency-check = { id = "org.owasp.dependencycheck", version.ref = "owasp-dependency-check" }
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
 spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
 sonarqube = { id = "org.sonarqube", version.ref = "sonarqube" }
