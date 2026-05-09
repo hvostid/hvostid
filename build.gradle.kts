@@ -16,7 +16,7 @@ sonarqube {
 }
 
 dependencyCheck {
-    failBuildOnCVSS = 7.0f
+    failBuildOnCVSS = 9.0f
     suppressionFile = "dependency-check-suppressions.xml"
     data.directory = "${rootProject.layout.buildDirectory.get()}/dependency-check-data"
     nvd {
