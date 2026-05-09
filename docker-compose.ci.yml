@@ -1,0 +1,27 @@
+# CI override for the smoke-test job in cd-main.yml.
+# Adds 'image:' references so docker compose pulls the just-published GHCR images
+# instead of rebuilding from sources. Local development does NOT use this file -
+# it is opt-in via the -f flag in CI only.
+#
+# Required env vars when using this override:
+#   IMAGE_TAG    - the image tag to pull (typically the commit short SHA)
+#   REPO_OWNER   - the GitHub repository owner (lowercased if needed)
+
+services:
+    api-gateway:
+        image: ghcr.io/${REPO_OWNER}/hvostid-api-gateway:${IMAGE_TAG}
+
+    auth-service:
+        image: ghcr.io/${REPO_OWNER}/hvostid-auth-service:${IMAGE_TAG}
+
+    listing-service:
+        image: ghcr.io/${REPO_OWNER}/hvostid-listing-service:${IMAGE_TAG}
+
+    passport-service:
+        image: ghcr.io/${REPO_OWNER}/hvostid-passport-service:${IMAGE_TAG}
+
+    matching-service:
+        image: ghcr.io/${REPO_OWNER}/hvostid-matching-service:${IMAGE_TAG}
+
+    frontend:
+        image: ghcr.io/${REPO_OWNER}/hvostid-frontend:${IMAGE_TAG}
