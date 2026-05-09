@@ -1,60 +1,53 @@
 package ru.hvostid.listing.service;
 
-import ru.hvostid.listing.entity.ListingStatus;
-import ru.hvostid.listing.exception.AccessDeniedException;
-import ru.hvostid.listing.exception.InvalidStatusTransitionException;
-
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import ru.hvostid.listing.entity.ListingStatus;
+import ru.hvostid.listing.exception.AccessDeniedException;
+import ru.hvostid.listing.exception.InvalidStatusTransitionException;
 
 public class StatusTransitionValidator {
 
     // Terminal states - from these you cannot transition to any other state
-    private static final Set<ListingStatus> TERMINAL_STATES = Set.of(
-            ListingStatus.ARCHIVED,
-            ListingStatus.SOLD
-    );
+    private static final Set<ListingStatus> TERMINAL_STATES = Set.of(ListingStatus.ARCHIVED, ListingStatus.SOLD);
 
     // Allowed transitions (from -> Set of possible transitions)
-    private static final Map<ListingStatus, Set<StatusTransition>> ALLOWED_TRANSITIONS = new EnumMap<>(ListingStatus.class);
+    private static final Map<ListingStatus, Set<StatusTransition>> ALLOWED_TRANSITIONS =
+            new EnumMap<>(ListingStatus.class);
 
     static {
         // DRAFT -> MODERATION (owner only)
-        addRule(ListingStatus.DRAFT, ListingStatus.MODERATION,
-                Set.of(), false, true);
+        addRule(ListingStatus.DRAFT, ListingStatus.MODERATION, Set.of(), false, true);
 
         // MODERATION -> PUBLISHED (moderator or admin)
-        addRule(ListingStatus.MODERATION, ListingStatus.PUBLISHED,
-                Set.of("MODERATOR", "ADMIN"), false, false);
+        addRule(ListingStatus.MODERATION, ListingStatus.PUBLISHED, Set.of("MODERATOR", "ADMIN"), false, false);
 
         // MODERATION -> REJECTED (moderator or admin)
-        addRule(ListingStatus.MODERATION, ListingStatus.REJECTED,
-                Set.of("MODERATOR", "ADMIN"), false, false);
+        addRule(ListingStatus.MODERATION, ListingStatus.REJECTED, Set.of("MODERATOR", "ADMIN"), true, false);
 
         // MODERATION -> DRAFT (moderator or admin, requires comment)
-        addRule(ListingStatus.MODERATION, ListingStatus.DRAFT,
-                Set.of("MODERATOR", "ADMIN"), true, false);
+        addRule(ListingStatus.MODERATION, ListingStatus.DRAFT, Set.of("MODERATOR", "ADMIN"), true, false);
 
         // PUBLISHED -> ARCHIVED (owner only)
-        addRule(ListingStatus.PUBLISHED, ListingStatus.ARCHIVED,
-                Set.of(), false, true);
+        addRule(ListingStatus.PUBLISHED, ListingStatus.ARCHIVED, Set.of(), false, true);
 
         // PUBLISHED -> SOLD (owner only)
-        addRule(ListingStatus.PUBLISHED, ListingStatus.SOLD,
-                Set.of(), false, true);
+        addRule(ListingStatus.PUBLISHED, ListingStatus.SOLD, Set.of(), false, true);
 
         // REJECTED -> DRAFT (owner can edit and resubmit)
-        addRule(ListingStatus.REJECTED, ListingStatus.DRAFT,
-                Set.of(), false, true);
+        addRule(ListingStatus.REJECTED, ListingStatus.DRAFT, Set.of(), false, true);
     }
 
-    private static void addRule(ListingStatus from, ListingStatus to,
-                                Set<String> allowedRoles,
-                                boolean requiresComment,
-                                boolean ownerOnly) {
-        ALLOWED_TRANSITIONS.computeIfAbsent(from, k -> new HashSet<>())
+    private static void addRule(
+            ListingStatus from,
+            ListingStatus to,
+            Set<String> allowedRoles,
+            boolean requiresComment,
+            boolean ownerOnly) {
+        ALLOWED_TRANSITIONS
+                .computeIfAbsent(from, k -> new HashSet<>())
                 .add(new StatusTransition(from, to, allowedRoles, requiresComment, ownerOnly));
     }
 
@@ -70,23 +63,20 @@ public class StatusTransitionValidator {
         // Check if current status is terminal
         if (TERMINAL_STATES.contains(currentStatus)) {
             throw new InvalidStatusTransitionException(
-                    String.format("Cannot change status from terminal state: %s", currentStatus)
-            );
+                    String.format("Cannot change status from terminal state: %s", currentStatus));
         }
 
         // Check if same status
         if (currentStatus == newStatus) {
             throw new InvalidStatusTransitionException(
-                    String.format("Listing is already in status: %s", currentStatus)
-            );
+                    String.format("Listing is already in status: %s", currentStatus));
         }
 
         // Find transition rule
         Set<StatusTransition> transitions = ALLOWED_TRANSITIONS.get(currentStatus);
         if (transitions == null) {
             throw new InvalidStatusTransitionException(
-                    String.format("No transitions defined from status: %s", currentStatus)
-            );
+                    String.format("No transitions defined from status: %s", currentStatus));
         }
 
         StatusTransition transition = transitions.stream()
@@ -96,8 +86,7 @@ public class StatusTransitionValidator {
 
         if (transition == null) {
             throw new InvalidStatusTransitionException(
-                    String.format("Invalid status transition from %s to %s", currentStatus, newStatus)
-            );
+                    String.format("Invalid status transition from %s to %s", currentStatus, newStatus));
         }
 
         return transition;
@@ -115,25 +104,21 @@ public class StatusTransitionValidator {
         // Check if transition is owner-only
         if (transition.isOwnerOnly()) {
             if (!isOwner) {
-                throw new AccessDeniedException(
-                        String.format("Only the owner can change status from %s to %s",
-                                transition.getFrom(), transition.getTo())
-                );
+                throw new AccessDeniedException(String.format(
+                        "Only the owner can change status from %s to %s", transition.getFrom(), transition.getTo()));
             }
             return;
         }
 
         // Check role-based access
         Set<String> allowedRoles = transition.getAllowedRoles();
-        boolean hasRequiredRole = allowedRoles.stream().anyMatch(role ->
-                userRoles.contains(role) || (role.equals("ADMIN") && userRoles.contains("ADMIN"))
-        );
+        boolean hasRequiredRole = allowedRoles.stream()
+                .anyMatch(role -> userRoles.contains(role) || (role.equals("ADMIN") && userRoles.contains("ADMIN")));
 
         if (!hasRequiredRole) {
-            throw new AccessDeniedException(
-                    String.format("Required roles for transition from %s to %s: %s. User roles: %s",
-                            transition.getFrom(), transition.getTo(), allowedRoles, userRoles)
-            );
+            throw new AccessDeniedException(String.format(
+                    "Required roles for transition from %s to %s: %s. User roles: %s",
+                    transition.getFrom(), transition.getTo(), allowedRoles, userRoles));
         }
     }
 

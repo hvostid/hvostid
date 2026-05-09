@@ -64,11 +64,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidStatusTransitionException.class)
     public ResponseEntity<ErrorResponse> handleInvalidTransition(InvalidStatusTransitionException ex) {
         log.debug("Invalid status transition: {}", ex.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.UNPROCESSABLE_ENTITY)  // 422
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY) // 422
                 .body(new ErrorResponse(ex.getMessage(), HttpStatus.UNPROCESSABLE_ENTITY.value(), Instant.now()));
     }
 
-    public record ErrorResponse(String message, int status, Instant timestamp) {
-    }
+    public record ErrorResponse(String message, int status, Instant timestamp) {}
 }

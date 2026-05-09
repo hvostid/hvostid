@@ -1,5 +1,6 @@
 package ru.hvostid.listing.service;
 
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -20,11 +21,6 @@ import ru.hvostid.listing.exception.ListingNotFoundException;
 import ru.hvostid.listing.repository.ListingRepository;
 import ru.hvostid.listing.repository.ListingStatusHistoryRepository;
 
-import java.util.EnumMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
 @Service
 public class ListingService {
     private static final Logger log = LoggerFactory.getLogger(ListingService.class);
@@ -32,8 +28,7 @@ public class ListingService {
     private final ListingRepository listingRepository;
     private final ListingStatusHistoryRepository historyRepository;
 
-    public ListingService(ListingRepository listingRepository,
-                          ListingStatusHistoryRepository historyRepository) {
+    public ListingService(ListingRepository listingRepository, ListingStatusHistoryRepository historyRepository) {
         this.listingRepository = listingRepository;
         this.historyRepository = historyRepository;
     }
@@ -123,54 +118,49 @@ public class ListingService {
     }
 
     @Transactional
-    public ListingResponse updateStatus(Long id, StatusUpdateRequest request,
-                                        Long userId, Set<String> userRoles) {
-        log.debug("Updating status listingId={} to {} by userId={}, roles={}",
-                id, request.status(), userId, userRoles);
+    public ListingResponse updateStatus(Long id, StatusUpdateRequest request, Long userId, Set<String> userRoles) {
+        log.debug("Updating status listingId={} to {} by userId={}, roles={}", id, request.status(), userId, userRoles);
 
-        // 1. Find listing
-        Listing listing = listingRepository.findById(id)
+        Listing listing = listingRepository
+                .findById(id)
                 .orElseThrow(() -> new ListingNotFoundException("Listing not found with id: " + id));
 
         boolean isOwner = listing.getSellerId().equals(userId);
         ListingStatus oldStatus = listing.getStatus();
         ListingStatus newStatus = request.status();
 
-        // 2. Validate transition using static validator
         StatusTransition transition = StatusTransitionValidator.validateTransition(oldStatus, newStatus);
 
-        // 3. Check permissions
         StatusTransitionValidator.checkPermissions(transition, isOwner, userRoles);
 
-        // 4. Check comment requirement
-        if (StatusTransitionValidator.isCommentRequired(transition) &&
-                (request.comment() == null || request.comment().isBlank())) {
+        if (StatusTransitionValidator.isCommentRequired(transition)
+                && (request.comment() == null || request.comment().isBlank())) {
             throw new InvalidListingStatusException(
-                    String.format("Comment is required for transition from %s to %s", oldStatus, newStatus)
-            );
+                    String.format("Comment is required for transition from %s to %s", oldStatus, newStatus));
         }
 
-        // 5. Save comment if present
         if (request.comment() != null && !request.comment().isBlank()) {
             listing.setModerationComment(request.comment());
         } else {
             listing.setModerationComment(null);
         }
 
-        // 6. Update status
         listing.setStatus(newStatus);
         Listing saved = listingRepository.save(listing);
 
-        // 7. Save history
         String role = determineRole(userRoles, isOwner);
-        ListingStatusHistory history = new ListingStatusHistory(
-                id, oldStatus, newStatus, userId, role, request.comment()
-        );
+        ListingStatusHistory history =
+                new ListingStatusHistory(id, oldStatus, newStatus, userId, role, request.comment());
         historyRepository.save(history);
 
-        // 8. Log
-        log.info("Status changed: listingId={}, from={}, to={}, userId={}, role={}, comment={}",
-                id, oldStatus, newStatus, userId, role, request.comment());
+        log.info(
+                "Status changed: listingId={}, from={}, to={}, userId={}, role={}, comment={}",
+                id,
+                oldStatus,
+                newStatus,
+                userId,
+                role,
+                request.comment());
 
         return ListingResponse.from(saved);
     }

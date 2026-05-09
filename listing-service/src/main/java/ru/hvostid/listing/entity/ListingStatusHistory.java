@@ -1,8 +1,8 @@
 package ru.hvostid.listing.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.CreationTimestamp;
 import java.time.Instant;
+import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
 @Table(name = "listing_status_history")
@@ -27,17 +27,21 @@ public class ListingStatusHistory {
     private Long changedByUserId;
 
     @Column(name = "changed_by_role")
-    private String changedByRole;  // "SELLER", "MODERATOR", "ADMIN"
+    private String changedByRole; // "SELLER", "MODERATOR", "ADMIN"
 
-    private String comment;  // moderators comment
+    private String comment; // moderator comment
 
     @CreationTimestamp
     @Column(name = "changed_at", nullable = false)
     private Instant changedAt;
 
-    public ListingStatusHistory(Long listingId, ListingStatus fromStatus,
-                                ListingStatus toStatus, Long changedByUserId,
-                                String changedByRole, String comment) {
+    public ListingStatusHistory(
+            Long listingId,
+            ListingStatus fromStatus,
+            ListingStatus toStatus,
+            Long changedByUserId,
+            String changedByRole,
+            String comment) {
         this.listingId = listingId;
         this.fromStatus = fromStatus;
         this.toStatus = toStatus;
@@ -49,12 +53,35 @@ public class ListingStatusHistory {
     protected ListingStatusHistory() {}
 
     // getters (setters not needed as history is read-only)
-    public Long getId() { return id; }
-    public Long getListingId() { return listingId; }
-    public ListingStatus getFromStatus() { return fromStatus; }
-    public ListingStatus getToStatus() { return toStatus; }
-    public Long getChangedByUserId() { return changedByUserId; }
-    public String getChangedByRole() { return changedByRole; }
-    public String getComment() { return comment; }
-    public Instant getChangedAt() { return changedAt; }
+    public Long getId() {
+        return id;
+    }
+
+    public Long getListingId() {
+        return listingId;
+    }
+
+    public ListingStatus getFromStatus() {
+        return fromStatus;
+    }
+
+    public ListingStatus getToStatus() {
+        return toStatus;
+    }
+
+    public Long getChangedByUserId() {
+        return changedByUserId;
+    }
+
+    public String getChangedByRole() {
+        return changedByRole;
+    }
+
+    public String getComment() {
+        return comment;
+    }
+
+    public Instant getChangedAt() {
+        return changedAt;
+    }
 }

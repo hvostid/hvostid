@@ -318,4 +318,201 @@ class ListingControllerTest extends AbstractPostgresContainerTest {
                     .andExpect(status().isForbidden());
         }
     }
+
+    @Nested
+    @DisplayName("PATCH /api/v1/listings/{id}/status")
+    class UpdateStatusTests {
+
+        private Long listingId;
+
+        @BeforeEach
+        void setUp() throws Exception {
+            ListingRequest request = new ListingRequest(
+                    "Status Test Puppy", "Description", "dog", "Labrador", 3, 15000, "Moscow", "passport-1");
+
+            String response = mockMvc.perform(post(LISTINGS_URL)
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString();
+
+            listingId = objectMapper.readTree(response).get("id").asLong();
+        }
+
+        @Test
+        @DisplayName("owner can send DRAFT to MODERATION - returns 200")
+        void ownerCanSendToModeration() throws Exception {
+            String requestBody = """
+                {"status": "MODERATION"}
+                """;
+
+            mockMvc.perform(patch(LISTINGS_URL + "/{id}/status", listingId)
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestBody))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id", is(listingId.intValue())))
+                    .andExpect(jsonPath("$.status", is("MODERATION")));
+        }
+
+        @Test
+        @DisplayName("moderator can publish MODERATION -> PUBLISHED - returns 200")
+        void moderatorCanPublish() throws Exception {
+            // First, seller sends to MODERATION
+            mockMvc.perform(patch(LISTINGS_URL + "/{id}/status", listingId)
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\": \"MODERATION\"}"))
+                    .andExpect(status().isOk());
+
+            // Then moderator publishes
+            mockMvc.perform(patch(LISTINGS_URL + "/{id}/status", listingId)
+                            .header(USER_ID, 500L)
+                            .header(USER_ROLES, UserRole.MODERATOR.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\": \"PUBLISHED\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status", is("PUBLISHED")));
+        }
+
+        @Test
+        @DisplayName("non-moderator cannot publish - returns 403")
+        void nonModeratorCannotPublish() throws Exception {
+            // First, seller sends to MODERATION
+            mockMvc.perform(patch(LISTINGS_URL + "/{id}/status", listingId)
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\": \"MODERATION\"}"))
+                    .andExpect(status().isOk());
+
+            // Owner (non-moderator) tries to publish - should fail
+            mockMvc.perform(patch(LISTINGS_URL + "/{id}/status", listingId)
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\": \"PUBLISHED\"}"))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("invalid transition returns 422")
+        void invalidTransitionReturns422() throws Exception {
+            // DRAFT -> PUBLISHED directly is invalid
+            mockMvc.perform(patch(LISTINGS_URL + "/{id}/status", listingId)
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\": \"PUBLISHED\"}"))
+                    .andExpect(status().isUnprocessableEntity()); // 422
+        }
+
+        @Test
+        @DisplayName("moderator can return to DRAFT with comment - returns 200")
+        void moderatorCanReturnToDraftWithComment() throws Exception {
+            // First, seller sends to MODERATION
+            mockMvc.perform(patch(LISTINGS_URL + "/{id}/status", listingId)
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\": \"MODERATION\"}"))
+                    .andExpect(status().isOk());
+
+            // Moderator returns to DRAFT with comment
+            String requestBody = """
+                {"status": "DRAFT", "comment": "Please add more photos"}
+                """;
+
+            mockMvc.perform(patch(LISTINGS_URL + "/{id}/status", listingId)
+                            .header(USER_ID, 500L)
+                            .header(USER_ROLES, UserRole.MODERATOR.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestBody))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status", is("DRAFT")));
+        }
+
+        @Test
+        @DisplayName("moderator can reject listing - returns 200")
+        void moderatorCanReject() throws Exception {
+            // First, seller sends to MODERATION
+            mockMvc.perform(patch(LISTINGS_URL + "/{id}/status", listingId)
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\": \"MODERATION\"}"))
+                    .andExpect(status().isOk());
+
+            // Moderator rejects
+            mockMvc.perform(patch(LISTINGS_URL + "/{id}/status", listingId)
+                            .header(USER_ID, 500L)
+                            .header(USER_ROLES, UserRole.MODERATOR.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\": \"REJECTED\", \"comment\": \"Poor quality\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status", is("REJECTED")));
+        }
+
+        @Test
+        @DisplayName("owner can archive published listing - returns 200")
+        void ownerCanArchive() throws Exception {
+            // First, seller sends to MODERATION, moderator publishes
+            mockMvc.perform(patch(LISTINGS_URL + "/{id}/status", listingId)
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\": \"MODERATION\"}"))
+                    .andExpect(status().isOk());
+
+            mockMvc.perform(patch(LISTINGS_URL + "/{id}/status", listingId)
+                            .header(USER_ID, 500L)
+                            .header(USER_ROLES, UserRole.MODERATOR.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\": \"PUBLISHED\"}"))
+                    .andExpect(status().isOk());
+
+            // Owner archives
+            mockMvc.perform(patch(LISTINGS_URL + "/{id}/status", listingId)
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\": \"ARCHIVED\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status", is("ARCHIVED")));
+        }
+
+        @Test
+        @DisplayName("owner can mark as sold - returns 200")
+        void ownerCanMarkAsSold() throws Exception {
+            // First, seller sends to MODERATION, moderator publishes
+            mockMvc.perform(patch(LISTINGS_URL + "/{id}/status", listingId)
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\": \"MODERATION\"}"))
+                    .andExpect(status().isOk());
+
+            mockMvc.perform(patch(LISTINGS_URL + "/{id}/status", listingId)
+                            .header(USER_ID, 500L)
+                            .header(USER_ROLES, UserRole.MODERATOR.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\": \"PUBLISHED\"}"))
+                    .andExpect(status().isOk());
+
+            // Owner marks as sold
+            mockMvc.perform(patch(LISTINGS_URL + "/{id}/status", listingId)
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\": \"SOLD\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status", is("SOLD")));
+        }
+    }
 }

@@ -5,9 +5,10 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -27,9 +28,6 @@ import ru.hvostid.listing.dto.ListingUpdateRequest;
 import ru.hvostid.listing.dto.StatusUpdateRequest;
 import ru.hvostid.listing.exception.GlobalExceptionHandler;
 import ru.hvostid.listing.service.ListingService;
-
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/listings")
@@ -147,14 +145,21 @@ public class ListingController {
         return ResponseEntity.ok(responses);
     }
 
+    @Operation(
+            summary = "Change listing status",
+            description =
+                    "Allowed transitions: DRAFT->MODERATION, MODERATION->PUBLISHED/REJECTED/DRAFT, PUBLISHED->ARCHIVED/SOLD, REJECTED->MODERATION/DRAFT")
+    @ApiResponse(responseCode = "200", description = "Status updated")
+    @ApiResponse(responseCode = "400", description = "Invalid request body")
+    @ApiResponse(responseCode = "403", description = "Not owner or not moderator")
+    @ApiResponse(responseCode = "404", description = "Listing not found")
+    @ApiResponse(responseCode = "422", description = "Invalid status transition")
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('SELLER', 'MODERATOR', 'ADMIN')")
     public ResponseEntity<ListingResponse> updateStatus(
-            @Parameter(description = "Listing ID", required = true, example = "1")
-            @PathVariable Long id,
+            @Parameter(description = "Listing ID", required = true, example = "1") @PathVariable Long id,
             @Valid @RequestBody StatusUpdateRequest request,
-            @Parameter(hidden = true)
-            @AuthenticationPrincipal UserDetails user) {
+            @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
 
         long userId = GatewayPreAuthentication.currentUserId(user);
 
@@ -163,8 +168,12 @@ public class ListingController {
                 .map(a -> a.getAuthority().replace("ROLE_", ""))
                 .collect(Collectors.toSet());
 
-        log.debug("PATCH /api/v1/listings/{}/status, userId={}, roles={}, targetStatus={}",
-                id, userId, roles, request.status());
+        log.debug(
+                "PATCH /api/v1/listings/{}/status, userId={}, roles={}, targetStatus={}",
+                id,
+                userId,
+                roles,
+                request.status());
 
         ListingResponse response = listingService.updateStatus(id, request, userId, roles);
         return ResponseEntity.ok(response);

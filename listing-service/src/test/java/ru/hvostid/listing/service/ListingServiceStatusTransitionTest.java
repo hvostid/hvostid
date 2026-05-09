@@ -1,5 +1,12 @@
 package ru.hvostid.listing.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,14 +25,6 @@ import ru.hvostid.listing.exception.InvalidStatusTransitionException;
 import ru.hvostid.listing.exception.ListingNotFoundException;
 import ru.hvostid.listing.repository.ListingRepository;
 import ru.hvostid.listing.repository.ListingStatusHistoryRepository;
-
-import java.util.Optional;
-import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ListingServiceStatusTransitionTest {
@@ -48,8 +47,8 @@ class ListingServiceStatusTransitionTest {
 
     @BeforeEach
     void setUp() {
-        listing = new Listing(OWNER_ID, "Test Listing", "Description", "Dog",
-                "Labrador", 12, 500, "Moscow", "PASSPORT123");
+        listing = new Listing(
+                OWNER_ID, "Test Listing", "Description", "Dog", "Labrador", 12, 500, "Moscow", "PASSPORT123");
         listing.setId(LISTING_ID);
     }
 
