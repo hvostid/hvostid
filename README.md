@@ -1,4 +1,4 @@
-[English](./README.md) | [Русский](./README.ru.md)
+**English** | [Русский](./README.ru.md)
 
 # HvostID
 
@@ -258,14 +258,14 @@ process. A brief overview of the automated security layers:
   across Gradle, npm, Docker, and GitHub Actions ecosystems (weekly
   schedule, patch/minor updates are grouped).
 - **OWASP Dependency Check** -- runs on every PR via
-  `./gradlew dependencyCheckAggregate`. Fails the build on CVSS ≥ 7.0
+  `./gradlew dependencyCheckAggregate`. Fails the build on CVSS >= 7.0
   (high/critical). Known false positives are suppressed in
   [`dependency-check-suppressions.xml`](./dependency-check-suppressions.xml).
   The check runs with `continue-on-error: true` until the initial
   backlog is cleared.
 - **Trivy** -- scans every Docker image pushed to GHCR after each merge
   to `main`. Fails on CRITICAL severity. Results are uploaded as SARIF
-  and are visible in the repository **Security → Code scanning** tab.
+  and are visible in the repository **Security -> Code scanning** tab.
 
 ## Project Structure
 

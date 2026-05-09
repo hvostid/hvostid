@@ -1,6 +1,6 @@
 # Security Policy
 
-[English](./SECURITY.md) | [Русский](./SECURITY.ru.md)
+**English** | [Русский](./SECURITY.ru.md)
 
 ## Automated Security Scanning
 
@@ -9,11 +9,11 @@ HvostID uses three automated layers to detect and manage vulnerabilities:
 | Tool | Scope | Trigger | Failure threshold |
 |------|-------|---------|-------------------|
 | **Dependabot** | Gradle, npm, Docker, GitHub Actions dependencies | Weekly | Opens PR |
-| **OWASP Dependency Check** | Java + npm transitive dependency CVEs | Every PR | CVSS ≥ 7.0 (high/critical) |
+| **OWASP Dependency Check** | Java + npm transitive dependency CVEs | Every PR | CVSS >= 7.0 (high/critical) |
 | **Trivy** | Docker image layers and OS packages | Every merge to `main` | CRITICAL severity |
 
 Trivy scan results are uploaded as SARIF and are visible in the
-repository **Security → Code scanning** tab.
+repository **Security -> Code scanning** tab.
 
 ## Suppressing False Positives
 
@@ -56,7 +56,7 @@ open a public GitHub issue**.
 |------|-------|-----|
 | Acknowledge report | Tech Lead | 2 business days |
 | Assess severity (CVSS score) | Tech Lead | 5 business days |
-| Develop and test fix | Responsible developer | Depends on severity: Critical — 3 days, High — 7 days, Medium/Low — next sprint |
+| Develop and test fix | Responsible developer | Depends on severity: Critical - 3 days, High - 7 days, Medium/Low - next sprint |
 | Deploy fix to `main` | Tech Lead | After fix is reviewed and merged |
 | Close advisory | Tech Lead | After deploy |
 
@@ -64,7 +64,7 @@ open a public GitHub issue**.
 
 - **Dependabot PRs** for patch and minor updates are grouped and should
   be reviewed and merged within one week.
-- **Major version updates** are handled manually — a dedicated task is
+- **Major version updates** are handled manually -- a dedicated task is
   created in the backlog.
 - If a Dependabot PR fixes a known CVE, it is treated as a security fix
   and merged with priority.

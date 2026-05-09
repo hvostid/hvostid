@@ -19,9 +19,13 @@ dependencyCheck {
     failBuildOnCVSS = 7.0f
     suppressionFile = "dependency-check-suppressions.xml"
     nvd {
-        apiKey = System.getenv("NVD_API_KEY") ?: ""
+        apiKey = System.getenv("NVD_API_KEY")
     }
     formats = listOf("HTML", "SARIF")
+}
+
+tasks.named("check") {
+    dependsOn("dependencyCheckAggregate")
 }
 
 allprojects {

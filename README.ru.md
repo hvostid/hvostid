@@ -265,7 +265,7 @@ k6 run k6/search-listings.js
   (еженедельное расписание, patch/minor обновления группируются).
 - **OWASP Dependency Check** -- запускается на каждый PR через
   `./gradlew dependencyCheckAggregate`. Завершает сборку с ошибкой при
-  CVSS ≥ 7.0 (high/critical). Известные false positives подавляются
+  CVSS >= 7.0 (high/critical). Известные false positives подавляются
   через
   [`dependency-check-suppressions.xml`](./dependency-check-suppressions.xml).
   Проверка запускается с `continue-on-error: true` до очистки
@@ -273,7 +273,7 @@ k6 run k6/search-listings.js
 - **Trivy** -- сканирует каждый Docker-образ, отправленный в GHCR
   после каждого мержа в `main`. Завершает с ошибкой при CRITICAL
   severity. Результаты загружаются как SARIF и видны во вкладке
-  **Security → Code scanning** репозитория.
+  **Security -> Code scanning** репозитория.
 
 ## Структура проекта
 
@@ -306,6 +306,7 @@ hvostid/
   dependency-check-suppressions.xml
   docker-compose.yml
   Dockerfile               -- общий многоступенчатый Dockerfile бэкенда
+  SECURITY.md
   SECURITY.ru.md
 ```
 
