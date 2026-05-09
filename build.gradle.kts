@@ -23,7 +23,7 @@ dependencyCheck {
         apiKey = System.getenv("NVD_API_KEY")
         validForHours = 24
     }
-    formats = listOf("HTML", "JSON", "SARIF")
+    formats = listOf("HTML", "JSON", "SARIF", "XML")
 }
 
 allprojects {

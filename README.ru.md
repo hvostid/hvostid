@@ -61,11 +61,9 @@ flowchart TB
     GW --> PASS
     GW --> MATCH
     GW -. token introspect .-> AUTH
-
     LIST -->|enrich with passport| PASS
     MATCH -->|read listings| LIST
     MATCH -->|read passports| PASS
-
     AUTH --> PG
     LIST --> PG
     PASS --> PG
@@ -77,14 +75,14 @@ flowchart TB
 заметки находятся в
 [`docs/architecture.ru.md`](./docs/architecture.ru.md).
 
-| Сервис                                 | Порт | База данных        | Описание                                                          |
-|----------------------------------------|------|--------------------|-------------------------------------------------------------------|
-| [Frontend](./frontend)                 | 3000 | --                 | React SPA, в проде раздаётся через Nginx                          |
-| [API Gateway](./api-gateway)           | 8080 | --                 | Маршрутизация, валидация opaque-токенов, rate limit по IP         |
-| [Auth Service](./auth-service)         | 8081 | `hvostid_auth`     | Регистрация, логин, интроспекция токенов, профиль, роли           |
-| [Listing Service](./listing-service)   | 8082 | `hvostid_listing`  | CRUD объявлений о питомцах, поиск, фильтры                        |
-| [Passport Service](./passport-service) | 8083 | `hvostid_passport` | Цифровой паспорт питомца, документы, оценка доверия               |
-| [Matching Service](./matching-service) | 8084 | `hvostid_matching` | Анкета покупателя, оценка совместимости                           |
+| Сервис                                 | Порт | База данных        | Описание                                                  |
+|----------------------------------------|------|--------------------|-----------------------------------------------------------|
+| [Frontend](./frontend)                 | 3000 | --                 | React SPA, в проде раздаётся через Nginx                  |
+| [API Gateway](./api-gateway)           | 8080 | --                 | Маршрутизация, валидация opaque-токенов, rate limit по IP |
+| [Auth Service](./auth-service)         | 8081 | `hvostid_auth`     | Регистрация, логин, интроспекция токенов, профиль, роли   |
+| [Listing Service](./listing-service)   | 8082 | `hvostid_listing`  | CRUD объявлений о питомцах, поиск, фильтры                |
+| [Passport Service](./passport-service) | 8083 | `hvostid_passport` | Цифровой паспорт питомца, документы, оценка доверия       |
+| [Matching Service](./matching-service) | 8084 | `hvostid_matching` | Анкета покупателя, оценка совместимости                   |
 
 ## Технологический стек
 
@@ -220,18 +218,24 @@ npm install --prefix frontend  # eslint + prettier + lint-staged для pre-comm
 
 ## CI/CD
 
-Два workflow GitHub Actions лежат в [`.github/workflows`](./.github/workflows):
+Три workflow GitHub Actions лежат в [`.github/workflows`](./.github/workflows):
 
 - [`ci-pr.yml`](./.github/workflows/ci-pr.yml) запускается на каждый
-  pull request: `./gradlew check` (Spotless, JUnit, JaCoCo, OWASP
-  Dependency Check), опциональный сканер SonarQube, сборка
-  Docker-образов бэкенда и фронтенда.
+  pull request: `./gradlew check` (Spotless, JUnit, JaCoCo),
+  опциональный сканер SonarQube, сборка Docker-образов бэкенда и
+  фронтенда.
 - [`cd-main.yml`](./.github/workflows/cd-main.yml) запускается при
-  мерже в `main`: пересобирает и пушит образы каждого сервиса в GitHub
-  Container Registry (параллельная matrix), сканирует каждый образ
-  через Trivy (результаты SARIF видны во вкладке Security), затем
-  запускает smoke-тест, поднимающий весь стек через Compose и
-  ожидающий 200 от `/actuator/health` каждого сервиса.
+  мерже в `main`: пересобирает и пушит образы каждого сервиса в
+  GitHub Container Registry (параллельная matrix), сканирует каждый
+  образ через Trivy (результаты SARIF видны во вкладке Security при
+  включённом GHAS, JSON-отчёты загружаются в DefectDojo, если он
+  настроен), затем запускает smoke-тест, поднимающий весь стек через
+  Compose и ожидающий 200 от `/actuator/health` каждого сервиса.
+- [`security-scan.yml`](./.github/workflows/security-scan.yml)
+  запускается ежедневно и при изменении файлов зависимостей в `main`:
+  `./gradlew dependencyCheckAggregate` строит отчёт OWASP Dependency
+  Check; SARIF уезжает в GitHub Code Scanning, XML-отчёт
+  переотправляется в DefectDojo, если он настроен.
 
 Теги образов: `ghcr.io/hvostid/hvostid-<service>:<short-sha>` и
 `latest`.
@@ -263,17 +267,22 @@ k6 run k6/search-listings.js
 - **Dependabot** -- автоматически открывает PR на обновление устаревших
   зависимостей для экосистем Gradle, npm, Docker и GitHub Actions
   (еженедельное расписание, patch/minor обновления группируются).
-- **OWASP Dependency Check** -- запускается на каждый PR через
+- **OWASP Dependency Check** -- запускается ежедневно по расписанию и
+  при изменении файлов зависимостей в `main` через
   `./gradlew dependencyCheckAggregate`. Завершает сборку с ошибкой при
-  CVSS >= 7.0 (high/critical). Известные false positives подавляются
-  через
+  CVSS >= 9.0 (critical). Известные false positives подавляются через
   [`dependency-check-suppressions.xml`](./dependency-check-suppressions.xml).
-  Проверка запускается с `continue-on-error: true` до очистки
-  первоначального бэклога.
 - **Trivy** -- сканирует каждый Docker-образ, отправленный в GHCR
   после каждого мержа в `main`. Завершает с ошибкой при CRITICAL
-  severity. Результаты загружаются как SARIF и видны во вкладке
-  **Security -> Code scanning** репозитория.
+  severity.
+- **DefectDojo** (опционально) -- если в секретах репозитория заданы
+  `DEFECTDOJO_URL` и `DEFECTDOJO_TOKEN`, результаты Trivy и OWASP
+  Dependency Check переотправляются в self-hosted инстанс DefectDojo
+  для дедупликации, триажа и отслеживания SLA.
+
+SARIF-отчёты от обоих сканеров загружаются во вкладку
+**Security -> Code scanning**, если включён GitHub Advanced Security
+(автоматически для публичных репозиториев).
 
 ## Структура проекта
 
