@@ -28,8 +28,8 @@ jobs:
             -   name: Setup Gradle
                 uses: gradle/actions/setup-gradle@v5
 
-            -   name: Build and run tests
-                run: ./gradlew build
+            -   name: Run tests and checks
+                run: ./gradlew check
 
             -   name: Run SonarQube scan
                 if: env.SONAR_TOKEN != ''
@@ -44,29 +44,6 @@ jobs:
                 with:
                     name: test-results
                     path: "**/build/reports/tests/"
-
-            -   name: Setup Node.js
-                uses: actions/setup-node@v6
-                with:
-                    node-version: 24
-                    cache: npm
-                    cache-dependency-path: frontend/package-lock.json
-
-            -   name: Install frontend dependencies
-                working-directory: frontend
-                run: npm ci
-
-            -   name: Lint frontend
-                working-directory: frontend
-                run: npm run lint
-
-            -   name: Check frontend formatting
-                working-directory: frontend
-                run: npm run format:check
-
-            -   name: Build frontend
-                working-directory: frontend
-                run: npm run build
 
     build-backend:
         needs: verify
