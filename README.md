@@ -60,11 +60,9 @@ flowchart TB
     GW --> PASS
     GW --> MATCH
     GW -. token introspect .-> AUTH
-
     LIST -->|enrich with passport| PASS
     MATCH -->|read listings| LIST
     MATCH -->|read passports| PASS
-
     AUTH --> PG
     LIST --> PG
     PASS --> PG
@@ -129,16 +127,16 @@ no local `./gradlew build` is required first.
 
 Once everything is healthy:
 
-| What                      | URL                                          |
-|---------------------------|----------------------------------------------|
-| Frontend                  | http://localhost:3000                        |
-| API Gateway               | http://localhost:8080                        |
-| Auth Swagger UI           | http://localhost:8081/swagger-ui.html        |
-| Listing Swagger UI        | http://localhost:8082/swagger-ui.html        |
-| Passport Swagger UI       | http://localhost:8083/swagger-ui.html        |
-| Matching Swagger UI       | http://localhost:8084/swagger-ui.html        |
-| PostgreSQL                | localhost:5432 (4 databases auto-created)    |
-| MinIO Console             | http://localhost:9001 (`minioadmin` default) |
+| What                | URL                                          |
+|---------------------|----------------------------------------------|
+| Frontend            | http://localhost:3000                        |
+| API Gateway         | http://localhost:8080                        |
+| Auth Swagger UI     | http://localhost:8081/swagger-ui.html        |
+| Listing Swagger UI  | http://localhost:8082/swagger-ui.html        |
+| Passport Swagger UI | http://localhost:8083/swagger-ui.html        |
+| Matching Swagger UI | http://localhost:8084/swagger-ui.html        |
+| PostgreSQL          | localhost:5432 (4 databases auto-created)    |
+| MinIO Console       | http://localhost:9001 (`minioadmin` default) |
 
 **Demo data.** Seed loader is tracked in T42; until then, register a
 user via the frontend or the Auth service `register` endpoint.
@@ -216,17 +214,23 @@ commit-message rules, code-style decisions, and review checklist.
 
 ## CI/CD
 
-Two GitHub Actions workflows live in [`.github/workflows`](./.github/workflows):
+Three GitHub Actions workflows live in [`.github/workflows`](./.github/workflows):
 
 - [`ci-pr.yml`](./.github/workflows/ci-pr.yml) runs on every pull
-  request: `./gradlew check` (Spotless, JUnit, JaCoCo, OWASP Dependency
-  Check), optional SonarQube scan, backend and frontend Docker builds.
+  request: `./gradlew check` (Spotless, JUnit, JaCoCo), optional
+  SonarQube scan, backend and frontend Docker builds.
 - [`cd-main.yml`](./.github/workflows/cd-main.yml) runs on merges to
   `main`: rebuilds and pushes per-service images to GitHub Container
   Registry (parallel matrix), scans every image with Trivy (SARIF
-  results visible in the Security tab), then runs a smoke test that
-  brings up the full Compose stack and waits for every
-  `/actuator/health` to return 200.
+  results visible in the Security tab when GHAS is enabled, JSON
+  reports reimported into DefectDojo when configured), then runs a
+  smoke test that brings up the full Compose stack and waits for
+  every `/actuator/health` to return 200.
+- [`security-scan.yml`](./.github/workflows/security-scan.yml) runs
+  daily and on dependency-declaration changes merged to `main`:
+  `./gradlew dependencyCheckAggregate` produces an OWASP Dependency
+  Check report; SARIF goes to GitHub Code Scanning and the XML
+  report is reimported into DefectDojo when configured.
 
 Image tags follow `ghcr.io/hvostid/hvostid-<service>:<short-sha>` plus
 `latest`.
@@ -257,15 +261,21 @@ process. A brief overview of the automated security layers:
 - **Dependabot** -- automatically opens PRs for outdated dependencies
   across Gradle, npm, Docker, and GitHub Actions ecosystems (weekly
   schedule, patch/minor updates are grouped).
-- **OWASP Dependency Check** -- runs on every PR via
-  `./gradlew dependencyCheckAggregate`. Fails the build on CVSS >= 7.0
-  (high/critical). Known false positives are suppressed in
+- **OWASP Dependency Check** -- runs daily on a schedule and on
+  dependency-declaration changes merged to `main` via
+  `./gradlew dependencyCheckAggregate`. Fails the build on CVSS >= 9.0
+  (critical). Known false positives are suppressed in
   [`dependency-check-suppressions.xml`](./dependency-check-suppressions.xml).
-  The check runs with `continue-on-error: true` until the initial
-  backlog is cleared.
-- **Trivy** -- scans every Docker image pushed to GHCR after each merge
-  to `main`. Fails on CRITICAL severity. Results are uploaded as SARIF
-  and are visible in the repository **Security -> Code scanning** tab.
+- **Trivy** -- scans every Docker image pushed to GHCR after each
+  merge to `main`. Fails on CRITICAL severity.
+- **DefectDojo** (optional) -- when `DEFECTDOJO_URL` and
+  `DEFECTDOJO_TOKEN` secrets are configured, Trivy and OWASP
+  Dependency Check results are reimported into a self-hosted
+  DefectDojo instance for deduplication, triage and SLA tracking.
+
+SARIF reports from both scanners are uploaded to the
+**Security -> Code scanning** tab when GitHub Advanced Security is
+enabled (automatic for public repositories).
 
 ## Project Structure
 

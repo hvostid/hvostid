@@ -4,16 +4,30 @@
 
 ## Automated Security Scanning
 
-HvostID uses three automated layers to detect and manage vulnerabilities:
+HvostID uses three automated scanners to detect vulnerabilities, plus
+an optional vulnerability management platform to aggregate and triage
+their findings.
 
-| Tool | Scope | Trigger | Failure threshold |
-|------|-------|---------|-------------------|
-| **Dependabot** | Gradle, npm, Docker, GitHub Actions dependencies | Weekly | Opens PR |
-| **OWASP Dependency Check** | Java + npm transitive dependency CVEs | Every PR | CVSS >= 7.0 (high/critical) |
-| **Trivy** | Docker image layers and OS packages | Every merge to `main` | CRITICAL severity |
+| Tool                       | Scope                                            | Trigger                                                              | Failure threshold      |
+|----------------------------|--------------------------------------------------|----------------------------------------------------------------------|------------------------|
+| **Dependabot**             | Gradle, npm, Docker, GitHub Actions dependencies | Weekly                                                               | Opens PR               |
+| **OWASP Dependency Check** | Java + npm transitive dependency CVEs            | Daily on cron and on dependency-declaration changes merged to `main` | CVSS >= 9.0 (critical) |
+| **Trivy**                  | Docker image layers and OS packages              | Every merge to `main`                                                | CRITICAL severity      |
 
-Trivy scan results are uploaded as SARIF and are visible in the
-repository **Security -> Code scanning** tab.
+Findings flow to two destinations:
+
+- **GitHub Code Scanning** - both Trivy and OWASP Dependency Check
+  upload SARIF reports that surface in the repository
+  **Security -> Code scanning** tab. This requires GitHub Advanced
+  Security; on private repositories without GHAS the SARIF upload
+  steps skip themselves automatically.
+- **DefectDojo** (optional) - when the `DEFECTDOJO_URL` and
+  `DEFECTDOJO_TOKEN` repository secrets are set, the same Trivy and
+  OWASP Dependency Check runs reimport their JSON/XML reports into a
+  self-hosted DefectDojo instance. DefectDojo deduplicates findings
+  across scanners, tracks accept-risk decisions and provides a
+  unified vulnerability dashboard. When the URL secret is empty, the
+  reimport steps skip themselves without failing the workflow.
 
 ## Suppressing False Positives
 
@@ -52,13 +66,13 @@ open a public GitHub issue**.
 
 ## Response Process
 
-| Step | Owner | SLA |
-|------|-------|-----|
-| Acknowledge report | Tech Lead | 2 business days |
-| Assess severity (CVSS score) | Tech Lead | 5 business days |
-| Develop and test fix | Responsible developer | Depends on severity: Critical - 3 days, High - 7 days, Medium/Low - next sprint |
-| Deploy fix to `main` | Tech Lead | After fix is reviewed and merged |
-| Close advisory | Tech Lead | After deploy |
+| Step                         | Owner                 | SLA                                                                             |
+|------------------------------|-----------------------|---------------------------------------------------------------------------------|
+| Acknowledge report           | Tech Lead             | 2 business days                                                                 |
+| Assess severity (CVSS score) | Tech Lead             | 5 business days                                                                 |
+| Develop and test fix         | Responsible developer | Depends on severity: Critical - 3 days, High - 7 days, Medium/Low - next sprint |
+| Deploy fix to `main`         | Tech Lead             | After fix is reviewed and merged                                                |
+| Close advisory               | Tech Lead             | After deploy                                                                    |
 
 ## Dependency Update Policy
 
