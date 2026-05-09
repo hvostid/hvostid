@@ -5,6 +5,8 @@ import java.time.Instant;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.Instant;
+
 @Entity
 @Table(name = "listings")
 public class Listing {
@@ -48,7 +50,11 @@ public class Listing {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    protected Listing() {}
+    @Column(name = "moderation_comment")
+    private String moderationComment;
+
+    protected Listing() {
+    }
 
     public Listing(
             Long sellerId,
@@ -175,4 +181,13 @@ public class Listing {
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
     }
+
+    public String getModerationComment() {
+        return moderationComment;
+    }
+
+    public void setModerationComment(String moderationComment) {
+        this.moderationComment = moderationComment;
+    }
+
 }

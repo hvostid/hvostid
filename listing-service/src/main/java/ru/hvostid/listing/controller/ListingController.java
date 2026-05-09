@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -23,8 +24,12 @@ import ru.hvostid.common.security.GatewayPreAuthentication;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
+import ru.hvostid.listing.dto.StatusUpdateRequest;
 import ru.hvostid.listing.exception.GlobalExceptionHandler;
 import ru.hvostid.listing.service.ListingService;
+
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/listings")
@@ -140,5 +145,28 @@ public class ListingController {
 
         Page<ListingResponse> responses = listingService.getPublishedListings(pageable);
         return ResponseEntity.ok(responses);
+    }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('SELLER', 'MODERATOR', 'ADMIN')")
+    public ResponseEntity<ListingResponse> updateStatus(
+            @Parameter(description = "Listing ID", required = true, example = "1")
+            @PathVariable Long id,
+            @Valid @RequestBody StatusUpdateRequest request,
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal UserDetails user) {
+
+        long userId = GatewayPreAuthentication.currentUserId(user);
+
+        // Extract roles without ROLE_ prefix
+        Set<String> roles = user.getAuthorities().stream()
+                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .collect(Collectors.toSet());
+
+        log.debug("PATCH /api/v1/listings/{}/status, userId={}, roles={}, targetStatus={}",
+                id, userId, roles, request.status());
+
+        ListingResponse response = listingService.updateStatus(id, request, userId, roles);
+        return ResponseEntity.ok(response);
     }
 }

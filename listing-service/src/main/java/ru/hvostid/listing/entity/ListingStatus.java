@@ -5,5 +5,6 @@ public enum ListingStatus {
     MODERATION,
     PUBLISHED,
     REJECTED,
-    ARCHIVED
+    ARCHIVED,
+    SOLD
 }

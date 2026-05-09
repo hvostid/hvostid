@@ -9,22 +9,33 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
+import ru.hvostid.listing.dto.StatusUpdateRequest;
 import ru.hvostid.listing.entity.Listing;
 import ru.hvostid.listing.entity.ListingStatus;
+import ru.hvostid.listing.entity.ListingStatusHistory;
 import ru.hvostid.listing.exception.AccessDeniedException;
 import ru.hvostid.listing.exception.DuplicateListingException;
 import ru.hvostid.listing.exception.InvalidListingStatusException;
 import ru.hvostid.listing.exception.ListingNotFoundException;
 import ru.hvostid.listing.repository.ListingRepository;
+import ru.hvostid.listing.repository.ListingStatusHistoryRepository;
+
+import java.util.EnumMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 public class ListingService {
     private static final Logger log = LoggerFactory.getLogger(ListingService.class);
 
     private final ListingRepository listingRepository;
+    private final ListingStatusHistoryRepository historyRepository;
 
-    public ListingService(ListingRepository listingRepository) {
+    public ListingService(ListingRepository listingRepository,
+                          ListingStatusHistoryRepository historyRepository) {
         this.listingRepository = listingRepository;
+        this.historyRepository = historyRepository;
     }
 
     @Transactional
@@ -109,6 +120,66 @@ public class ListingService {
     public Page<ListingResponse> getPublishedListings(Pageable pageable) {
         log.debug("Getting published listings, page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
         return listingRepository.findByStatus(ListingStatus.PUBLISHED, pageable).map(ListingResponse::from);
+    }
+
+    @Transactional
+    public ListingResponse updateStatus(Long id, StatusUpdateRequest request,
+                                        Long userId, Set<String> userRoles) {
+        log.debug("Updating status listingId={} to {} by userId={}, roles={}",
+                id, request.status(), userId, userRoles);
+
+        // 1. Find listing
+        Listing listing = listingRepository.findById(id)
+                .orElseThrow(() -> new ListingNotFoundException("Listing not found with id: " + id));
+
+        boolean isOwner = listing.getSellerId().equals(userId);
+        ListingStatus oldStatus = listing.getStatus();
+        ListingStatus newStatus = request.status();
+
+        // 2. Validate transition using static validator
+        StatusTransition transition = StatusTransitionValidator.validateTransition(oldStatus, newStatus);
+
+        // 3. Check permissions
+        StatusTransitionValidator.checkPermissions(transition, isOwner, userRoles);
+
+        // 4. Check comment requirement
+        if (StatusTransitionValidator.isCommentRequired(transition) &&
+                (request.comment() == null || request.comment().isBlank())) {
+            throw new InvalidListingStatusException(
+                    String.format("Comment is required for transition from %s to %s", oldStatus, newStatus)
+            );
+        }
+
+        // 5. Save comment if present
+        if (request.comment() != null && !request.comment().isBlank()) {
+            listing.setModerationComment(request.comment());
+        } else {
+            listing.setModerationComment(null);
+        }
+
+        // 6. Update status
+        listing.setStatus(newStatus);
+        Listing saved = listingRepository.save(listing);
+
+        // 7. Save history
+        String role = determineRole(userRoles, isOwner);
+        ListingStatusHistory history = new ListingStatusHistory(
+                id, oldStatus, newStatus, userId, role, request.comment()
+        );
+        historyRepository.save(history);
+
+        // 8. Log
+        log.info("Status changed: listingId={}, from={}, to={}, userId={}, role={}, comment={}",
+                id, oldStatus, newStatus, userId, role, request.comment());
+
+        return ListingResponse.from(saved);
+    }
+
+    private String determineRole(Set<String> userRoles, boolean isOwner) {
+        if (userRoles.contains("ADMIN")) return "ADMIN";
+        if (userRoles.contains("MODERATOR")) return "MODERATOR";
+        if (isOwner) return "OWNER";
+        return "OTHER";
     }
 
     private void checkForDuplicate(ListingRequest request, Long sellerId) {
