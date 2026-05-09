@@ -22,6 +22,7 @@
 - [Документация API](#документация-api)
 - [CI/CD](#cicd)
 - [Тестирование](#тестирование)
+- [Безопасность](#безопасность)
 - [Структура проекта](#структура-проекта)
 - [Команда](#команда)
 - [Лицензия](#лицензия)
@@ -222,14 +223,15 @@ npm install --prefix frontend  # eslint + prettier + lint-staged для pre-comm
 Два workflow GitHub Actions лежат в [`.github/workflows`](./.github/workflows):
 
 - [`ci-pr.yml`](./.github/workflows/ci-pr.yml) запускается на каждый
-  pull request: `./gradlew build` (включает Spotless, JUnit и JaCoCo),
-  опциональный сканер SonarQube, сборка Docker-образов бэкенда, lint +
-  format check + сборка фронтенда.
+  pull request: `./gradlew check` (Spotless, JUnit, JaCoCo, OWASP
+  Dependency Check), опциональный сканер SonarQube, сборка
+  Docker-образов бэкенда и фронтенда.
 - [`cd-main.yml`](./.github/workflows/cd-main.yml) запускается при
   мерже в `main`: пересобирает и пушит образы каждого сервиса в GitHub
-  Container Registry (параллельная matrix), затем запускает smoke-тест,
-  поднимающий весь стек через Compose и ожидающий 200 от
-  `/actuator/health` каждого сервиса.
+  Container Registry (параллельная matrix), сканирует каждый образ
+  через Trivy (результаты SARIF видны во вкладке Security), затем
+  запускает smoke-тест, поднимающий весь стек через Compose и
+  ожидающий 200 от `/actuator/health` каждого сервиса.
 
 Теги образов: `ghcr.io/hvostid/hvostid-<service>:<short-sha>` и
 `latest`.
@@ -253,11 +255,32 @@ npm install --prefix frontend  # eslint + prettier + lint-staged для pre-comm
 k6 run k6/search-listings.js
 ```
 
+## Безопасность
+
+См. [SECURITY.ru.md](./SECURITY.ru.md) -- полный процесс реагирования
+на уязвимости. Краткий обзор автоматических уровней защиты:
+
+- **Dependabot** -- автоматически открывает PR на обновление устаревших
+  зависимостей для экосистем Gradle, npm, Docker и GitHub Actions
+  (еженедельное расписание, patch/minor обновления группируются).
+- **OWASP Dependency Check** -- запускается на каждый PR через
+  `./gradlew dependencyCheckAggregate`. Завершает сборку с ошибкой при
+  CVSS ≥ 7.0 (high/critical). Известные false positives подавляются
+  через
+  [`dependency-check-suppressions.xml`](./dependency-check-suppressions.xml).
+  Проверка запускается с `continue-on-error: true` до очистки
+  первоначального бэклога.
+- **Trivy** -- сканирует каждый Docker-образ, отправленный в GHCR
+  после каждого мержа в `main`. Завершает с ошибкой при CRITICAL
+  severity. Результаты загружаются как SARIF и видны во вкладке
+  **Security → Code scanning** репозитория.
+
 ## Структура проекта
 
 ```
 hvostid/
   .github/
+    dependabot.yml         -- автоматические обновления зависимостей
     workflows/             -- CI (PR) и CD (main) пайплайны
     CODEOWNERS
     pull_request_template.md
@@ -280,8 +303,10 @@ hvostid/
   build.gradle.kts
   settings.gradle.kts
   gradle/libs.versions.toml
+  dependency-check-suppressions.xml
   docker-compose.yml
   Dockerfile               -- общий многоступенчатый Dockerfile бэкенда
+  SECURITY.ru.md
 ```
 
 ## Команда
