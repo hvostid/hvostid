@@ -1,13 +1,6 @@
 package ru.hvostid.passport.storage;
 
-import io.minio.BucketExistsArgs;
-import io.minio.GetObjectArgs;
-import io.minio.GetPresignedObjectUrlArgs;
-import io.minio.MakeBucketArgs;
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
-import io.minio.RemoveObjectArgs;
-import io.minio.http.Method;
+import io.minio.*;
 import java.io.InputStream;
 import java.time.Duration;
 import java.util.Objects;
@@ -69,7 +62,7 @@ public class MinioStorageService {
         validatePresignedUrlExpiry(expiry);
         try {
             return minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
-                    .method(Method.GET)
+                    .method(Http.Method.GET)
                     .bucket(bucket)
                     .object(objectName)
                     .expiry(Math.toIntExact(expiry.toSeconds()), TimeUnit.SECONDS)
