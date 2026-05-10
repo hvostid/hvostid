@@ -185,7 +185,7 @@ live in T37.
 After cloning, install hook tooling once:
 
 ```bash
-npm install                  # commitlint + husky at the repo root
+npm install                  # commitlint + husky + lint-staged at the repo root
 npm install --prefix frontend  # eslint + prettier + lint-staged for the pre-commit hook
 ```
 
@@ -193,12 +193,14 @@ The hooks then validate every commit:
 
 - `commit-msg` -- enforces Conventional Commits with a task id (see
   [`commitlint.config.js`](./commitlint.config.js)).
-- `pre-commit` -- runs `eslint --fix` and `prettier --write` on staged
-  frontend files via `lint-staged`.
+- `pre-commit` -- runs `lint-staged` at the repo root (applies Spotless
+  to staged Java files via `./gradlew spotlessApply`) and inside
+  `frontend/` (applies `eslint --fix` and `prettier --write` to staged
+  JS/JSX/CSS/HTML/JSON files).
 
-Backend formatting is enforced separately by Spotless: `./gradlew
-spotlessCheck` runs as part of `check` (so `build` and CI). Use
-`./gradlew spotlessApply` to fix violations.
+`./gradlew spotlessCheck` still runs as part of `check` (so `build` and
+CI) as the backstop for files the hook did not touch. Use `./gradlew
+spotlessApply` to fix the rest of the tree.
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full workflow,
 commit-message rules, code-style decisions, and review checklist.

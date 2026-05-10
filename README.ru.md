@@ -188,7 +188,7 @@ Vite работает на http://localhost:3000 и проксирует `/api` 
 После клонирования один раз установите тулинг для хуков:
 
 ```bash
-npm install                  # commitlint + husky на корне репозитория
+npm install                  # commitlint + husky + lint-staged на корне репозитория
 npm install --prefix frontend  # eslint + prettier + lint-staged для pre-commit hook
 ```
 
@@ -196,13 +196,14 @@ npm install --prefix frontend  # eslint + prettier + lint-staged для pre-comm
 
 - `commit-msg` -- проверяет соответствие сообщения Conventional Commits
   с task id (см. [`commitlint.config.js`](./commitlint.config.js)).
-- `pre-commit` -- запускает `eslint --fix` и `prettier --write` на
-  staged-файлах фронтенда через `lint-staged`.
+- `pre-commit` -- запускает `lint-staged` на корне (применяет Spotless
+  к staged Java-файлам через `./gradlew spotlessApply`) и внутри
+  `frontend/` (применяет `eslint --fix` и `prettier --write` к
+  staged-файлам JS/JSX/CSS/HTML/JSON).
 
-Форматирование бэкенда обеспечивается отдельно через Spotless:
-`./gradlew spotlessCheck` запускается как часть `check` (то есть и в
-`build`, и в CI). Используйте `./gradlew spotlessApply`, чтобы
-автоматически починить нарушения.
+`./gradlew spotlessCheck` по-прежнему входит в `check` (то есть и в
+`build`, и в CI) как страховка для файлов, не затронутых хуком.
+`./gradlew spotlessApply` чинит остальное дерево.
 
 См. [CONTRIBUTING.ru.md](./CONTRIBUTING.ru.md) -- полный workflow,
 правила сообщений коммитов, решения по code style и чек-лист ревью.

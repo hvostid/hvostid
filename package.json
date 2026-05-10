@@ -1,7 +1,7 @@
 {
   "name": "hvostid",
   "private": true,
-  "description": "Repo-wide tooling for hvostid (commitlint, husky). Service code lives in subprojects (Gradle for backend, frontend/ for the SPA).",
+  "description": "Repo-wide tooling for hvostid (commitlint, husky, lint-staged). Service code lives in subprojects (Gradle for backend, frontend/ for the SPA).",
   "scripts": {
     "prepare": "husky",
     "commitlint": "commitlint"
@@ -9,6 +9,7 @@
   "devDependencies": {
     "@commitlint/cli": "^19.6.1",
     "@commitlint/config-conventional": "^19.6.0",
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10"
   }
 }
