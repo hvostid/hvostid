@@ -104,19 +104,18 @@ public class StatusTransitionValidator {
         // Check if transition is owner-only
         if (transition.isOwnerOnly()) {
             boolean isDraftToModeration =
-                transition.getFrom() == ListingStatus.DRAFT &&
-                    transition.getTo() == ListingStatus.MODERATION;
+                    transition.getFrom() == ListingStatus.DRAFT && transition.getTo() == ListingStatus.MODERATION;
 
             if (isDraftToModeration) {
                 if (!isOwner) {
-                    throw new AccessDeniedException(
-                        String.format("Only the owner can send listing to moderation from %s to %s",
+                    throw new AccessDeniedException(String.format(
+                            "Only the owner can send listing to moderation from %s to %s",
                             transition.getFrom(), transition.getTo()));
                 }
             } else {
                 if (!isOwner && !userRoles.contains("ADMIN")) {
-                    throw new AccessDeniedException(
-                        String.format("Only the owner or an admin can change status from %s to %s",
+                    throw new AccessDeniedException(String.format(
+                            "Only the owner or an admin can change status from %s to %s",
                             transition.getFrom(), transition.getTo()));
                 }
             }
