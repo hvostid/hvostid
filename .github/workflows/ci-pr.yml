@@ -119,14 +119,8 @@ jobs:
             -   name: Checkout code
                 uses: actions/checkout@v6
 
-            -   name: Set up JDK 25
-                uses: actions/setup-java@v5
-                with:
-                    distribution: temurin
-                    java-version: 25
-
-            -   name: Setup Gradle
-                uses: gradle/actions/setup-gradle@v6
+            -   name: Set up Java and Gradle
+                uses: ./.github/actions/setup-java-gradle
 
             -   name: Run tests and checks
                 run: ./gradlew check
@@ -145,8 +139,36 @@ jobs:
                     name: test-results
                     path: "**/build/reports/tests/"
 
+    # Builds the Dockerfile's `deps` stage once and caches it under the
+    # shared `hvostid-deps` GHA scope. Per-service builds inherit the
+    # warmed Gradle dependency layer instead of resolving it five times
+    # in parallel. The deps stage hashes only on Gradle inputs (wrapper,
+    # version catalog, every <module>/build.gradle.kts), so unrelated
+    # source changes still hit the cache.
+    build-deps:
+        needs: changes
+        if: needs.changes.outputs.any-backend == 'true'
+        runs-on: ubuntu-latest
+
+        steps:
+            -   name: Checkout code
+                uses: actions/checkout@v6
+
+            -   name: Set up Docker BuildX
+                uses: docker/setup-buildx-action@v4
+
+            -   name: Warm shared deps cache
+                uses: docker/build-push-action@v7
+                with:
+                    context: .
+                    file: Dockerfile
+                    target: deps
+                    push: false
+                    cache-from: type=gha,scope=hvostid-deps
+                    cache-to: type=gha,mode=max,scope=hvostid-deps
+
     build-backend:
-        needs: [ verify, changes ]
+        needs: [ verify, changes, build-deps ]
         # Run only when at least one backend service was affected.
         if: needs.changes.outputs.any-backend == 'true'
         runs-on: ubuntu-latest
