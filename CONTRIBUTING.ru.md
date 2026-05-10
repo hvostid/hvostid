@@ -20,7 +20,7 @@
 После клонирования один раз поставьте тулинг для хуков:
 
 ```bash
-npm install                    # commitlint + husky на корне репозитория
+npm install                    # commitlint + husky + lint-staged на корне репозитория
 npm install --prefix frontend  # eslint + prettier + lint-staged
 cp .env.example .env
 ```
@@ -88,17 +88,20 @@ npm install
 npm install --prefix frontend
 ```
 
-Первая команда устанавливает корневой тулинг (commitlint, husky) и
-прописывает Husky через скрипт `prepare`. Вторая ставит фронтенд-тулинг
-(eslint, prettier, lint-staged), чтобы хук `pre-commit` мог работать
-на staged-файлах фронтенда.
+Первая команда устанавливает корневой тулинг (commitlint, husky,
+lint-staged) и прописывает Husky через скрипт `prepare`. Вторая ставит
+фронтенд-тулинг (eslint, prettier, lint-staged), чтобы хук `pre-commit`
+мог работать на staged-файлах фронтенда.
 
 После этого оба хука активны на каждом следующем коммите:
 
 * `commit-msg` -- валидирует сообщение коммита по `commitlint.config.js`.
-* `pre-commit` -- запускает `lint-staged` из `frontend/`, который
-  применяет `eslint --fix` и `prettier --write` к staged-файлам
-  JS/JSX/CSS/HTML/JSON. Файлы вне `frontend/` этим хуком игнорируются.
+* `pre-commit` -- запускает `lint-staged` дважды. В корне репозитория
+  применяет Spotless (`./gradlew spotlessApply -PspotlessFiles=...`)
+  к staged Java-файлам; конфиг лежит в
+  [`lint-staged.config.cjs`](./lint-staged.config.cjs). Внутри
+  `frontend/` применяет `eslint --fix` и `prettier --write` к
+  staged-файлам JS/JSX/CSS/HTML/JSON.
 
 Допустимые типы коммитов и правило task-id определены в
 [`commitlint.config.js`](./commitlint.config.js).
@@ -109,8 +112,8 @@ npm install --prefix frontend
   форматтером
   [palantir-java-format](https://github.com/palantir/palantir-java-format).
   `./gradlew spotlessCheck` входит в `./gradlew check` (и значит, в
-  CI). Запускайте `./gradlew spotlessApply`, чтобы локально починить
-  нарушения.
+  CI). Pre-commit hook автоматически применяет `spotlessApply` к
+  staged Java-файлам; `./gradlew spotlessApply` чинит остальное дерево.
 * **Фронтенд (JS/JSX).** ESLint и Prettier настроены в `frontend/`.
   Используйте `npm run lint` / `npm run lint:fix` и `npm run format` /
   `npm run format:check` из `frontend/`. Pre-commit hook автоматически
@@ -204,13 +207,13 @@ PR открывается в `main`. Шаблон PR
 
 ### Что используем
 
-| Слой           | Тулинг                                                                                                                                 |
-|----------------|----------------------------------------------------------------------------------------------------------------------------------------|
-| Unit           | JUnit 5, Mockito, AssertJ                                                                                                              |
-| Web-слой       | `@WebMvcTest`-слайсы для логики контроллеров, `MockMvc` ассерты                                                                        |
-| Интеграция     | Testcontainers PostgreSQL через [`AbstractPostgresContainerTest`](./common/src/testFixtures/java/ru/hvostid/common/testfixtures/AbstractPostgresContainerTest.java) |
-| Покрытие       | JaCoCo (`<module>/build/reports/jacoco/test/jacocoTestReport.xml`)                                                                     |
-| Нагрузка       | k6-скрипты в [`k6/`](./k6) (поиск каталога, создание объявления, оценка совместимости)                                                 |
+| Слой       | Тулинг                                                                                                                                                              |
+|------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Unit       | JUnit 5, Mockito, AssertJ                                                                                                                                           |
+| Web-слой   | `@WebMvcTest`-слайсы для логики контроллеров, `MockMvc` ассерты                                                                                                     |
+| Интеграция | Testcontainers PostgreSQL через [`AbstractPostgresContainerTest`](./common/src/testFixtures/java/ru/hvostid/common/testfixtures/AbstractPostgresContainerTest.java) |
+| Покрытие   | JaCoCo (`<module>/build/reports/jacoco/test/jacocoTestReport.xml`)                                                                                                  |
+| Нагрузка   | k6-скрипты в [`k6/`](./k6) (поиск каталога, создание объявления, оценка совместимости)                                                                              |
 
 ### Соглашения
 

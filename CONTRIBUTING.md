@@ -20,7 +20,7 @@ makes review fast.
 After cloning, install the hook tooling once:
 
 ```bash
-npm install                    # commitlint + husky at the repo root
+npm install                    # commitlint + husky + lint-staged at the repo root
 npm install --prefix frontend  # eslint + prettier + lint-staged
 cp .env.example .env
 ```
@@ -88,17 +88,20 @@ npm install
 npm install --prefix frontend
 ```
 
-The first command installs root tooling (commitlint, husky) and wires up
-Husky via the `prepare` script. The second installs frontend tooling
-(eslint, prettier, lint-staged) so the `pre-commit` hook can run on
-staged frontend files.
+The first command installs root tooling (commitlint, husky, lint-staged)
+and wires up Husky via the `prepare` script. The second installs frontend
+tooling (eslint, prettier, lint-staged) so the `pre-commit` hook can run
+on staged frontend files.
 
 After this, both hooks are active for every subsequent commit:
 
 * `commit-msg` -- validates the commit message against `commitlint.config.js`.
-* `pre-commit` -- runs `lint-staged` from `frontend/`, which applies
-  `eslint --fix` and `prettier --write` to staged JS/JSX/CSS/HTML/JSON
-  files. Files outside `frontend/` are ignored by this hook.
+* `pre-commit` -- runs `lint-staged` twice. At the repo root, applies
+  Spotless (`./gradlew spotlessApply -PspotlessFiles=...`) to staged
+  Java files; the config lives in
+  [`lint-staged.config.cjs`](./lint-staged.config.cjs). Inside
+  `frontend/`, applies `eslint --fix` and `prettier --write` to staged
+  JS/JSX/CSS/HTML/JSON files.
 
 Allowed commit types and the task-id rule are defined in
 [`commitlint.config.js`](./commitlint.config.js).
@@ -108,8 +111,9 @@ Allowed commit types and the task-id rule are defined in
 * **Backend (Java).** Spotless is wired into every Gradle module with
   the [palantir-java-format](https://github.com/palantir/palantir-java-format)
   formatter. `./gradlew spotlessCheck` runs as part of `./gradlew check`
-  (and therefore CI). Run `./gradlew spotlessApply` to fix violations
-  locally.
+  (and therefore CI). The pre-commit hook applies `spotlessApply` to
+  staged Java files automatically; run `./gradlew spotlessApply` to fix
+  the rest of the tree.
 * **Frontend (JS/JSX).** ESLint and Prettier are configured in
   `frontend/`. Use `npm run lint` / `npm run lint:fix` and
   `npm run format` / `npm run format:check` from inside `frontend/`.
@@ -203,13 +207,13 @@ after the change.
 
 ### What we use
 
-| Layer        | Tooling                                                                                                                                |
-|--------------|----------------------------------------------------------------------------------------------------------------------------------------|
-| Unit         | JUnit 5, Mockito, AssertJ                                                                                                              |
-| Web layer    | `@WebMvcTest` slices for controller logic, `MockMvc` assertions                                                                        |
-| Integration  | Testcontainers PostgreSQL via [`AbstractPostgresContainerTest`](./common/src/testFixtures/java/ru/hvostid/common/testfixtures/AbstractPostgresContainerTest.java) |
-| Coverage     | JaCoCo (`<module>/build/reports/jacoco/test/jacocoTestReport.xml`)                                                                     |
-| Load         | k6 scripts in [`k6/`](./k6) (catalog search, listing create, match score)                                                              |
+| Layer       | Tooling                                                                                                                                                           |
+|-------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Unit        | JUnit 5, Mockito, AssertJ                                                                                                                                         |
+| Web layer   | `@WebMvcTest` slices for controller logic, `MockMvc` assertions                                                                                                   |
+| Integration | Testcontainers PostgreSQL via [`AbstractPostgresContainerTest`](./common/src/testFixtures/java/ru/hvostid/common/testfixtures/AbstractPostgresContainerTest.java) |
+| Coverage    | JaCoCo (`<module>/build/reports/jacoco/test/jacocoTestReport.xml`)                                                                                                |
+| Load        | k6 scripts in [`k6/`](./k6) (catalog search, listing create, match score)                                                                                         |
 
 ### Conventions
 

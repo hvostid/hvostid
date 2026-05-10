@@ -19,7 +19,6 @@ import ru.hvostid.listing.entity.Listing;
 import ru.hvostid.listing.entity.ListingStatus;
 import ru.hvostid.listing.entity.ListingStatusHistory;
 import ru.hvostid.listing.exception.AccessDeniedException;
-import ru.hvostid.listing.exception.InvalidListingStatusException;
 import ru.hvostid.listing.exception.InvalidStatusTransitionException;
 import ru.hvostid.listing.exception.ListingNotFoundException;
 import ru.hvostid.listing.repository.ListingRepository;
@@ -279,8 +278,8 @@ class ListingServiceStatusTransitionTest {
                 .hasMessageContaining("Only the owner can send listing to moderation from DRAFT to MODERATION");
 
         assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, ADMIN_ID, Set.of("ADMIN")))
-            .isInstanceOf(AccessDeniedException.class)
-            .hasMessageContaining("Only the owner can send listing to moderation");
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Only the owner can send listing to moderation");
     }
 
     @Test
@@ -320,8 +319,8 @@ class ListingServiceStatusTransitionTest {
 
         // then
         assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, OTHER_USER_ID, Set.of("SELLER")))
-            .isInstanceOf(AccessDeniedException.class)
-            .hasMessageContaining("Only the owner or an admin can change status from PUBLISHED to ARCHIVED");
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Only the owner or an admin can change status from PUBLISHED to ARCHIVED");
     }
 
     @Test
