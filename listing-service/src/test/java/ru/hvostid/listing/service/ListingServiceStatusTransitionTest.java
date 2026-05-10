@@ -1,7 +1,6 @@
 package ru.hvostid.listing.service;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -260,7 +259,7 @@ class ListingServiceStatusTransitionTest {
 
         // then
         assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, MODERATOR_ID, Set.of("MODERATOR")))
-                .isInstanceOf(InvalidListingStatusException.class)
+                .isInstanceOf(InvalidStatusTransitionException.class)
                 .hasMessageContaining("Comment is required");
     }
 
@@ -277,7 +276,11 @@ class ListingServiceStatusTransitionTest {
         // then
         assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, OTHER_USER_ID, Set.of("SELLER")))
                 .isInstanceOf(AccessDeniedException.class)
-                .hasMessageContaining("Only the owner can change status");
+                .hasMessageContaining("Only the owner can send listing to moderation from DRAFT to MODERATION");
+
+        assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, ADMIN_ID, Set.of("ADMIN")))
+            .isInstanceOf(AccessDeniedException.class)
+            .hasMessageContaining("Only the owner can send listing to moderation");
     }
 
     @Test
@@ -317,8 +320,8 @@ class ListingServiceStatusTransitionTest {
 
         // then
         assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, OTHER_USER_ID, Set.of("SELLER")))
-                .isInstanceOf(AccessDeniedException.class)
-                .hasMessageContaining("Only the owner can change status");
+            .isInstanceOf(AccessDeniedException.class)
+            .hasMessageContaining("Only the owner or an admin can change status from PUBLISHED to ARCHIVED");
     }
 
     @Test

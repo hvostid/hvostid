@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -20,6 +19,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -167,7 +167,9 @@ public class ListingController {
 
         // Extract roles without ROLE_ prefix
         Set<String> roles = user.getAuthorities().stream()
-                .map(a -> Objects.requireNonNull(a.getAuthority()).replace("ROLE_", ""))
+                .map(GrantedAuthority::getAuthority)
+                .filter(Objects::nonNull)
+                .map(role -> role.replace("ROLE_", ""))
                 .collect(Collectors.toSet());
 
         log.debug(

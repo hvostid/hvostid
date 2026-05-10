@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS listing_status_history (
     changed_by_user_id BIGINT NOT NULL,
     changed_by_role VARCHAR(50),
     comment VARCHAR(500),
-    changed_at TIMESTAMP NOT NULL DEFAULT NOW()
+    changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
 -- Create indexes for history table

@@ -14,10 +14,7 @@ import ru.hvostid.listing.dto.StatusUpdateRequest;
 import ru.hvostid.listing.entity.Listing;
 import ru.hvostid.listing.entity.ListingStatus;
 import ru.hvostid.listing.entity.ListingStatusHistory;
-import ru.hvostid.listing.exception.AccessDeniedException;
-import ru.hvostid.listing.exception.DuplicateListingException;
-import ru.hvostid.listing.exception.InvalidListingStatusException;
-import ru.hvostid.listing.exception.ListingNotFoundException;
+import ru.hvostid.listing.exception.*;
 import ru.hvostid.listing.repository.ListingRepository;
 import ru.hvostid.listing.repository.ListingStatusHistoryRepository;
 
@@ -135,15 +132,13 @@ public class ListingService {
 
         if (StatusTransitionValidator.isCommentRequired(transition)
                 && (request.comment() == null || request.comment().isBlank())) {
-            throw new InvalidListingStatusException(
+            throw new InvalidStatusTransitionException(
                     String.format("Comment is required for transition from %s to %s", oldStatus, newStatus));
         }
 
-        if (request.comment() != null && !request.comment().isBlank()) {
-            listing.setModerationComment(request.comment());
-        } else {
-            listing.setModerationComment(null);
-        }
+        String normalizedComment =
+                (request.comment() != null && !request.comment().isBlank()) ? request.comment() : null;
+        listing.setModerationComment(normalizedComment);
 
         listing.setStatus(newStatus);
         Listing saved = listingRepository.save(listing);

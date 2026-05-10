@@ -103,17 +103,29 @@ public class StatusTransitionValidator {
     public static void checkPermissions(StatusTransition transition, boolean isOwner, Set<String> userRoles) {
         // Check if transition is owner-only
         if (transition.isOwnerOnly()) {
-            if (!isOwner) {
-                throw new AccessDeniedException(String.format(
-                        "Only the owner can change status from %s to %s", transition.getFrom(), transition.getTo()));
+            boolean isDraftToModeration =
+                transition.getFrom() == ListingStatus.DRAFT &&
+                    transition.getTo() == ListingStatus.MODERATION;
+
+            if (isDraftToModeration) {
+                if (!isOwner) {
+                    throw new AccessDeniedException(
+                        String.format("Only the owner can send listing to moderation from %s to %s",
+                            transition.getFrom(), transition.getTo()));
+                }
+            } else {
+                if (!isOwner && !userRoles.contains("ADMIN")) {
+                    throw new AccessDeniedException(
+                        String.format("Only the owner or an admin can change status from %s to %s",
+                            transition.getFrom(), transition.getTo()));
+                }
             }
             return;
         }
 
         // Check role-based access
         Set<String> allowedRoles = transition.getAllowedRoles();
-        boolean hasRequiredRole = allowedRoles.stream()
-                .anyMatch(role -> userRoles.contains(role) || (role.equals("ADMIN") && userRoles.contains("ADMIN")));
+        boolean hasRequiredRole = allowedRoles.stream().anyMatch(userRoles::contains);
 
         if (!hasRequiredRole) {
             throw new AccessDeniedException(String.format(
