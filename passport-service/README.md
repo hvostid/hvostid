@@ -22,7 +22,7 @@ Spec is served at http://localhost:8083/swagger-ui.html.
 - `POST /api/v1/passports` -- create a pet passport. `sellerId` is read
   from `X-User-Id`; the user must have the `SELLER` role.
 - `GET /api/v1/passports/{petId}` -- get a passport with vaccinations,
-  available to an authenticated user.
+  available to the owner, `MODERATOR`, and `ADMIN`.
 - `PUT /api/v1/passports/{petId}` -- partially update a passport,
   available only to its owner with the `SELLER` role.
 

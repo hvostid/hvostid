@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
 import static ru.hvostid.common.http.SecurityHeaders.USER_ROLES;
+import static ru.hvostid.common.security.UserRole.ADMIN;
+import static ru.hvostid.common.security.UserRole.MODERATOR;
 import static ru.hvostid.common.security.UserRole.SELLER;
 
 import org.junit.jupiter.api.AfterEach;
@@ -114,15 +116,15 @@ class PassportControllerTest extends AbstractPassportIntegrationTest {
     @DisplayName("GET /api/v1/passports/{petId}")
     class GetTests {
         @Test
-        @DisplayName("authenticated user gets passport with vaccinations - returns 200")
-        void get_authenticated_returnsPassportWithVaccinations() throws Exception {
+        @DisplayName("owner gets passport with vaccinations - returns 200")
+        void get_owner_returnsPassportWithVaccinations() throws Exception {
             createPassport();
             jdbcTemplate.update("""
                     INSERT INTO vaccinations (passport_id, name, date, next_date, verified)
                     VALUES (1, 'rabies', '2024-01-15', '2025-01-15', true)
                     """);
 
-            mockMvc.perform(get(PASSPORTS_URL + "/1").header(USER_ID, 20L))
+            mockMvc.perform(get(PASSPORTS_URL + "/1").header(USER_ID, 10L).header(USER_ROLES, SELLER.value()))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id", is(1)))
                     .andExpect(jsonPath("$.sellerId", is(10)))
@@ -135,9 +137,39 @@ class PassportControllerTest extends AbstractPassportIntegrationTest {
         }
 
         @Test
+        @DisplayName("moderator gets passport - returns 200")
+        void get_moderator_returns200() throws Exception {
+            createPassport();
+
+            mockMvc.perform(get(PASSPORTS_URL + "/1").header(USER_ID, 20L).header(USER_ROLES, MODERATOR.value()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id", is(1)));
+        }
+
+        @Test
+        @DisplayName("admin gets passport - returns 200")
+        void get_admin_returns200() throws Exception {
+            createPassport();
+
+            mockMvc.perform(get(PASSPORTS_URL + "/1").header(USER_ID, 20L).header(USER_ROLES, ADMIN.value()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id", is(1)));
+        }
+
+        @Test
+        @DisplayName("different user cannot get passport - returns 403")
+        void get_differentUser_returns403() throws Exception {
+            createPassport();
+
+            mockMvc.perform(get(PASSPORTS_URL + "/1").header(USER_ID, 20L))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.status", is(403)));
+        }
+
+        @Test
         @DisplayName("missing passport - returns 404")
         void get_missingPassport_returns404() throws Exception {
-            mockMvc.perform(get(PASSPORTS_URL + "/999").header(USER_ID, 20L))
+            mockMvc.perform(get(PASSPORTS_URL + "/999").header(USER_ID, 20L).header(USER_ROLES, ADMIN.value()))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.status", is(404)));
         }

@@ -7,11 +7,14 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -61,22 +64,27 @@ public class PassportController {
 
     @Operation(
             summary = "Get a pet passport",
-            description = "Returns a pet passport with vaccination entries for an authenticated user.")
+            description =
+                    "Returns a pet passport with vaccination entries. Only the owner, moderators, and admins can view the full passport.")
     @ApiResponse(
             responseCode = "200",
             description = "Passport found",
             content = @Content(schema = @Schema(implementation = PassportResponse.class)))
     @ApiResponse(responseCode = "401", description = "Missing or invalid authenticated user", content = @Content)
+    @ApiResponse(responseCode = "403", description = "User is not allowed to view this passport", content = @Content)
     @ApiResponse(
             responseCode = "404",
             description = "Passport not found",
             content = @Content(schema = @Schema(implementation = GlobalExceptionHandler.ErrorResponse.class)))
     @GetMapping("/{petId}")
     public ResponseEntity<PassportResponse> getPassport(
-            @Parameter(description = "Pet passport ID", required = true, example = "1") @PathVariable Long petId) {
-        log.debug("GET /api/v1/passports/{}", petId);
+            @Parameter(description = "Pet passport ID", required = true, example = "1") @PathVariable Long petId,
+            @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
+        long userId = GatewayPreAuthentication.currentUserId(user);
+        Set<String> roles = currentRoles(user);
+        log.debug("GET /api/v1/passports/{}, userId={}, roles={}", petId, userId, roles);
 
-        PassportResponse response = passportService.getPassport(petId);
+        PassportResponse response = passportService.getPassport(petId, userId, roles);
         return ResponseEntity.ok(response);
     }
 
@@ -102,5 +110,12 @@ public class PassportController {
 
         PassportResponse response = passportService.updatePassport(petId, request, sellerId);
         return ResponseEntity.ok(response);
+    }
+
+    private Set<String> currentRoles(UserDetails user) {
+        return user.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(authority -> authority.replace("ROLE_", ""))
+                .collect(Collectors.toSet());
     }
 }

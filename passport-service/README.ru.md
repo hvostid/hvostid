@@ -22,7 +22,7 @@
 - `POST /api/v1/passports` -- создать паспорт питомца. `sellerId`
   берётся из `X-User-Id`, пользователь должен иметь роль `SELLER`.
 - `GET /api/v1/passports/{petId}` -- получить паспорт с прививками,
-  доступно authenticated user.
+  доступно владельцу, `MODERATOR` и `ADMIN`.
 - `PUT /api/v1/passports/{petId}` -- частично обновить паспорт,
   доступно только владельцу с ролью `SELLER`.
 

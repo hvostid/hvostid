@@ -2,8 +2,11 @@ package ru.hvostid.passport.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static ru.hvostid.common.security.UserRole.ADMIN;
+import static ru.hvostid.common.security.UserRole.MODERATOR;
 
 import java.time.LocalDate;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -58,7 +61,43 @@ class PassportServiceTest extends AbstractPassportIntegrationTest {
 
     @Test
     void getPassportRejectsMissingPassport() {
-        assertThatThrownBy(() -> passportService.getPassport(999L)).isInstanceOf(PassportNotFoundException.class);
+        assertThatThrownBy(() -> passportService.getPassport(999L, 42L, Set.of(ADMIN.value())))
+                .isInstanceOf(PassportNotFoundException.class);
+    }
+
+    @Test
+    void getPassportAllowsOwner() {
+        PassportResponse created = passportService.createPassport(validCreateRequest(), 42L);
+
+        PassportResponse response = passportService.getPassport(created.id(), 42L, Set.of());
+
+        assertThat(response.id()).isEqualTo(created.id());
+    }
+
+    @Test
+    void getPassportAllowsModerator() {
+        PassportResponse created = passportService.createPassport(validCreateRequest(), 42L);
+
+        PassportResponse response = passportService.getPassport(created.id(), 43L, Set.of(MODERATOR.value()));
+
+        assertThat(response.id()).isEqualTo(created.id());
+    }
+
+    @Test
+    void getPassportAllowsAdmin() {
+        PassportResponse created = passportService.createPassport(validCreateRequest(), 42L);
+
+        PassportResponse response = passportService.getPassport(created.id(), 43L, Set.of(ADMIN.value()));
+
+        assertThat(response.id()).isEqualTo(created.id());
+    }
+
+    @Test
+    void getPassportRejectsDifferentUser() {
+        PassportResponse created = passportService.createPassport(validCreateRequest(), 42L);
+
+        assertThatThrownBy(() -> passportService.getPassport(created.id(), 43L, Set.of()))
+                .isInstanceOf(PassportAccessDeniedException.class);
     }
 
     private CreatePassportRequest validCreateRequest() {

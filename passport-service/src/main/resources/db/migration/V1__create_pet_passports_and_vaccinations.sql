@@ -12,8 +12,8 @@ CREATE TABLE pet_passports
     special_needs VARCHAR(1000),
     neutered      BOOLEAN      NOT NULL,
     microchipped  BOOLEAN      NOT NULL,
-    created_at    TIMESTAMP    NOT NULL DEFAULT NOW(),
-    updated_at    TIMESTAMP    NOT NULL DEFAULT NOW()
+    created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_pet_passports_seller_id ON pet_passports (seller_id);
