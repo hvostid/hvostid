@@ -4,15 +4,115 @@ on:
     pull_request:
         branches: [ main ]
 
+# Cancel in-flight runs from older commits when a PR receives a new push.
+# Save Actions minutes on PRs that get pushed to repeatedly.
+concurrency:
+    group: ci-pr-${{ github.ref }}
+    cancel-in-progress: true
+
 permissions:
     contents: read
+    # paths-filter uses the PR Files API for faster diff than a full checkout.
+    pull-requests: read
 
 env:
     REGISTRY: ghcr.io
     IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/hvostid
 
 jobs:
+    # Detects which parts of the repo changed in this PR. Downstream
+    # jobs read these outputs to skip themselves when their inputs are
+    # untouched (docs-only PRs skip Docker builds entirely; one-service
+    # PRs rebuild only that service).
+    changes:
+        runs-on: ubuntu-latest
+        outputs:
+            # JSON array of backend services that need rebuilding.
+            backend-matrix: ${{ steps.set-matrix.outputs.matrix }}
+            # 'true' if at least one backend service needs rebuilding.
+            any-backend: ${{ steps.set-matrix.outputs.any }}
+            # 'true' if frontend sources changed.
+            frontend: ${{ steps.filter.outputs.frontend }}
+            # 'true' if anything other than pure docs changed.
+            code: ${{ steps.set-matrix.outputs.code }}
+
+        steps:
+            -   name: Checkout code
+                uses: actions/checkout@v6
+
+            -   name: Detect changed paths
+                id: filter
+                uses: dorny/paths-filter@v4
+                with:
+                    filters: |
+                        # Inputs shared across every backend service.
+                        # A change here forces a full backend rebuild
+                        # because all services use the same Dockerfile,
+                        # the same Gradle catalog, and the common module.
+                        shared-backend:
+                            - 'common/**'
+                            - 'Dockerfile'
+                            - '.dockerignore'
+                            - 'gradle/**'
+                            - 'build.gradle.kts'
+                            - 'settings.gradle.kts'
+                            - 'gradle.properties'
+                            - 'gradlew'
+                            - 'gradlew.bat'
+                            - 'dependency-check-suppressions.xml'
+                            - '.github/workflows/ci-pr.yml'
+                        api-gateway:
+                            - 'api-gateway/**'
+                        auth-service:
+                            - 'auth-service/**'
+                        listing-service:
+                            - 'listing-service/**'
+                        passport-service:
+                            - 'passport-service/**'
+                        matching-service:
+                            - 'matching-service/**'
+                        frontend:
+                            - 'frontend/**'
+
+            -   name: Build backend matrix from filter results
+                id: set-matrix
+                env:
+                    # JSON array of filter names that matched.
+                    CHANGES: ${{ steps.filter.outputs.changes }}
+                run: |
+                    # Full backend list, used when shared inputs changed.
+                    ALL='["api-gateway","auth-service","listing-service","passport-service","matching-service"]'
+
+                    if echo "$CHANGES" | jq -e 'index("shared-backend")' > /dev/null; then
+                        # Shared input changed: rebuild every backend service.
+                        MATRIX="$ALL"
+                    else
+                        # Otherwise rebuild only services whose own dirs changed.
+                        MATRIX=$(echo "$CHANGES" | jq -c '[.[] | select(. != "frontend" and . != "shared-backend")]')
+                    fi
+
+                    echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+
+                    if [ "$(echo "$MATRIX" | jq 'length')" -gt 0 ]; then
+                        echo "any=true" >> "$GITHUB_OUTPUT"
+                    else
+                        echo "any=false" >> "$GITHUB_OUTPUT"
+                    fi
+
+                    # 'code' is true if any filter matched, i.e. the PR
+                    # is not docs-only. Drives the verify job.
+                    if [ "$(echo "$CHANGES" | jq 'length')" -gt 0 ]; then
+                        echo "code=true" >> "$GITHUB_OUTPUT"
+                    else
+                        echo "code=false" >> "$GITHUB_OUTPUT"
+                    fi
+
+                    echo "Resolved backend matrix: $MATRIX"
+
     verify:
+        needs: changes
+        # Skip on docs-only PRs.
+        if: needs.changes.outputs.code == 'true'
         runs-on: ubuntu-latest
 
         steps:
@@ -46,18 +146,15 @@ jobs:
                     path: "**/build/reports/tests/"
 
     build-backend:
-        needs: verify
+        needs: [ verify, changes ]
+        # Run only when at least one backend service was affected.
+        if: needs.changes.outputs.any-backend == 'true'
         runs-on: ubuntu-latest
 
         strategy:
             fail-fast: false
             matrix:
-                service:
-                    - api-gateway
-                    - auth-service
-                    - listing-service
-                    - passport-service
-                    - matching-service
+                service: ${{ fromJSON(needs.changes.outputs.backend-matrix) }}
 
         steps:
             -   name: Checkout code
@@ -80,7 +177,9 @@ jobs:
                     cache-to: type=gha,mode=max,scope=hvostid-${{ matrix.service }}
 
     build-frontend:
-        needs: verify
+        needs: [ verify, changes ]
+        # Run only when frontend sources changed.
+        if: needs.changes.outputs.frontend == 'true'
         runs-on: ubuntu-latest
 
         steps:
