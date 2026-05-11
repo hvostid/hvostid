@@ -176,7 +176,7 @@ on `:8080`.
 
 Each service owns its schema in `src/main/resources/db/migration` and
 Flyway runs migrations on startup (`spring.flyway.enabled: true`,
-`baseline-on-migrate: true`). JPA is set to `ddl-auto: validate`, so any
+`spring.flyway.baseline-on-migrate: true`). JPA is set to `ddl-auto: validate`, so any
 divergence between entities and migrations fails the boot. Integration
 tests boot a real PostgreSQL via Testcontainers (see
 `AbstractPostgresContainerTest`) and apply the same migrations, so the

@@ -179,7 +179,7 @@ Vite работает на http://localhost:3000 и проксирует `/api` 
 
 Каждый сервис владеет своей схемой в `src/main/resources/db/migration`,
 и Flyway применяет миграции при старте (`spring.flyway.enabled: true`,
-`baseline-on-migrate: true`). JPA настроена на `ddl-auto: validate`,
+`spring.flyway.baseline-on-migrate: true`). JPA настроена на `ddl-auto: validate`,
 поэтому любое расхождение между сущностями и миграциями приводит к
 падению при загрузке. Интеграционные тесты поднимают настоящий
 PostgreSQL через Testcontainers (см. `AbstractPostgresContainerTest`)
