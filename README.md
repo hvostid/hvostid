@@ -174,11 +174,33 @@ on `:8080`.
 
 ### Database migrations
 
-Each service owns its schema in
-`src/main/resources/db/migration` and Flyway runs migrations on
-startup. JPA is set to `ddl-auto: validate`, so divergence between
-entities and migrations fails the boot. Migration workflow details
-live in T37.
+Each service owns its schema in `src/main/resources/db/migration` and
+Flyway runs migrations on startup (`spring.flyway.enabled: true`,
+`spring.flyway.baseline-on-migrate: true`). JPA is set to `ddl-auto: validate`, so any
+divergence between entities and migrations fails the boot. Integration
+tests boot a real PostgreSQL via Testcontainers (see
+`AbstractPostgresContainerTest`) and apply the same migrations, so the
+test suite catches drift before production.
+
+Rules for migrations:
+
+- Naming follows `V<version>__<short_description>.sql` (for example
+  `V4__add_user_phone.sql`). Pick the next free version number per
+  service; versions are local to each service's history.
+- One migration per logical change. Keep migrations small and reviewable.
+- Never edit a migration after it has been merged to `main`. Flyway
+  validates the checksum on startup, and a changed file will fail every
+  environment that already applied it. To fix a mistake, add a new
+  migration that reverts or amends the previous one.
+- Never delete a migration that has been merged. If a feature is
+  reverted, add a forward migration that drops the new objects.
+- Keep DDL and data changes idempotent where the database engine allows
+  (`CREATE INDEX IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT
+  EXISTS`) to make re-runs in dev safe.
+- Update the matching JPA entity in the same PR as the migration so
+  `ddl-auto: validate` stays green.
+- Handwritten `repair` operations are only acceptable for local
+  developer databases and never for shared environments.
 
 ### Pre-commit hooks
 
