@@ -24,12 +24,12 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import ru.hvostid.common.dto.ErrorResponse;
 import ru.hvostid.common.security.GatewayPreAuthentication;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
 import ru.hvostid.listing.dto.StatusUpdateRequest;
-import ru.hvostid.listing.exception.GlobalExceptionHandler;
 import ru.hvostid.listing.service.ListingService;
 
 @RestController
@@ -55,7 +55,7 @@ public class ListingController {
     @ApiResponse(
             responseCode = "400",
             description = "Validation error",
-            content = @Content(schema = @Schema(implementation = GlobalExceptionHandler.ErrorResponse.class)))
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(responseCode = "401", description = "Missing or invalid authenticated user", content = @Content)
     @ApiResponse(responseCode = "403", description = "User does not have SELLER role", content = @Content)
     @PostMapping
@@ -85,7 +85,7 @@ public class ListingController {
     @ApiResponse(
             responseCode = "404",
             description = "Listing not found",
-            content = @Content(schema = @Schema(implementation = GlobalExceptionHandler.ErrorResponse.class)))
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @GetMapping("/{id}")
     public ResponseEntity<ListingResponse> getListing(
             @Parameter(description = "Listing ID", required = true, example = "1") @PathVariable Long id,

@@ -14,10 +14,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import ru.hvostid.auth.dto.ErrorResponse;
 import ru.hvostid.auth.service.AuthService;
 import ru.hvostid.common.contract.auth.IntrospectRequest;
 import ru.hvostid.common.contract.auth.IntrospectResponse;
+import ru.hvostid.common.dto.ErrorResponse;
 
 /**
  * Internal endpoint for token introspection.

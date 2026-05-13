@@ -13,10 +13,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import ru.hvostid.common.dto.ErrorResponse;
 import ru.hvostid.common.security.GatewayPreAuthentication;
 import ru.hvostid.matching.dto.QuestionnaireRequest;
 import ru.hvostid.matching.dto.QuestionnaireResponse;
-import ru.hvostid.matching.exception.GlobalExceptionHandler;
 import ru.hvostid.matching.service.QuestionnaireService;
 
 @RestController
@@ -63,7 +63,7 @@ public class QuestionnaireController {
     @ApiResponse(
             responseCode = "404",
             description = "Questionnaire not yet created for this user",
-            content = @Content(schema = @Schema(implementation = GlobalExceptionHandler.ErrorResponse.class)))
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @GetMapping
     public ResponseEntity<QuestionnaireResponse> getQuestionnaire(
             @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {

@@ -1,6 +1,6 @@
 package ru.hvostid.matching.exception;
 
-import java.time.Instant;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -12,53 +12,56 @@ import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import ru.hvostid.common.dto.ErrorResponse;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(QuestionnaireNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(QuestionnaireNotFoundException ex) {
+    public ResponseEntity<ErrorResponse> handleNotFound(QuestionnaireNotFoundException ex, HttpServletRequest request) {
         log.debug("Questionnaire not found: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND.value(), Instant.now()));
+        return error(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
     @ExceptionHandler(AuthorizationDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleAuthorizationDenied(AuthorizationDeniedException ex) {
+    public ResponseEntity<ErrorResponse> handleAuthorizationDenied(
+            AuthorizationDeniedException ex, HttpServletRequest request) {
         log.warn("Authorization denied: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(new ErrorResponse("Access denied", HttpStatus.FORBIDDEN.value(), Instant.now()));
+        return error(HttpStatus.FORBIDDEN, "Access denied", request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ValidationErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
+    public ResponseEntity<ErrorResponse> handleValidation(
+            MethodArgumentNotValidException ex, HttpServletRequest request) {
         Map<String, String> fieldErrors = new HashMap<>();
         ex.getBindingResult()
                 .getFieldErrors()
                 .forEach(error -> fieldErrors.put(error.getField(), error.getDefaultMessage()));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ValidationErrorResponse(
-                        "Validation failed", HttpStatus.BAD_REQUEST.value(), Instant.now(), fieldErrors));
+                .body(new ErrorResponse(
+                        HttpStatus.BAD_REQUEST.value(),
+                        HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                        "Validation failed",
+                        request.getRequestURI(),
+                        fieldErrors));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException ex) {
+    public ResponseEntity<ErrorResponse> handleUnreadable(
+            HttpMessageNotReadableException ex, HttpServletRequest request) {
         log.debug("Unreadable request body: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse("Malformed request body", HttpStatus.BAD_REQUEST.value(), Instant.now()));
+        return error(HttpStatus.BAD_REQUEST, "Malformed request body", request);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
+    public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
         log.error("Unexpected error", ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse(
-                        "Internal server error", HttpStatus.INTERNAL_SERVER_ERROR.value(), Instant.now()));
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", request);
     }
 
-    public record ErrorResponse(String message, int status, Instant timestamp) {}
-
-    public record ValidationErrorResponse(
-            String message, int status, Instant timestamp, Map<String, String> fieldErrors) {}
+    private static ResponseEntity<ErrorResponse> error(HttpStatus status, String message, HttpServletRequest request) {
+        return ResponseEntity.status(status)
+                .body(new ErrorResponse(status.value(), status.getReasonPhrase(), message, request.getRequestURI()));
+    }
 }
