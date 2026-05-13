@@ -15,9 +15,11 @@ dependencies {
     api(libs.jakarta.validation)
 
     compileOnly(libs.spring.security.core)
+    compileOnly(libs.spring.security.config)
     compileOnly(libs.spring.security.web)
     compileOnlyApi(libs.jakarta.servlet.api)
     compileOnly(libs.swagger.annotations)
+    compileOnly(libs.swagger.models)
 
     testFixturesApi(libs.spring.boot.starter.test)
     testFixturesApi(libs.spring.boot.testcontainers)
