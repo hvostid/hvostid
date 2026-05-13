@@ -50,9 +50,13 @@ class MinioStorageServiceTest {
         String objectName = "seller-id/passport-id/document.txt";
         byte[] content = "passport document".getBytes(StandardCharsets.UTF_8);
 
-        storageService.upload(BUCKET, objectName, new ByteArrayInputStream(content), content.length, "text/plain");
-        String downloaded =
-                new String(storageService.download(BUCKET, objectName).readAllBytes(), StandardCharsets.UTF_8);
+        try (ByteArrayInputStream payload = new ByteArrayInputStream(content)) {
+            storageService.upload(BUCKET, objectName, payload, content.length, "text/plain");
+        }
+        String downloaded;
+        try (var stream = storageService.download(BUCKET, objectName)) {
+            downloaded = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        }
         String presignedUrl = storageService.getPresignedUrl(BUCKET, objectName, Duration.ofMinutes(5));
         storageService.delete(BUCKET, objectName);
 

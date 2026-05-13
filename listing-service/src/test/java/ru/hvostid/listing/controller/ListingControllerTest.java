@@ -410,7 +410,7 @@ class ListingControllerTest extends AbstractPostgresContainerTest {
                             .header(USER_ROLES, UserRole.SELLER.value())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"status\": \"PUBLISHED\"}"))
-                    .andExpect(status().isUnprocessableEntity()); // 422
+                    .andExpect(status().isUnprocessableContent()); // 422
         }
 
         @Test
