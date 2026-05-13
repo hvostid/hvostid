@@ -6,6 +6,7 @@ spring-boot = "4.0.6"
 spring-cloud = "2025.1.1"
 spring-dependency-management = "1.1.7"
 spring-doc = "3.0.3"
+swagger-annotations = "2.2.49"
 
 # Plugins
 owasp-dependency-check = "12.2.2"
@@ -41,6 +42,7 @@ spring-cloud-dependencies = { module = "org.springframework.cloud:spring-cloud-d
 
 # Spring Doc
 spring-doc-openapi-webmvc = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "spring-doc" }
+swagger-annotations = { module = "io.swagger.core.v3:swagger-annotations-jakarta", version.ref = "swagger-annotations" }
 
 # Spring Security
 spring-security-core = { module = "org.springframework.security:spring-security-core" }

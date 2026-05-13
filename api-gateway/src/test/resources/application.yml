@@ -1,26 +1,56 @@
 spring:
     cloud:
         gateway:
-            routes:
-                -   id: auth-service
-                    uri: http://localhost:8081
-                    predicates:
-                        - Path=/api/v1/auth/**, /api/v1/profile/**
+            server:
+                webmvc:
+                    routes:
+                        -   id: auth-service
+                            uri: http://localhost:8081
+                            predicates:
+                                - Path=/api/v1/auth/**, /api/v1/profile/**
 
-                -   id: listing-service
-                    uri: http://localhost:8082
-                    predicates:
-                        - Path=/api/v1/listings/**
+                        -   id: listing-service
+                            uri: http://localhost:8082
+                            predicates:
+                                - Path=/api/v1/listings/**
 
-                -   id: passport-service
-                    uri: http://localhost:8083
-                    predicates:
-                        - Path=/api/v1/passports/**
+                        -   id: passport-service
+                            uri: http://localhost:8083
+                            predicates:
+                                - Path=/api/v1/passports/**
 
-                -   id: matching-service
-                    uri: http://localhost:8084
-                    predicates:
-                        - Path=/api/v1/match/**
+                        -   id: matching-service
+                            uri: http://localhost:8084
+                            predicates:
+                                - Path=/api/v1/match/**
+
+                        -   id: auth-service-openapi
+                            uri: http://localhost:8081
+                            predicates:
+                                - Path=/v3/api-docs/auth
+                            filters:
+                                - SetPath=/v3/api-docs
+
+                        -   id: listing-service-openapi
+                            uri: http://localhost:8082
+                            predicates:
+                                - Path=/v3/api-docs/listing
+                            filters:
+                                - SetPath=/v3/api-docs
+
+                        -   id: passport-service-openapi
+                            uri: http://localhost:8083
+                            predicates:
+                                - Path=/v3/api-docs/passport
+                            filters:
+                                - SetPath=/v3/api-docs
+
+                        -   id: matching-service-openapi
+                            uri: http://localhost:8084
+                            predicates:
+                                - Path=/v3/api-docs/matching
+                            filters:
+                                - SetPath=/v3/api-docs
 
 hvostid:
     auth:
@@ -30,6 +60,10 @@ hvostid:
             - /api/v1/auth/login
             - /api/v1/auth/register
             - /actuator/**
+            - /swagger-ui.html
+            - /swagger-ui/**
+            - /v3/api-docs
+            - /v3/api-docs/**
     rate-limit:
         replenish-rate: 20
         burst-capacity: 40
