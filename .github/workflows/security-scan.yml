@@ -23,11 +23,18 @@ concurrency:
 permissions:
     contents: read
     security-events: write
+    actions: read
 
 jobs:
     dependency-check:
         runs-on: ubuntu-latest
         timeout-minutes: 45
+
+        env:
+            DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
+            DEFECTDOJO_TOKEN: ${{ secrets.DEFECTDOJO_TOKEN }}
+            DEFECTDOJO_PRODUCT: HvostID
+            DEFECTDOJO_ENGAGEMENT: CI/CD
 
         steps:
             -   name: Checkout code
@@ -56,7 +63,7 @@ jobs:
                     NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
                 run: ./gradlew dependencyCheckAggregate --no-daemon
 
-            -   name: Upload HTML and JSON reports
+            -   name: Upload HTML, JSON and XML reports
                 if: always()
                 uses: actions/upload-artifact@v7
                 with:
@@ -64,6 +71,7 @@ jobs:
                     path: |
                         build/reports/dependency-check-report.html
                         build/reports/dependency-check-report.json
+                        build/reports/dependency-check-report.xml
                     retention-days: 30
                     # Do not fail the job if dependencyCheckAggregate crashed
                     # before producing any report files.
@@ -84,8 +92,60 @@ jobs:
                     fi
 
             -   name: Upload SARIF to code scanning
-                if: always() && steps.sarif.outputs.exists == 'true'
+                if: always() && steps.sarif.outputs.exists == 'true' && github.event.repository.private != true
                 uses: github/codeql-action/upload-sarif@v4
                 with:
                     sarif_file: build/reports/dependency-check-report.sarif
                     category: owasp-dependency-check
+
+            -   name: Reimport dependency-check into DefectDojo
+                if: always() && env.DEFECTDOJO_URL != ''
+                continue-on-error: true
+                env:
+                    SCAN_FILE: build/reports/dependency-check-report.xml
+                    SHA: ${{ github.sha }}
+                    BRANCH: ${{ github.ref_name }}
+                run: |
+                    set -euo pipefail
+
+                    if [ ! -s "${SCAN_FILE}" ]; then
+                        echo "WARN: ${SCAN_FILE} is missing or empty, skipping upload"
+                        echo "Hint: ensure the dependencyCheck Gradle plugin is configured to emit XML."
+                        exit 0
+                    fi
+
+                    SCAN_DATE="$(date -u +%Y-%m-%d)"
+                    SHORT_SHA="$(echo "${SHA}" | cut -c1-7)"
+
+                    HTTP_STATUS=$(curl --silent --show-error \
+                        --output /tmp/dojo-response.json \
+                        --write-out "%{http_code}" \
+                        --request POST \
+                        "${DEFECTDOJO_URL%/}/api/v2/reimport-scan/" \
+                        --header "Authorization: Token ${DEFECTDOJO_TOKEN}" \
+                        --header "accept: application/json" \
+                        --form "scan_type=Dependency Check Scan" \
+                        --form "file=@${SCAN_FILE};type=application/xml" \
+                        --form "product_name=${DEFECTDOJO_PRODUCT}" \
+                        --form "engagement_name=${DEFECTDOJO_ENGAGEMENT}" \
+                        --form "test_title=owasp-dependency-check" \
+                        --form "auto_create_context=true" \
+                        --form "close_old_findings=true" \
+                        --form "close_old_findings_product_scope=false" \
+                        --form "minimum_severity=Info" \
+                        --form "active=true" \
+                        --form "verified=false" \
+                        --form "scan_date=${SCAN_DATE}" \
+                        --form "branch_tag=${BRANCH}" \
+                        --form "commit_hash=${SHA}" \
+                        --form "version=${SHORT_SHA}" \
+                        --form "tags=scanner:owasp-dependency-check,branch:${BRANCH}")
+
+                    echo "DefectDojo HTTP ${HTTP_STATUS}"
+                    cat /tmp/dojo-response.json || true
+                    echo ""
+
+                    if [ "${HTTP_STATUS}" -lt 200 ] || [ "${HTTP_STATUS}" -ge 300 ]; then
+                        echo "ERROR: DefectDojo upload failed for owasp-dependency-check"
+                        exit 1
+                    fi

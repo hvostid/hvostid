@@ -61,11 +61,9 @@ flowchart TB
     GW --> PASS
     GW --> MATCH
     GW -. token introspect .-> AUTH
-
     LIST -->|enrich with passport| PASS
     MATCH -->|read listings| LIST
     MATCH -->|read passports| PASS
-
     AUTH --> PG
     LIST --> PG
     PASS --> PG
@@ -77,14 +75,14 @@ flowchart TB
 заметки находятся в
 [`docs/architecture.ru.md`](./docs/architecture.ru.md).
 
-| Сервис                                 | Порт | База данных        | Описание                                                          |
-|----------------------------------------|------|--------------------|-------------------------------------------------------------------|
-| [Frontend](./frontend)                 | 3000 | --                 | React SPA, в проде раздаётся через Nginx                          |
-| [API Gateway](./api-gateway)           | 8080 | --                 | Маршрутизация, валидация opaque-токенов, rate limit по IP         |
-| [Auth Service](./auth-service)         | 8081 | `hvostid_auth`     | Регистрация, логин, интроспекция токенов, профиль, роли           |
-| [Listing Service](./listing-service)   | 8082 | `hvostid_listing`  | CRUD объявлений о питомцах, поиск, фильтры                        |
-| [Passport Service](./passport-service) | 8083 | `hvostid_passport` | Цифровой паспорт питомца, документы, оценка доверия               |
-| [Matching Service](./matching-service) | 8084 | `hvostid_matching` | Анкета покупателя, оценка совместимости                           |
+| Сервис                                 | Порт | База данных        | Описание                                                  |
+|----------------------------------------|------|--------------------|-----------------------------------------------------------|
+| [Frontend](./frontend)                 | 3000 | --                 | React SPA, в проде раздаётся через Nginx                  |
+| [API Gateway](./api-gateway)           | 8080 | --                 | Маршрутизация, валидация opaque-токенов, rate limit по IP |
+| [Auth Service](./auth-service)         | 8081 | `hvostid_auth`     | Регистрация, логин, интроспекция токенов, профиль, роли   |
+| [Listing Service](./listing-service)   | 8082 | `hvostid_listing`  | CRUD объявлений о питомцах, поиск, фильтры                |
+| [Passport Service](./passport-service) | 8083 | `hvostid_passport` | Цифровой паспорт питомца, документы, оценка доверия       |
+| [Matching Service](./matching-service) | 8084 | `hvostid_matching` | Анкета покупателя, оценка совместимости                   |
 
 ## Технологический стек
 
@@ -179,18 +177,41 @@ Vite работает на http://localhost:3000 и проксирует `/api` 
 
 ### Миграции БД
 
-Каждый сервис владеет своей схемой в
-`src/main/resources/db/migration`, и Flyway применяет миграции при
-старте. JPA настроена на `ddl-auto: validate`, поэтому расхождение
-между сущностями и миграциями приводит к падению при загрузке.
-Подробности по работе с миграциями -- в T37.
+Каждый сервис владеет своей схемой в `src/main/resources/db/migration`,
+и Flyway применяет миграции при старте (`spring.flyway.enabled: true`,
+`spring.flyway.baseline-on-migrate: true`). JPA настроена на `ddl-auto: validate`,
+поэтому любое расхождение между сущностями и миграциями приводит к
+падению при загрузке. Интеграционные тесты поднимают настоящий
+PostgreSQL через Testcontainers (см. `AbstractPostgresContainerTest`)
+и применяют те же миграции -- так дрейф ловится до production.
+
+Правила работы с миграциями:
+
+- Имена файлов: `V<version>__<short_description>.sql` (например,
+  `V4__add_user_phone.sql`). Берите следующий свободный номер версии
+  внутри сервиса; история версий локальна для каждого сервиса.
+- Одна миграция -- одно логическое изменение. Держите миграции
+  маленькими и удобными для ревью.
+- Никогда не редактируйте миграцию после её мержа в `main`. Flyway
+  проверяет checksum при старте, и изменённый файл уронит каждое
+  окружение, которое его уже применило. Чтобы исправить ошибку,
+  добавляйте новую миграцию, которая откатывает или дополняет старую.
+- Никогда не удаляйте уже смерженную миграцию. Если фича откатывается,
+  пишите forward-миграцию, которая удаляет созданные объекты.
+- Делайте DDL и data-изменения идемпотентными там, где это поддерживает
+  СУБД (`CREATE INDEX IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT
+  EXISTS`), чтобы повторный прогон в dev был безопасным.
+- Обновляйте JPA-сущность в том же PR, что и миграцию, чтобы
+  `ddl-auto: validate` оставался зелёным.
+- Ручные `repair` допустимы только для локальной БД разработчика и
+  никогда для общих окружений.
 
 ### Pre-commit hooks
 
 После клонирования один раз установите тулинг для хуков:
 
 ```bash
-npm install                  # commitlint + husky на корне репозитория
+npm install                  # commitlint + husky + lint-staged на корне репозитория
 npm install --prefix frontend  # eslint + prettier + lint-staged для pre-commit hook
 ```
 
@@ -198,13 +219,14 @@ npm install --prefix frontend  # eslint + prettier + lint-staged для pre-comm
 
 - `commit-msg` -- проверяет соответствие сообщения Conventional Commits
   с task id (см. [`commitlint.config.js`](./commitlint.config.js)).
-- `pre-commit` -- запускает `eslint --fix` и `prettier --write` на
-  staged-файлах фронтенда через `lint-staged`.
+- `pre-commit` -- запускает `lint-staged` на корне (применяет Spotless
+  к staged Java-файлам через `./gradlew spotlessApply`) и внутри
+  `frontend/` (применяет `eslint --fix` и `prettier --write` к
+  staged-файлам JS/JSX/CSS/HTML/JSON).
 
-Форматирование бэкенда обеспечивается отдельно через Spotless:
-`./gradlew spotlessCheck` запускается как часть `check` (то есть и в
-`build`, и в CI). Используйте `./gradlew spotlessApply`, чтобы
-автоматически починить нарушения.
+`./gradlew spotlessCheck` по-прежнему входит в `check` (то есть и в
+`build`, и в CI) как страховка для файлов, не затронутых хуком.
+`./gradlew spotlessApply` чинит остальное дерево.
 
 См. [CONTRIBUTING.ru.md](./CONTRIBUTING.ru.md) -- полный workflow,
 правила сообщений коммитов, решения по code style и чек-лист ревью.
@@ -220,18 +242,24 @@ npm install --prefix frontend  # eslint + prettier + lint-staged для pre-comm
 
 ## CI/CD
 
-Два workflow GitHub Actions лежат в [`.github/workflows`](./.github/workflows):
+Три workflow GitHub Actions лежат в [`.github/workflows`](./.github/workflows):
 
 - [`ci-pr.yml`](./.github/workflows/ci-pr.yml) запускается на каждый
-  pull request: `./gradlew check` (Spotless, JUnit, JaCoCo, OWASP
-  Dependency Check), опциональный сканер SonarQube, сборка
-  Docker-образов бэкенда и фронтенда.
+  pull request: `./gradlew check` (Spotless, JUnit, JaCoCo),
+  опциональный сканер SonarQube, сборка Docker-образов бэкенда и
+  фронтенда.
 - [`cd-main.yml`](./.github/workflows/cd-main.yml) запускается при
-  мерже в `main`: пересобирает и пушит образы каждого сервиса в GitHub
-  Container Registry (параллельная matrix), сканирует каждый образ
-  через Trivy (результаты SARIF видны во вкладке Security), затем
-  запускает smoke-тест, поднимающий весь стек через Compose и
-  ожидающий 200 от `/actuator/health` каждого сервиса.
+  мерже в `main`: пересобирает и пушит образы каждого сервиса в
+  GitHub Container Registry (параллельная matrix), сканирует каждый
+  образ через Trivy (результаты SARIF видны во вкладке Security при
+  включённом GHAS, JSON-отчёты загружаются в DefectDojo, если он
+  настроен), затем запускает smoke-тест, поднимающий весь стек через
+  Compose и ожидающий 200 от `/actuator/health` каждого сервиса.
+- [`security-scan.yml`](./.github/workflows/security-scan.yml)
+  запускается ежедневно и при изменении файлов зависимостей в `main`:
+  `./gradlew dependencyCheckAggregate` строит отчёт OWASP Dependency
+  Check; SARIF уезжает в GitHub Code Scanning, XML-отчёт
+  переотправляется в DefectDojo, если он настроен.
 
 Теги образов: `ghcr.io/hvostid/hvostid-<service>:<short-sha>` и
 `latest`.
@@ -263,17 +291,22 @@ k6 run k6/search-listings.js
 - **Dependabot** -- автоматически открывает PR на обновление устаревших
   зависимостей для экосистем Gradle, npm, Docker и GitHub Actions
   (еженедельное расписание, patch/minor обновления группируются).
-- **OWASP Dependency Check** -- запускается на каждый PR через
+- **OWASP Dependency Check** -- запускается ежедневно по расписанию и
+  при изменении файлов зависимостей в `main` через
   `./gradlew dependencyCheckAggregate`. Завершает сборку с ошибкой при
-  CVSS >= 7.0 (high/critical). Известные false positives подавляются
-  через
+  CVSS >= 9.0 (critical). Известные false positives подавляются через
   [`dependency-check-suppressions.xml`](./dependency-check-suppressions.xml).
-  Проверка запускается с `continue-on-error: true` до очистки
-  первоначального бэклога.
 - **Trivy** -- сканирует каждый Docker-образ, отправленный в GHCR
   после каждого мержа в `main`. Завершает с ошибкой при CRITICAL
-  severity. Результаты загружаются как SARIF и видны во вкладке
-  **Security -> Code scanning** репозитория.
+  severity.
+- **DefectDojo** (опционально) -- если в секретах репозитория заданы
+  `DEFECTDOJO_URL` и `DEFECTDOJO_TOKEN`, результаты Trivy и OWASP
+  Dependency Check переотправляются в self-hosted инстанс DefectDojo
+  для дедупликации, триажа и отслеживания SLA.
+
+SARIF-отчёты от обоих сканеров загружаются во вкладку
+**Security -> Code scanning**, если включён GitHub Advanced Security
+(автоматически для публичных репозиториев).
 
 ## Структура проекта
 

@@ -15,6 +15,17 @@ env:
     IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/hvostid
 
 jobs:
+    # Compute the short SHA once and expose it to every downstream job
+    # via outputs. Avoids repeating the same shell snippet four times.
+    prepare:
+        runs-on: ubuntu-latest
+        outputs:
+            short-sha: ${{ steps.sha.outputs.short }}
+        steps:
+            -   name: Compute short SHA
+                id: sha
+                run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+
     test:
         runs-on: ubuntu-latest
 
@@ -22,14 +33,8 @@ jobs:
             -   name: Checkout code
                 uses: actions/checkout@v6
 
-            -   name: Set up JDK 25
-                uses: actions/setup-java@v5
-                with:
-                    distribution: temurin
-                    java-version: 25
-
-            -   name: Setup Gradle
-                uses: gradle/actions/setup-gradle@v6
+            -   name: Set up Java and Gradle
+                uses: ./.github/actions/setup-java-gradle
 
             -   name: Run tests
                 run: ./gradlew test
@@ -41,8 +46,32 @@ jobs:
                     name: test-results
                     path: "**/build/reports/tests/"
 
+    # Builds the Dockerfile's `deps` stage once and caches it under the
+    # shared `hvostid-deps` GHA scope. Per-service publishes inherit the
+    # warmed Gradle dependency layer instead of resolving it five times
+    # in parallel.
+    build-deps:
+        runs-on: ubuntu-latest
+
+        steps:
+            -   name: Checkout code
+                uses: actions/checkout@v6
+
+            -   name: Set up Docker BuildX
+                uses: docker/setup-buildx-action@v4
+
+            -   name: Warm shared deps cache
+                uses: docker/build-push-action@v7
+                with:
+                    context: .
+                    file: Dockerfile
+                    target: deps
+                    push: false
+                    cache-from: type=gha,scope=hvostid-deps
+                    cache-to: type=gha,mode=max,scope=hvostid-deps
+
     publish-backend:
-        needs: test
+        needs: [ test, prepare, build-deps ]
         runs-on: ubuntu-latest
 
         strategy:
@@ -58,10 +87,6 @@ jobs:
         steps:
             -   name: Checkout code
                 uses: actions/checkout@v6
-
-            -   name: Compute short SHA
-                id: sha
-                run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
 
             -   name: Set up Docker Buildx
                 uses: docker/setup-buildx-action@v4
@@ -81,22 +106,20 @@ jobs:
                     build-args: SERVICE_NAME=${{ matrix.service }}
                     push: true
                     tags: |
-                        ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ steps.sha.outputs.short }}
+                        ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ needs.prepare.outputs.short-sha }}
                         ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:latest
-                    cache-from: type=gha,scope=hvostid-${{ matrix.service }}
+                    cache-from: |
+                        type=gha,scope=hvostid-deps
+                        type=gha,scope=hvostid-${{ matrix.service }}
                     cache-to: type=gha,mode=max,scope=hvostid-${{ matrix.service }}
 
     publish-frontend:
-        needs: test
+        needs: [ test, prepare ]
         runs-on: ubuntu-latest
 
         steps:
             -   name: Checkout code
                 uses: actions/checkout@v6
-
-            -   name: Compute short SHA
-                id: sha
-                run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
 
             -   name: Set up Docker Buildx
                 uses: docker/setup-buildx-action@v4
@@ -114,13 +137,13 @@ jobs:
                     context: ./frontend
                     push: true
                     tags: |
-                        ${{ env.IMAGE_PREFIX }}-frontend:${{ steps.sha.outputs.short }}
+                        ${{ env.IMAGE_PREFIX }}-frontend:${{ needs.prepare.outputs.short-sha }}
                         ${{ env.IMAGE_PREFIX }}-frontend:latest
                     cache-from: type=gha,scope=hvostid-frontend
                     cache-to: type=gha,mode=max,scope=hvostid-frontend
 
     scan:
-        needs: [ publish-backend, publish-frontend ]
+        needs: [ publish-backend, publish-frontend, prepare ]
         runs-on: ubuntu-latest
 
         env:
@@ -151,14 +174,10 @@ jobs:
                     username: ${{ github.actor }}
                     password: ${{ secrets.GITHUB_TOKEN }}
 
-            -   name: Compute short SHA
-                id: sha
-                run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
-
             -   name: Print Trivy report for ${{ matrix.service }}
                 uses: aquasecurity/trivy-action@v0.36.0
                 with:
-                    image-ref: ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ steps.sha.outputs.short }}
+                    image-ref: ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ needs.prepare.outputs.short-sha }}
                     format: table
                     severity: CRITICAL,HIGH
                     ignore-unfixed: true
@@ -168,7 +187,7 @@ jobs:
             -   name: Generate Trivy JSON for ${{ matrix.service }}
                 uses: aquasecurity/trivy-action@v0.36.0
                 with:
-                    image-ref: ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ steps.sha.outputs.short }}
+                    image-ref: ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ needs.prepare.outputs.short-sha }}
                     format: json
                     output: trivy-${{ matrix.service }}.json
                     severity: CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN
@@ -178,7 +197,7 @@ jobs:
             -   name: Scan ${{ matrix.service }} with Trivy
                 uses: aquasecurity/trivy-action@v0.36.0
                 with:
-                    image-ref: ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ steps.sha.outputs.short }}
+                    image-ref: ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ needs.prepare.outputs.short-sha }}
                     format: sarif
                     output: trivy-${{ matrix.service }}.sarif
                     severity: CRITICAL
@@ -201,7 +220,7 @@ jobs:
                     SCAN_FILE: trivy-${{ matrix.service }}.json
                     SERVICE: ${{ matrix.service }}
                     SHA: ${{ github.sha }}
-                    SHORT_SHA: ${{ steps.sha.outputs.short }}
+                    SHORT_SHA: ${{ needs.prepare.outputs.short-sha }}
                     BRANCH: ${{ github.ref_name }}
                 run: |
                     set -euo pipefail
@@ -248,15 +267,11 @@ jobs:
 
     smoke-test:
         runs-on: ubuntu-latest
-        needs: [ publish-backend, publish-frontend ]
+        needs: [ publish-backend, publish-frontend, prepare ]
 
         steps:
             -   name: Checkout code
                 uses: actions/checkout@v6
-
-            -   name: Compute short SHA
-                id: sha
-                run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
 
             -   name: Log in to GitHub Container Registry
                 uses: docker/login-action@v4
@@ -267,7 +282,7 @@ jobs:
 
             -   name: Pull and start services
                 env:
-                    IMAGE_TAG: ${{ steps.sha.outputs.short }}
+                    IMAGE_TAG: ${{ needs.prepare.outputs.short-sha }}
                     REPO_OWNER: ${{ github.repository_owner }}
                 run: |
                     docker compose -f docker-compose.yml -f docker-compose.ci.yml pull
@@ -328,6 +343,6 @@ jobs:
             -   name: Tear down
                 if: always()
                 env:
-                    IMAGE_TAG: ${{ steps.sha.outputs.short }}
+                    IMAGE_TAG: ${{ needs.prepare.outputs.short-sha }}
                     REPO_OWNER: ${{ github.repository_owner }}
                 run: docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v

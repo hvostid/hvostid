@@ -4,10 +4,8 @@
 
 Owns the digital pet passport, supporting documents, and trust score.
 
-> **Status.** The service currently boots with its database and MinIO
-> bucket configured but does not yet expose business endpoints. CRUD
-> for passports and document upload are tracked in T19 / T20. This
-> README will grow once those land.
+> **Status.** The service supports basic CRUD for digital pet passports.
+> Document and photo uploads are tracked separately.
 
 ## Responsibilities
 
@@ -19,8 +17,14 @@ Owns the digital pet passport, supporting documents, and trust score.
 
 ## Endpoints
 
-Spec will be served at http://localhost:8083/swagger-ui.html once
-controllers land.
+Spec is served at http://localhost:8083/swagger-ui.html.
+
+- `POST /api/v1/passports` -- create a pet passport. `sellerId` is read
+  from `X-User-Id`; the user must have the `SELLER` role.
+- `GET /api/v1/passports/{petId}` -- get a passport with vaccinations,
+  available to the owner, `MODERATOR`, and `ADMIN`.
+- `PUT /api/v1/passports/{petId}` -- partially update a passport,
+  available only to its owner with the `SELLER` role.
 
 ## Environment variables
 
@@ -37,8 +41,7 @@ controllers land.
 | `MINIO_DOCUMENTS_BUCKET` | `pet-documents` | Documents bucket  |
 | `MINIO_PHOTOS_BUCKET` | `pet-photos` | Photo bucket      |
 
-The MinIO bucket name (`pet-documents`) and multipart upload limits
-(10 MB / 20 MB) are pinned in
+Multipart upload limits (10 MB / 20 MB) are pinned in
 [`application.yml`](./src/main/resources/application.yml).
 
 ## Run locally

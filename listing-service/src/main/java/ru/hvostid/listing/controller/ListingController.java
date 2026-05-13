@@ -7,6 +7,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -16,6 +19,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +27,7 @@ import ru.hvostid.common.security.GatewayPreAuthentication;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
+import ru.hvostid.listing.dto.StatusUpdateRequest;
 import ru.hvostid.listing.exception.GlobalExceptionHandler;
 import ru.hvostid.listing.service.ListingService;
 
@@ -140,5 +145,41 @@ public class ListingController {
 
         Page<ListingResponse> responses = listingService.getPublishedListings(pageable);
         return ResponseEntity.ok(responses);
+    }
+
+    @Operation(
+            summary = "Change listing status",
+            description =
+                    "Allowed transitions: DRAFT->MODERATION, MODERATION->PUBLISHED/REJECTED/DRAFT, PUBLISHED->ARCHIVED/SOLD, REJECTED->MODERATION/DRAFT")
+    @ApiResponse(responseCode = "200", description = "Status updated")
+    @ApiResponse(responseCode = "400", description = "Invalid request body")
+    @ApiResponse(responseCode = "403", description = "Not owner or not moderator")
+    @ApiResponse(responseCode = "404", description = "Listing not found")
+    @ApiResponse(responseCode = "422", description = "Invalid status transition")
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('SELLER', 'MODERATOR', 'ADMIN')")
+    public ResponseEntity<ListingResponse> updateStatus(
+            @Parameter(description = "Listing ID", required = true, example = "1") @PathVariable Long id,
+            @Valid @RequestBody StatusUpdateRequest request,
+            @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
+
+        long userId = GatewayPreAuthentication.currentUserId(user);
+
+        // Extract roles without ROLE_ prefix
+        Set<String> roles = user.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .filter(Objects::nonNull)
+                .map(role -> role.replace("ROLE_", ""))
+                .collect(Collectors.toSet());
+
+        log.debug(
+                "PATCH /api/v1/listings/{}/status, userId={}, roles={}, targetStatus={}",
+                id,
+                userId,
+                roles,
+                request.status());
+
+        ListingResponse response = listingService.updateStatus(id, request, userId, roles);
+        return ResponseEntity.ok(response);
     }
 }

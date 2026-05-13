@@ -48,6 +48,9 @@ public class Listing {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "moderation_comment", length = 500)
+    private String moderationComment;
+
     protected Listing() {}
 
     public Listing(
@@ -174,5 +177,13 @@ public class Listing {
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getModerationComment() {
+        return moderationComment;
+    }
+
+    public void setModerationComment(String moderationComment) {
+        this.moderationComment = moderationComment;
     }
 }
