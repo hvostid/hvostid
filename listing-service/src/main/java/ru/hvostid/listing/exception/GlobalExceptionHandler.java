@@ -14,6 +14,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import ru.hvostid.common.dto.ErrorResponse;
+import ru.hvostid.common.http.SecurityHeaders;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -58,6 +59,7 @@ public class GlobalExceptionHandler {
                         HttpStatus.BAD_REQUEST.getReasonPhrase(),
                         "Validation failed",
                         request.getRequestURI(),
+                        request.getHeader(SecurityHeaders.REQUEST_ID),
                         fieldErrors));
     }
 
@@ -84,6 +86,11 @@ public class GlobalExceptionHandler {
 
     private static ResponseEntity<ErrorResponse> error(HttpStatus status, String message, HttpServletRequest request) {
         return ResponseEntity.status(status)
-                .body(new ErrorResponse(status.value(), status.getReasonPhrase(), message, request.getRequestURI()));
+                .body(new ErrorResponse(
+                        status.value(),
+                        status.getReasonPhrase(),
+                        message,
+                        request.getRequestURI(),
+                        request.getHeader(SecurityHeaders.REQUEST_ID)));
     }
 }

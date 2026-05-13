@@ -15,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import ru.hvostid.common.dto.ErrorResponse;
+import ru.hvostid.common.http.SecurityHeaders;
 import ru.hvostid.gateway.config.RateLimitProperties;
 import tools.jackson.databind.ObjectMapper;
 
@@ -60,7 +61,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
                     HttpStatus.TOO_MANY_REQUESTS.value(),
                     HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase(),
                     "Rate limit exceeded. Try again later.",
-                    request.getRequestURI());
+                    request.getRequestURI(),
+                    request.getHeader(SecurityHeaders.REQUEST_ID));
 
             objectMapper.writeValue(response.getWriter(), error);
             return;

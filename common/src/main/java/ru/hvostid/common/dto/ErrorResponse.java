@@ -43,7 +43,16 @@ public record ErrorResponse(
         this(status, error, message, path, Instant.now(), null, null);
     }
 
+    public ErrorResponse(int status, String error, String message, String path, String requestId) {
+        this(status, error, message, path, Instant.now(), requestId, null);
+    }
+
     public ErrorResponse(int status, String error, String message, String path, Map<String, String> fieldErrors) {
         this(status, error, message, path, Instant.now(), null, fieldErrors);
+    }
+
+    public ErrorResponse(
+            int status, String error, String message, String path, String requestId, Map<String, String> fieldErrors) {
+        this(status, error, message, path, Instant.now(), requestId, fieldErrors);
     }
 }
