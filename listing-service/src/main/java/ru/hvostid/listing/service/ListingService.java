@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.hvostid.common.security.UserRole;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
@@ -161,8 +162,8 @@ public class ListingService {
     }
 
     private String determineRole(Set<String> userRoles, boolean isOwner) {
-        if (userRoles.contains("ADMIN")) return "ADMIN";
-        if (userRoles.contains("MODERATOR")) return "MODERATOR";
+        if (userRoles.contains(UserRole.ADMIN.value())) return UserRole.ADMIN.value();
+        if (userRoles.contains(UserRole.MODERATOR.value())) return UserRole.MODERATOR.value();
         if (isOwner) return "OWNER";
         return "OTHER";
     }

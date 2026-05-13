@@ -12,6 +12,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import ru.hvostid.common.security.UserRole;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.StatusUpdateRequest;
 import ru.hvostid.listing.entity.Listing;
@@ -61,7 +62,8 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.MODERATION, null);
 
         // when
-        ListingResponse response = listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of("SELLER"));
+        ListingResponse response =
+                listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of(UserRole.SELLER.value()));
 
         // then
         assertThat(listing.getStatus()).isEqualTo(ListingStatus.MODERATION);
@@ -79,7 +81,7 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.PUBLISHED, null);
 
         // when
-        listingService.updateStatus(LISTING_ID, request, MODERATOR_ID, Set.of("MODERATOR"));
+        listingService.updateStatus(LISTING_ID, request, MODERATOR_ID, Set.of(UserRole.MODERATOR.value()));
 
         // then
         assertThat(listing.getStatus()).isEqualTo(ListingStatus.PUBLISHED);
@@ -96,7 +98,7 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.REJECTED, "Poor quality photos");
 
         // when
-        listingService.updateStatus(LISTING_ID, request, MODERATOR_ID, Set.of("MODERATOR"));
+        listingService.updateStatus(LISTING_ID, request, MODERATOR_ID, Set.of(UserRole.MODERATOR.value()));
 
         // then
         assertThat(listing.getStatus()).isEqualTo(ListingStatus.REJECTED);
@@ -115,7 +117,7 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.DRAFT, comment);
 
         // when
-        listingService.updateStatus(LISTING_ID, request, MODERATOR_ID, Set.of("MODERATOR"));
+        listingService.updateStatus(LISTING_ID, request, MODERATOR_ID, Set.of(UserRole.MODERATOR.value()));
 
         // then
         assertThat(listing.getStatus()).isEqualTo(ListingStatus.DRAFT);
@@ -133,7 +135,7 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.PUBLISHED, null);
 
         // when
-        listingService.updateStatus(LISTING_ID, request, ADMIN_ID, Set.of("ADMIN"));
+        listingService.updateStatus(LISTING_ID, request, ADMIN_ID, Set.of(UserRole.ADMIN.value()));
 
         // then
         assertThat(listing.getStatus()).isEqualTo(ListingStatus.PUBLISHED);
@@ -149,7 +151,7 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.ARCHIVED, null);
 
         // when
-        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of("SELLER"));
+        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of(UserRole.SELLER.value()));
 
         // then
         assertThat(listing.getStatus()).isEqualTo(ListingStatus.ARCHIVED);
@@ -165,7 +167,7 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.SOLD, null);
 
         // when
-        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of("SELLER"));
+        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of(UserRole.SELLER.value()));
 
         // then
         assertThat(listing.getStatus()).isEqualTo(ListingStatus.SOLD);
@@ -182,7 +184,7 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.DRAFT, null);
 
         // when
-        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of("SELLER"));
+        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of(UserRole.SELLER.value()));
 
         // then
         assertThat(listing.getStatus()).isEqualTo(ListingStatus.DRAFT);
@@ -200,7 +202,8 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.PUBLISHED, null);
 
         // then
-        assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of("SELLER")))
+        assertThatThrownBy(() ->
+                        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of(UserRole.SELLER.value())))
                 .isInstanceOf(InvalidStatusTransitionException.class)
                 .hasMessageContaining("Invalid status transition from DRAFT to PUBLISHED");
     }
@@ -214,7 +217,8 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.SOLD, null);
 
         // then
-        assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of("SELLER")))
+        assertThatThrownBy(() ->
+                        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of(UserRole.SELLER.value())))
                 .isInstanceOf(InvalidStatusTransitionException.class)
                 .hasMessageContaining("Invalid status transition from MODERATION to SOLD");
     }
@@ -228,7 +232,8 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.DRAFT, null);
 
         // then
-        assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of("SELLER")))
+        assertThatThrownBy(() ->
+                        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of(UserRole.SELLER.value())))
                 .isInstanceOf(InvalidStatusTransitionException.class)
                 .hasMessageContaining("Cannot change status from terminal state: ARCHIVED");
     }
@@ -242,7 +247,8 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.ARCHIVED, null);
 
         // then
-        assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of("SELLER")))
+        assertThatThrownBy(() ->
+                        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of(UserRole.SELLER.value())))
                 .isInstanceOf(InvalidStatusTransitionException.class)
                 .hasMessageContaining("Cannot change status from terminal state: SOLD");
     }
@@ -256,7 +262,8 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.DRAFT, null);
 
         // then
-        assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, MODERATOR_ID, Set.of("MODERATOR")))
+        assertThatThrownBy(() -> listingService.updateStatus(
+                        LISTING_ID, request, MODERATOR_ID, Set.of(UserRole.MODERATOR.value())))
                 .isInstanceOf(InvalidStatusTransitionException.class)
                 .hasMessageContaining("Comment is required");
     }
@@ -272,11 +279,13 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.MODERATION, null);
 
         // then
-        assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, OTHER_USER_ID, Set.of("SELLER")))
+        assertThatThrownBy(() -> listingService.updateStatus(
+                        LISTING_ID, request, OTHER_USER_ID, Set.of(UserRole.SELLER.value())))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("Only the owner can send listing to moderation from DRAFT to MODERATION");
 
-        assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, ADMIN_ID, Set.of("ADMIN")))
+        assertThatThrownBy(() ->
+                        listingService.updateStatus(LISTING_ID, request, ADMIN_ID, Set.of(UserRole.ADMIN.value())))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("Only the owner can send listing to moderation");
     }
@@ -290,7 +299,8 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.PUBLISHED, null);
 
         // then
-        assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of("SELLER")))
+        assertThatThrownBy(() ->
+                        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of(UserRole.SELLER.value())))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("Required roles for transition");
     }
@@ -304,7 +314,8 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.REJECTED, "Bad");
 
         // then
-        assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of("SELLER")))
+        assertThatThrownBy(() ->
+                        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of(UserRole.SELLER.value())))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
@@ -317,7 +328,8 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.ARCHIVED, null);
 
         // then
-        assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, OTHER_USER_ID, Set.of("SELLER")))
+        assertThatThrownBy(() -> listingService.updateStatus(
+                        LISTING_ID, request, OTHER_USER_ID, Set.of(UserRole.SELLER.value())))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("Only the owner or an admin can change status from PUBLISHED to ARCHIVED");
     }
@@ -331,7 +343,8 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.SOLD, null);
 
         // then
-        assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, OTHER_USER_ID, Set.of("SELLER")))
+        assertThatThrownBy(() -> listingService.updateStatus(
+                        LISTING_ID, request, OTHER_USER_ID, Set.of(UserRole.SELLER.value())))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
@@ -345,7 +358,8 @@ class ListingServiceStatusTransitionTest {
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.MODERATION, null);
 
         // then
-        assertThatThrownBy(() -> listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of("SELLER")))
+        assertThatThrownBy(() ->
+                        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of(UserRole.SELLER.value())))
                 .isInstanceOf(ListingNotFoundException.class)
                 .hasMessageContaining("Listing not found");
     }
@@ -364,7 +378,7 @@ class ListingServiceStatusTransitionTest {
         ArgumentCaptor<ListingStatusHistory> historyCaptor = ArgumentCaptor.forClass(ListingStatusHistory.class);
 
         // when
-        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of("SELLER"));
+        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of(UserRole.SELLER.value()));
 
         // then
         verify(historyRepository).save(historyCaptor.capture());
@@ -389,11 +403,11 @@ class ListingServiceStatusTransitionTest {
         ArgumentCaptor<ListingStatusHistory> historyCaptor = ArgumentCaptor.forClass(ListingStatusHistory.class);
 
         // when
-        listingService.updateStatus(LISTING_ID, request, MODERATOR_ID, Set.of("MODERATOR"));
+        listingService.updateStatus(LISTING_ID, request, MODERATOR_ID, Set.of(UserRole.MODERATOR.value()));
 
         // then
         verify(historyRepository).save(historyCaptor.capture());
-        assertThat(historyCaptor.getValue().getChangedByRole()).isEqualTo("MODERATOR");
+        assertThat(historyCaptor.getValue().getChangedByRole()).isEqualTo(UserRole.MODERATOR.value());
     }
 
     @Test
@@ -409,7 +423,7 @@ class ListingServiceStatusTransitionTest {
         ArgumentCaptor<ListingStatusHistory> historyCaptor = ArgumentCaptor.forClass(ListingStatusHistory.class);
 
         // when
-        listingService.updateStatus(LISTING_ID, request, MODERATOR_ID, Set.of("MODERATOR"));
+        listingService.updateStatus(LISTING_ID, request, MODERATOR_ID, Set.of(UserRole.MODERATOR.value()));
 
         // then
         verify(historyRepository).save(historyCaptor.capture());
