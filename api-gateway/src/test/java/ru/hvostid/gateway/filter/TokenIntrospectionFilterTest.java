@@ -10,6 +10,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -39,11 +40,10 @@ class TokenIntrospectionFilterTest {
     private IntrospectionClient introspectionClient;
 
     private TokenIntrospectionFilter filter;
-    private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
-        objectMapper = new ObjectMapper();
+        ObjectMapper objectMapper = new ObjectMapper();
         AuthProperties authProperties = new AuthProperties(
                 "http://localhost:8081/internal/auth/introspect", Duration.ofSeconds(3), PUBLIC_PATHS);
         filter = new TokenIntrospectionFilter(introspectionClient, authProperties, objectMapper);
@@ -218,7 +218,7 @@ class TokenIntrospectionFilterTest {
 
             FilterChain chain = (req, _) -> {
                 HttpServletRequest httpReq = (HttpServletRequest) req;
-                var names = java.util.Collections.list(httpReq.getHeaderNames());
+                var names = Collections.list(httpReq.getHeaderNames());
                 hasUserId.set(names.stream().anyMatch(USER_ID::equalsIgnoreCase));
                 hasRoles.set(names.stream().anyMatch(USER_ROLES::equalsIgnoreCase));
             };

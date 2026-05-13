@@ -1,5 +1,6 @@
 package ru.hvostid.passport.storage;
 
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import org.junit.jupiter.api.Test;
@@ -8,7 +9,7 @@ import ru.hvostid.passport.config.MinioProperties;
 class MinioBucketInitializerTest {
     @Test
     void runCreatesAllConfiguredBuckets() {
-        MinioStorageService storageService = org.mockito.Mockito.mock(MinioStorageService.class);
+        MinioStorageService storageService = mock(MinioStorageService.class);
         MinioProperties properties = new MinioProperties(
                 "http://localhost:9000",
                 "minioadmin",

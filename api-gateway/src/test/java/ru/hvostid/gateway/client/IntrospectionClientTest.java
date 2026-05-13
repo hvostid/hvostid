@@ -10,6 +10,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -42,7 +43,7 @@ class IntrospectionClientTest {
 
         mockServer
                 .expect(requestTo("http://localhost:8081/internal/auth/introspect"))
-                .andExpect(method(org.springframework.http.HttpMethod.POST))
+                .andExpect(method(HttpMethod.POST))
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andRespond(withSuccess(responseBody, MediaType.APPLICATION_JSON));
 
