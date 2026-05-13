@@ -1,6 +1,6 @@
 import js from '@eslint/js';
 import globals from 'globals';
-import react from 'eslint-plugin-react';
+import eslintReact from '@eslint-react/eslint-plugin';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import prettier from 'eslint-plugin-prettier';
@@ -8,6 +8,7 @@ import prettierConfig from 'eslint-config-prettier';
 
 export default [
     { ignores: ['dist', 'node_modules', 'build'] },
+    js.configs.recommended,
     {
         files: ['**/*.{js,jsx}'],
         languageOptions: {
@@ -18,24 +19,23 @@ export default [
                 ecmaFeatures: { jsx: true },
             },
         },
-        settings: { react: { version: 'detect' } },
+        ...eslintReact.configs.recommended,
+    },
+    {
+        files: ['**/*.{js,jsx}'],
         plugins: {
-            react,
             'react-hooks': reactHooks,
             'react-refresh': reactRefresh,
             prettier,
         },
         rules: {
-            ...js.configs.recommended.rules,
-            ...react.configs.recommended.rules,
-            ...react.configs['jsx-runtime'].rules,
             ...reactHooks.configs.recommended.rules,
             ...prettierConfig.rules,
             'prettier/prettier': 'error',
             'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
             'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-            'react/prop-types': 'off',
             'react-hooks/set-state-in-effect': 'warn',
+            '@eslint-react/set-state-in-effect': 'off',
         },
     },
 ];
