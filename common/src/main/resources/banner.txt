@@ -6,4 +6,3 @@
 
  :: ${spring.application.name} ::${application.formatted-version}
  :: Spring Boot ::${spring-boot.formatted-version}
-
