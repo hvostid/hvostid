@@ -29,6 +29,37 @@ spring:
                             predicates:
                                 - Path=/api/v1/match/**
 
+                        # Proxy each downstream service's /v3/api-docs so the
+                        # aggregated Swagger UI (served by this gateway) can
+                        # fetch every spec without cross-origin requests.
+                        -   id: auth-service-openapi
+                            uri: http://${AUTH_SERVICE_HOST:localhost}:8081
+                            predicates:
+                                - Path=/v3/api-docs/auth
+                            filters:
+                                - SetPath=/v3/api-docs
+
+                        -   id: listing-service-openapi
+                            uri: http://${LISTING_SERVICE_HOST:localhost}:8082
+                            predicates:
+                                - Path=/v3/api-docs/listing
+                            filters:
+                                - SetPath=/v3/api-docs
+
+                        -   id: passport-service-openapi
+                            uri: http://${PASSPORT_SERVICE_HOST:localhost}:8083
+                            predicates:
+                                - Path=/v3/api-docs/passport
+                            filters:
+                                - SetPath=/v3/api-docs
+
+                        -   id: matching-service-openapi
+                            uri: http://${MATCHING_SERVICE_HOST:localhost}:8084
+                            predicates:
+                                - Path=/v3/api-docs/matching
+                            filters:
+                                - SetPath=/v3/api-docs
+
 hvostid:
     auth:
         introspect-url: http://${AUTH_SERVICE_HOST:localhost}:8081/internal/auth/introspect
@@ -37,9 +68,33 @@ hvostid:
             - /api/v1/auth/login
             - /api/v1/auth/register
             - /actuator/**
+            - /swagger-ui.html
+            - /swagger-ui/**
+            - /v3/api-docs
+            - /v3/api-docs/**
     rate-limit:
         replenish-rate: 20
         burst-capacity: 40
+
+springdoc:
+    api-docs:
+        path: /v3/api-docs
+    swagger-ui:
+        path: /swagger-ui.html
+        # Aggregated Swagger UI: lets the user pick a service from the
+        # "Select a definition" dropdown. Each URL is served by a route
+        # above that forwards to the corresponding service.
+        urls:
+            -   name: gateway
+                url: /v3/api-docs
+            -   name: auth-service
+                url: /v3/api-docs/auth
+            -   name: listing-service
+                url: /v3/api-docs/listing
+            -   name: passport-service
+                url: /v3/api-docs/passport
+            -   name: matching-service
+                url: /v3/api-docs/matching
 
 management:
     endpoints:

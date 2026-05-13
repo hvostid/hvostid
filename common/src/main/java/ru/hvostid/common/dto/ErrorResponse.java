@@ -1,14 +1,37 @@
 package ru.hvostid.common.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 
 /**
  * Standard error response returned by all services.
+ *
+ * <p>Today the body follows a flat {status, error, message, path, timestamp, requestId}
+ * shape. Migration to RFC 7807 ProblemDetails is tracked in T38.
  */
+@Schema(description = "Standard error body returned by every service for non-2xx responses")
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ErrorResponse(
-        int status, String error, String message, String path, Instant timestamp, String requestId) {
+        @Schema(description = "HTTP status code", example = "404")
+        int status,
+
+        @Schema(description = "HTTP reason phrase", example = "Not Found")
+        String error,
+
+        @Schema(description = "Human-readable failure detail", example = "Listing 1 not found")
+        String message,
+
+        @Schema(description = "Request path that produced the error", example = "/api/v1/listings/1")
+        String path,
+
+        @Schema(description = "Server timestamp when the error was produced", example = "2026-05-13T10:15:30Z")
+        Instant timestamp,
+
+        @Schema(
+                description = "Correlation identifier propagated from X-Request-Id (optional)",
+                example = "5f0c2a3a-4b1c-4f0a-9b7e-c2a3d1b0f8e1")
+        String requestId) {
     public ErrorResponse(int status, String error, String message, String path) {
         this(status, error, message, path, Instant.now(), null);
     }

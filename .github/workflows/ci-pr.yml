@@ -139,6 +139,17 @@ jobs:
                     name: test-results
                     path: "**/build/reports/tests/"
 
+            # Each service's OpenApiDocsTest writes the generated spec to
+            # build/openapi/<service>.json. Uploading them makes it easy to
+            # diff API changes across PRs and feeds future client/codegen.
+            -   name: Upload OpenAPI specs
+                if: always()
+                uses: actions/upload-artifact@v7
+                with:
+                    name: openapi-specs
+                    path: "**/build/openapi/*.json"
+                    if-no-files-found: warn
+
     # Builds the Dockerfile's `deps` stage once and caches it under the
     # shared `hvostid-deps` GHA scope. Per-service builds inherit the
     # warmed Gradle dependency layer instead of resolving it five times

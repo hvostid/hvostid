@@ -131,6 +131,7 @@ Once everything is healthy:
 |---------------------|----------------------------------------------|
 | Frontend            | http://localhost:3000                        |
 | API Gateway         | http://localhost:8080                        |
+| Aggregated Swagger  | http://localhost:8080/swagger-ui.html        |
 | Auth Swagger UI     | http://localhost:8081/swagger-ui.html        |
 | Listing Swagger UI  | http://localhost:8082/swagger-ui.html        |
 | Passport Swagger UI | http://localhost:8083/swagger-ui.html        |
@@ -229,11 +230,21 @@ commit-message rules, code-style decisions, and review checklist.
 
 ## API Documentation
 
-- **Swagger UI** -- per-service, on the URLs in the [Quick
-  Start](#quick-start) table above. Each spec uses the `X-User-Id`
-  header security scheme; the gateway adds it automatically after
-  successful token introspection.
-- **OpenAPI JSON** -- served at `/v3/api-docs` on each service.
+- **Aggregated Swagger UI** -- the API Gateway hosts a single
+  `/swagger-ui.html` (http://localhost:8080/swagger-ui.html in local
+  dev) with a "Select a definition" dropdown that lists every
+  downstream service. Each entry is fetched from
+  `/v3/api-docs/<service>` on the gateway, which proxies to the
+  service's own spec endpoint -- no CORS, no manual port-switching.
+- **Per-service Swagger UI** -- still available on the per-port URLs
+  in the [Quick Start](#quick-start) table above, handy when you are
+  running a single service from your IDE. The Auth Service spec uses
+  Bearer-token auth; the other services use the `X-User-Id` header
+  scheme that the gateway populates after token introspection.
+- **OpenAPI JSON** -- served at `/v3/api-docs` on each service and at
+  `/v3/api-docs/<service>` on the gateway. CI uploads every spec as
+  the `openapi-specs` artifact on each PR build (see
+  [`ci-pr.yml`](./.github/workflows/ci-pr.yml)).
 - **Postman collection** -- tracked in T36 (TODO).
 
 ## CI/CD

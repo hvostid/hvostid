@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -134,8 +135,7 @@ public class ListingController {
             content = @Content(schema = @Schema(implementation = Page.class)))
     @GetMapping
     public ResponseEntity<Page<ListingResponse>> getListings(
-            @Parameter(description = "Pagination parameters (page number, size, sort)") @PageableDefault(size = 20)
-                    Pageable pageable) {
+            @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
         log.debug("GET /api/v1/listings, page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
 
         int maxSize = 100;

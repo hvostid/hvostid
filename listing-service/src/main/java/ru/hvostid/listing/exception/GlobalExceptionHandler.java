@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.data.core.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authorization.AuthorizationDeniedException;
@@ -53,6 +55,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errors);
     }
 
+    @ExceptionHandler({PropertyReferenceException.class, InvalidDataAccessApiUsageException.class})
+    public ResponseEntity<ErrorResponse> handleBadSort(RuntimeException ex) {
+        // Triggered when a client supplies a sort/filter field that does not
+        // map to an entity property (e.g. Swagger UI's default sort=["string"]).
+        log.debug("Invalid query parameter: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST.value(), Instant.now()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
         log.error("Unexpected error", ex);
@@ -64,8 +75,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidStatusTransitionException.class)
     public ResponseEntity<ErrorResponse> handleInvalidTransition(InvalidStatusTransitionException ex) {
         log.debug("Invalid status transition: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY) // 422
-                .body(new ErrorResponse(ex.getMessage(), HttpStatus.UNPROCESSABLE_ENTITY.value(), Instant.now()));
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT) // 422
+                .body(new ErrorResponse(ex.getMessage(), HttpStatus.UNPROCESSABLE_CONTENT.value(), Instant.now()));
     }
 
     public record ErrorResponse(String message, int status, Instant timestamp) {}

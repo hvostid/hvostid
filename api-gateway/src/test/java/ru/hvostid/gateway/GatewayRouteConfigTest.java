@@ -11,16 +11,22 @@ import org.springframework.core.env.Environment;
 
 @SpringBootTest
 class GatewayRouteConfigTest {
+    private static final int USER_ROUTE_COUNT = 4;
+    private static final int OPENAPI_ROUTE_COUNT = 4;
+    private static final int TOTAL_ROUTE_COUNT = USER_ROUTE_COUNT + OPENAPI_ROUTE_COUNT;
+
     @Autowired
     private Environment environment;
 
     @Test
-    void shouldDefineExactlyFourRoutes() {
-        for (int i = 0; i < 4; i++) {
+    void shouldDefineAllExpectedRoutes() {
+        for (int i = 0; i < TOTAL_ROUTE_COUNT; i++) {
             String id = environment.getProperty(routeKey(i, "id"));
             assertNotNull(id, "Route at index " + i + " should be defined");
         }
-        assertNull(environment.getProperty(routeKey(4, "id")), "There should be no fifth route");
+        assertNull(
+                environment.getProperty(routeKey(TOTAL_ROUTE_COUNT, "id")),
+                "There should be no route beyond the expected total");
     }
 
     @ParameterizedTest
@@ -62,11 +68,40 @@ class GatewayRouteConfigTest {
         assertEquals("http://localhost:8084", environment.getProperty(routeKey(3, "uri")));
     }
 
+    @ParameterizedTest
+    @CsvSource({
+        "4, auth-service-openapi,     http://localhost:8081, /v3/api-docs/auth",
+        "5, listing-service-openapi,  http://localhost:8082, /v3/api-docs/listing",
+        "6, passport-service-openapi, http://localhost:8083, /v3/api-docs/passport",
+        "7, matching-service-openapi, http://localhost:8084, /v3/api-docs/matching"
+    })
+    void openApiRoutesShouldProxyDownstreamSpecs(
+            int index, String expectedId, String expectedUri, String expectedPath) {
+        // Each /v3/api-docs/<service> route forwards to its service's own /v3/api-docs
+        // so the aggregated Swagger UI can fetch every spec from the gateway origin.
+        assertEquals(expectedId, environment.getProperty(routeKey(index, "id")));
+        assertEquals(expectedUri, environment.getProperty(routeKey(index, "uri")));
+
+        String predicate = environment.getProperty(predicateKey(index, 0));
+        assertNotNull(predicate, "OpenAPI proxy route at index " + index + " should have a path predicate");
+        assertTrue(
+                predicate.contains(expectedPath),
+                "OpenAPI proxy route at index " + index + " should match " + expectedPath);
+
+        String filter = environment.getProperty(filterKey(index, 0));
+        assertNotNull(filter, "OpenAPI proxy route at index " + index + " should rewrite the path");
+        assertTrue(filter.contains("SetPath=/v3/api-docs"), "OpenAPI proxy route should SetPath to /v3/api-docs");
+    }
+
     private String routeKey(int index, String property) {
-        return "spring.cloud.gateway.routes[" + index + "]." + property;
+        return "spring.cloud.gateway.server.webmvc.routes[" + index + "]." + property;
     }
 
     private String predicateKey(int routeIndex, int predicateIndex) {
-        return "spring.cloud.gateway.routes[" + routeIndex + "].predicates[" + predicateIndex + "]";
+        return "spring.cloud.gateway.server.webmvc.routes[" + routeIndex + "].predicates[" + predicateIndex + "]";
+    }
+
+    private String filterKey(int routeIndex, int filterIndex) {
+        return "spring.cloud.gateway.server.webmvc.routes[" + routeIndex + "].filters[" + filterIndex + "]";
     }
 }
