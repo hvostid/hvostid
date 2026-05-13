@@ -18,6 +18,16 @@ updates:
         schedule:
             interval: weekly
         groups:
+            react:
+                patterns:
+                    - react
+                    - react-dom
+                    - "@types/react"
+                    - "@types/react-dom"
+            vite:
+                patterns:
+                    - vite
+                    - "@vitejs/*"
             patch-and-minor:
                 update-types:
                     - patch
