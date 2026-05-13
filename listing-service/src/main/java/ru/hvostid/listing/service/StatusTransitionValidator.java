@@ -9,7 +9,6 @@ import ru.hvostid.listing.exception.AccessDeniedException;
 import ru.hvostid.listing.exception.InvalidStatusTransitionException;
 
 public class StatusTransitionValidator {
-
     // Terminal states - from these you cannot transition to any other state
     private static final Set<ListingStatus> TERMINAL_STATES = Set.of(ListingStatus.ARCHIVED, ListingStatus.SOLD);
 
@@ -47,7 +46,7 @@ public class StatusTransitionValidator {
             boolean requiresComment,
             boolean ownerOnly) {
         ALLOWED_TRANSITIONS
-                .computeIfAbsent(from, k -> new HashSet<>())
+                .computeIfAbsent(from, _ -> new HashSet<>())
                 .add(new StatusTransition(from, to, allowedRoles, requiresComment, ownerOnly));
     }
 
@@ -55,7 +54,7 @@ public class StatusTransitionValidator {
      * Validates if transition from current status to new status is allowed.
      *
      * @param currentStatus current listing status
-     * @param newStatus requested new status
+     * @param newStatus     requested new status
      * @return StatusTransition rule if valid
      * @throws InvalidStatusTransitionException if transition is not allowed
      */
@@ -80,7 +79,7 @@ public class StatusTransitionValidator {
         }
 
         StatusTransition transition = transitions.stream()
-                .filter(t -> t.getTo() == newStatus)
+                .filter(t -> t.to() == newStatus)
                 .findFirst()
                 .orElse(null);
 
@@ -96,40 +95,40 @@ public class StatusTransitionValidator {
      * Checks if the user has permission to perform the transition.
      *
      * @param transition transition rule to check
-     * @param isOwner whether the user is the owner of the listing
-     * @param userRoles set of user's roles (SELLER, MODERATOR, ADMIN, etc.)
+     * @param isOwner    whether the user is the owner of the listing
+     * @param userRoles  set of user's roles (SELLER, MODERATOR, ADMIN, etc.)
      * @throws AccessDeniedException if user lacks permission
      */
     public static void checkPermissions(StatusTransition transition, boolean isOwner, Set<String> userRoles) {
         // Check if transition is owner-only
-        if (transition.isOwnerOnly()) {
+        if (transition.ownerOnly()) {
             boolean isDraftToModeration =
-                    transition.getFrom() == ListingStatus.DRAFT && transition.getTo() == ListingStatus.MODERATION;
+                    transition.from() == ListingStatus.DRAFT && transition.to() == ListingStatus.MODERATION;
 
             if (isDraftToModeration) {
                 if (!isOwner) {
                     throw new AccessDeniedException(String.format(
                             "Only the owner can send listing to moderation from %s to %s",
-                            transition.getFrom(), transition.getTo()));
+                            transition.from(), transition.to()));
                 }
             } else {
                 if (!isOwner && !userRoles.contains("ADMIN")) {
                     throw new AccessDeniedException(String.format(
                             "Only the owner or an admin can change status from %s to %s",
-                            transition.getFrom(), transition.getTo()));
+                            transition.from(), transition.to()));
                 }
             }
             return;
         }
 
         // Check role-based access
-        Set<String> allowedRoles = transition.getAllowedRoles();
+        Set<String> allowedRoles = transition.allowedRoles();
         boolean hasRequiredRole = allowedRoles.stream().anyMatch(userRoles::contains);
 
         if (!hasRequiredRole) {
             throw new AccessDeniedException(String.format(
                     "Required roles for transition from %s to %s: %s. User roles: %s",
-                    transition.getFrom(), transition.getTo(), allowedRoles, userRoles));
+                    transition.from(), transition.to(), allowedRoles, userRoles));
         }
     }
 
@@ -137,6 +136,6 @@ public class StatusTransitionValidator {
      * Checks if a comment is required for this transition.
      */
     public static boolean isCommentRequired(StatusTransition transition) {
-        return transition.isRequiresComment();
+        return transition.requiresComment();
     }
 }
