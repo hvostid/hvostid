@@ -4,6 +4,7 @@ import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import ru.hvostid.common.security.UserRole;
 import ru.hvostid.listing.entity.ListingStatus;
 import ru.hvostid.listing.exception.AccessDeniedException;
 import ru.hvostid.listing.exception.InvalidStatusTransitionException;
@@ -16,18 +17,20 @@ public class StatusTransitionValidator {
     private static final Map<ListingStatus, Set<StatusTransition>> ALLOWED_TRANSITIONS =
             new EnumMap<>(ListingStatus.class);
 
+    private static final Set<String> MODERATOR_OR_ADMIN = Set.of(UserRole.MODERATOR.value(), UserRole.ADMIN.value());
+
     static {
         // DRAFT -> MODERATION (owner only)
         addRule(ListingStatus.DRAFT, ListingStatus.MODERATION, Set.of(), false, true);
 
         // MODERATION -> PUBLISHED (moderator or admin)
-        addRule(ListingStatus.MODERATION, ListingStatus.PUBLISHED, Set.of("MODERATOR", "ADMIN"), false, false);
+        addRule(ListingStatus.MODERATION, ListingStatus.PUBLISHED, MODERATOR_OR_ADMIN, false, false);
 
         // MODERATION -> REJECTED (moderator or admin)
-        addRule(ListingStatus.MODERATION, ListingStatus.REJECTED, Set.of("MODERATOR", "ADMIN"), true, false);
+        addRule(ListingStatus.MODERATION, ListingStatus.REJECTED, MODERATOR_OR_ADMIN, true, false);
 
         // MODERATION -> DRAFT (moderator or admin, requires comment)
-        addRule(ListingStatus.MODERATION, ListingStatus.DRAFT, Set.of("MODERATOR", "ADMIN"), true, false);
+        addRule(ListingStatus.MODERATION, ListingStatus.DRAFT, MODERATOR_OR_ADMIN, true, false);
 
         // PUBLISHED -> ARCHIVED (owner only)
         addRule(ListingStatus.PUBLISHED, ListingStatus.ARCHIVED, Set.of(), false, true);
@@ -112,7 +115,7 @@ public class StatusTransitionValidator {
                             transition.from(), transition.to()));
                 }
             } else {
-                if (!isOwner && !userRoles.contains("ADMIN")) {
+                if (!isOwner && !userRoles.contains(UserRole.ADMIN.value())) {
                     throw new AccessDeniedException(String.format(
                             "Only the owner or an admin can change status from %s to %s",
                             transition.from(), transition.to()));
