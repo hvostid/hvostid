@@ -13,15 +13,14 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.MinIOContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
+import ru.hvostid.passport.MinioTestImage;
 
 @Testcontainers
 class MinioStorageServiceTest {
     private static final String BUCKET = "pet-documents";
 
     @Container
-    static final MinIOContainer minio =
-            new MinIOContainer(DockerImageName.parse("minio/minio:RELEASE.2024-01-16T16-07-38Z"));
+    static final MinIOContainer minio = new MinIOContainer(MinioTestImage.resolve());
 
     private MinioClient minioClient;
     private MinioStorageService storageService;

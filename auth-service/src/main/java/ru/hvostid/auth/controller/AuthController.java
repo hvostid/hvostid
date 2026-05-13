@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.hvostid.auth.dto.*;
 import ru.hvostid.auth.service.AuthService;
+import ru.hvostid.common.dto.ErrorResponse;
 
 /**
  * REST controller for authentication endpoints.

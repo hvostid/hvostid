@@ -211,8 +211,7 @@ class AuthControllerTest extends AbstractPostgresContainerTest {
                             .content(objectMapper.writeValueAsString(loginRequest)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.accessToken")
-                            .value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.matchesPattern(
-                                    "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"))));
+                            .value(not(matchesPattern("^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"))));
         }
     }
 

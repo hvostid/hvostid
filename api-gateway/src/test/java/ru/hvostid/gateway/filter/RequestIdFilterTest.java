@@ -6,6 +6,7 @@ import static ru.hvostid.gateway.filter.RequestIdFilter.MDC_REQUEST_ID_KEY;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
@@ -67,8 +68,7 @@ class RequestIdFilterTest {
         AtomicReference<String> downstreamHeader = new AtomicReference<>();
 
         // The filter chain simulates reading the header from the (possibly wrapped) request
-        FilterChain chain =
-                (req, _) -> downstreamHeader.set(((jakarta.servlet.http.HttpServletRequest) req).getHeader(REQUEST_ID));
+        FilterChain chain = (req, _) -> downstreamHeader.set(((HttpServletRequest) req).getHeader(REQUEST_ID));
 
         filter.doFilterInternal(request, response, chain);
 
@@ -87,8 +87,7 @@ class RequestIdFilterTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
         AtomicReference<String> downstreamHeader = new AtomicReference<>();
 
-        FilterChain chain =
-                (req, _) -> downstreamHeader.set(((jakarta.servlet.http.HttpServletRequest) req).getHeader(REQUEST_ID));
+        FilterChain chain = (req, _) -> downstreamHeader.set(((HttpServletRequest) req).getHeader(REQUEST_ID));
 
         filter.doFilterInternal(request, response, chain);
 

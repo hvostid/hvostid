@@ -1,5 +1,6 @@
 package ru.hvostid.gateway.filter;
 
+import static ru.hvostid.common.http.SecurityHeaders.REQUEST_ID;
 import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
 import static ru.hvostid.common.http.SecurityHeaders.USER_ROLES;
 
@@ -73,7 +74,7 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
 
         if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
             log.debug("Missing or malformed Authorization header on {}", request.getRequestURI());
-            writeUnauthorized(response, request.getRequestURI(), "Missing or invalid Authorization header");
+            writeUnauthorized(request, response, "Missing or invalid Authorization header");
             return;
         }
 
@@ -83,7 +84,7 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
 
         if (result.isEmpty() || !result.get().active()) {
             log.debug("Token introspection failed or inactive for {}", request.getRequestURI());
-            writeUnauthorized(response, request.getRequestURI(), "Invalid or expired token");
+            writeUnauthorized(request, response, "Invalid or expired token");
             return;
         }
 
@@ -98,12 +99,17 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
         filterChain.doFilter(wrappedRequest, response);
     }
 
-    private void writeUnauthorized(HttpServletResponse response, String path, String message) throws IOException {
+    private void writeUnauthorized(HttpServletRequest request, HttpServletResponse response, String message)
+            throws IOException {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
         ErrorResponse error = new ErrorResponse(
-                HttpStatus.UNAUTHORIZED.value(), HttpStatus.UNAUTHORIZED.getReasonPhrase(), message, path);
+                HttpStatus.UNAUTHORIZED.value(),
+                HttpStatus.UNAUTHORIZED.getReasonPhrase(),
+                message,
+                request.getRequestURI(),
+                request.getHeader(REQUEST_ID));
 
         objectMapper.writeValue(response.getWriter(), error);
     }

@@ -19,11 +19,11 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import ru.hvostid.common.dto.ErrorResponse;
 import ru.hvostid.common.security.GatewayPreAuthentication;
 import ru.hvostid.passport.dto.CreatePassportRequest;
 import ru.hvostid.passport.dto.PassportResponse;
 import ru.hvostid.passport.dto.UpdatePassportRequest;
-import ru.hvostid.passport.exception.GlobalExceptionHandler;
 import ru.hvostid.passport.service.PassportService;
 
 @RestController
@@ -48,7 +48,7 @@ public class PassportController {
     @ApiResponse(
             responseCode = "400",
             description = "Validation error",
-            content = @Content(schema = @Schema(implementation = GlobalExceptionHandler.ErrorResponse.class)))
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(responseCode = "401", description = "Missing or invalid authenticated user", content = @Content)
     @ApiResponse(responseCode = "403", description = "User does not have SELLER role", content = @Content)
     @PostMapping
@@ -76,7 +76,7 @@ public class PassportController {
     @ApiResponse(
             responseCode = "404",
             description = "Passport not found",
-            content = @Content(schema = @Schema(implementation = GlobalExceptionHandler.ErrorResponse.class)))
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @GetMapping("/{petId}")
     public ResponseEntity<PassportResponse> getPassport(
             @Parameter(description = "Pet passport ID", required = true, example = "1") @PathVariable Long petId,
