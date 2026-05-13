@@ -18,7 +18,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager)
             throws Exception {
         return GatewaySecurityDefaults.applyTo(http, authenticationManager)
-                .authorizeHttpRequests(auth -> auth.requestMatchers(GatewaySecurityDefaults.ALWAYS_PUBLIC)
+                .authorizeHttpRequests(auth -> auth.requestMatchers(GatewaySecurityDefaults.alwaysPublic())
                         .permitAll()
                         .anyRequest()
                         .authenticated())

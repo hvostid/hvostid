@@ -25,7 +25,7 @@ public class SecurityConfig {
         return GatewaySecurityDefaults.applyTo(http, authenticationManager)
                 .authorizeHttpRequests(auth -> auth.requestMatchers(HttpMethod.GET, "/api/v1/listings")
                         .permitAll()
-                        .requestMatchers(GatewaySecurityDefaults.ALWAYS_PUBLIC)
+                        .requestMatchers(GatewaySecurityDefaults.alwaysPublic())
                         .permitAll()
                         .anyRequest()
                         .authenticated())

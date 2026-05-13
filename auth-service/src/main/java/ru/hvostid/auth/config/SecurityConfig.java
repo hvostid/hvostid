@@ -28,7 +28,7 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers("/internal/**")
                         .permitAll()
-                        .requestMatchers(GatewaySecurityDefaults.ALWAYS_PUBLIC)
+                        .requestMatchers(GatewaySecurityDefaults.alwaysPublic())
                         .permitAll()
                         .anyRequest()
                         .authenticated())

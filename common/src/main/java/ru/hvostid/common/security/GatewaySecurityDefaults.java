@@ -17,19 +17,25 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * and then add its own {@code authorizeHttpRequests} rules.
  */
 public final class GatewaySecurityDefaults {
-    /** Paths the platform always exposes without authentication. */
-    public static final String[] ALWAYS_PUBLIC = {
+    private static final String[] ALWAYS_PUBLIC = {
         "/actuator/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**"
     };
 
     private GatewaySecurityDefaults() {}
 
     /**
+     * Paths the platform always exposes without authentication. Returns a
+     * defensive copy so callers cannot mutate the shared definition.
+     */
+    public static String[] alwaysPublic() {
+        return ALWAYS_PUBLIC.clone();
+    }
+
+    /**
      * Apply the shared baseline to {@code http}. Returns the same builder so
      * the caller can chain its service-specific {@code authorizeHttpRequests}.
      */
-    public static HttpSecurity applyTo(HttpSecurity http, AuthenticationManager authenticationManager)
-            throws Exception {
+    public static HttpSecurity applyTo(HttpSecurity http, AuthenticationManager authenticationManager) {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(
