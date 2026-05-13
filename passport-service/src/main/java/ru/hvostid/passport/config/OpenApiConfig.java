@@ -21,12 +21,23 @@ public class OpenApiConfig {
                         .version("1.0.0"))
                 .addServersItem(new Server().url("http://localhost:8080").description("API Gateway (local)"))
                 .addServersItem(new Server().url("http://localhost:8083").description("Passport Service (direct)"))
-                .addSecurityItem(new SecurityRequirement().addList(OpenApiSecuritySchemes.USER_ID_SCHEME))
+                .addSecurityItem(new SecurityRequirement().addList(OpenApiSecuritySchemes.BEARER_SCHEME))
+                .schemaRequirement(
+                        OpenApiSecuritySchemes.BEARER_SCHEME,
+                        new SecurityScheme()
+                                .type(SecurityScheme.Type.HTTP)
+                                .scheme("bearer")
+                                .bearerFormat("opaque")
+                                .description("Opaque access token issued by Auth Service. "
+                                        + "Required when calling through the API Gateway."))
                 .schemaRequirement(
                         OpenApiSecuritySchemes.USER_ID_SCHEME,
                         new SecurityScheme()
                                 .type(SecurityScheme.Type.APIKEY)
                                 .in(SecurityScheme.In.HEADER)
-                                .name(SecurityHeaders.USER_ID));
+                                .name(SecurityHeaders.USER_ID)
+                                .description("Gateway-injected identity header. "
+                                        + "Only set this directly when bypassing the gateway "
+                                        + "(per-port Swagger UI on :8083)."));
     }
 }

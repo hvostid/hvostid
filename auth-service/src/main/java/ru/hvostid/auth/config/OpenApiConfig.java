@@ -8,6 +8,7 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import ru.hvostid.common.openapi.OpenApiSecuritySchemes;
 
 /**
  * OpenAPI / Swagger UI configuration for Auth Service.
@@ -16,8 +17,6 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class OpenApiConfig {
-    private static final String BEARER_SCHEME = "bearerAuth";
-
     @Bean
     public OpenAPI authServiceOpenApi() {
         return new OpenAPI()
@@ -28,12 +27,12 @@ public class OpenApiConfig {
                         .version("1.1.0"))
                 .addServersItem(new Server().url("http://localhost:8080").description("API Gateway (local)"))
                 .addServersItem(new Server().url("http://localhost:8081").description("Auth Service (direct)"))
-                .addSecurityItem(new SecurityRequirement().addList(BEARER_SCHEME))
+                .addSecurityItem(new SecurityRequirement().addList(OpenApiSecuritySchemes.BEARER_SCHEME))
                 .components(new Components()
                         .addSecuritySchemes(
-                                BEARER_SCHEME,
+                                OpenApiSecuritySchemes.BEARER_SCHEME,
                                 new SecurityScheme()
-                                        .name(BEARER_SCHEME)
+                                        .name(OpenApiSecuritySchemes.BEARER_SCHEME)
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")
                                         .bearerFormat("opaque")));
