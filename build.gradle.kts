@@ -55,6 +55,10 @@ subprojects {
             "testcontainers.postgres.image",
             rootProject.libs.versions.postgres.image.get()
         )
+        systemProperty(
+            "testcontainers.minio.image",
+            rootProject.libs.versions.minio.image.get()
+        )
     }
 
     tasks.jacocoTestReport {

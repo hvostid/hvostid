@@ -5,14 +5,12 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.MinIOContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
 
 @Testcontainers
 public abstract class AbstractPassportIntegrationTest extends AbstractPostgresContainerTest {
     @Container
-    static final MinIOContainer minio =
-            new MinIOContainer(DockerImageName.parse("minio/minio:RELEASE.2024-01-16T16-07-38Z"));
+    static final MinIOContainer minio = new MinIOContainer(MinioTestImage.resolve());
 
     @DynamicPropertySource
     static void minioProperties(DynamicPropertyRegistry registry) {
