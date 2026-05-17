@@ -28,6 +28,8 @@
           "            pm.environment.set('accessToken', data.accessToken);",
           "            pm.environment.set('refreshToken', data.refreshToken);",
           "            console.log('Auto-refreshed access token after 401');",
+          "        } else {",
+          "            console.error('Auto-refresh failed:', err || (res ? res.code : 'no response'));",
           "        }",
           "    });",
           "}"

@@ -7,17 +7,72 @@
   },
   "auth": {
     "type": "bearer",
-    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
   },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (pm.response.code === 401 && pm.environment.get('refreshToken')) {",
+          "    const baseUrl = pm.environment.get('baseUrl');",
+          "    pm.sendRequest({",
+          "        url: baseUrl + '/api/v1/auth/refresh',",
+          "        method: 'POST',",
+          "        header: { 'Content-Type': 'application/json' },",
+          "        body: { mode: 'raw', raw: JSON.stringify({ refreshToken: pm.environment.get('refreshToken') }) }",
+          "    }, function (err, res) {",
+          "        if (!err && res && res.code === 200) {",
+          "            const data = res.json();",
+          "            pm.environment.set('accessToken', data.accessToken);",
+          "            pm.environment.set('refreshToken', data.refreshToken);",
+          "            console.log('Auto-refreshed access token after 401');",
+          "        } else {",
+          "            console.error('Auto-refresh failed:', err || (res ? res.code : 'no response'));",
+          "        }",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
   "item": [
     {
       "name": "Register",
       "request": {
-        "auth": { "type": "noauth" },
+        "auth": {
+          "type": "noauth"
+        },
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{\n    \"email\": \"{{buyerEmail}}\",\n    \"password\": \"{{buyerPassword}}\",\n    \"name\": \"{{buyerName}}\"\n}" },
-        "url": { "raw": "{{baseUrl}}/api/v1/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "register"] }
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{buyerEmail}}\",\n    \"password\": \"{{buyerPassword}}\",\n    \"name\": \"{{buyerName}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ]
+        }
       },
       "event": [
         {
@@ -36,11 +91,32 @@
     {
       "name": "Login",
       "request": {
-        "auth": { "type": "noauth" },
+        "auth": {
+          "type": "noauth"
+        },
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{\n    \"email\": \"{{buyerEmail}}\",\n    \"password\": \"{{buyerPassword}}\"\n}" },
-        "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] }
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{buyerEmail}}\",\n    \"password\": \"{{buyerPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        }
       },
       "event": [
         {
@@ -60,16 +136,30 @@
     {
       "name": "Browse catalog",
       "request": {
-        "auth": { "type": "noauth" },
+        "auth": {
+          "type": "noauth"
+        },
         "method": "GET",
         "header": [],
         "url": {
           "raw": "{{baseUrl}}/api/v1/listings?page=0&size=20",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "listings"],
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "listings"
+          ],
           "query": [
-            { "key": "page", "value": "0" },
-            { "key": "size", "value": "20" }
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "20"
+            }
           ]
         }
       },
@@ -95,7 +185,18 @@
       "request": {
         "method": "GET",
         "header": [],
-        "url": { "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "listings", "{{listingId}}"] }
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "listings",
+            "{{listingId}}"
+          ]
+        }
       },
       "event": [
         {
@@ -115,9 +216,28 @@
       "name": "Calculate match score",
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{\n    \"listingId\": {{listingId}}\n}" },
-        "url": { "raw": "{{baseUrl}}/api/v1/match/score", "host": ["{{baseUrl}}"], "path": ["api", "v1", "match", "score"] }
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"listingId\": \"{{listingId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/match/score",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "match",
+            "score"
+          ]
+        }
       },
       "event": [
         {
@@ -137,12 +257,27 @@
       "name": "Create listing (expected 403 for buyer)",
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\n    \"title\": \"From COL-05\",\n    \"description\": \"Buyer attempting to create a listing\",\n    \"species\": \"dog\",\n    \"breed\": \"Labrador\",\n    \"age\": 12,\n    \"price\": 10000,\n    \"city\": \"Moscow\",\n    \"passportId\": \"1\"\n}"
         },
-        "url": { "raw": "{{baseUrl}}/api/v1/listings", "host": ["{{baseUrl}}"], "path": ["api", "v1", "listings"] }
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/listings",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "listings"
+          ]
+        }
       },
       "event": [
         {
@@ -162,9 +297,28 @@
       "name": "Logout",
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{\n    \"refreshToken\": \"{{refreshToken}}\"\n}" },
-        "url": { "raw": "{{baseUrl}}/api/v1/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "logout"] }
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"refreshToken\": \"{{refreshToken}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/logout",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "logout"
+          ]
+        }
       },
       "event": [
         {

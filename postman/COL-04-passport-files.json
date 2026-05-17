@@ -7,17 +7,72 @@
   },
   "auth": {
     "type": "bearer",
-    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
   },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (pm.response.code === 401 && pm.environment.get('refreshToken')) {",
+          "    const baseUrl = pm.environment.get('baseUrl');",
+          "    pm.sendRequest({",
+          "        url: baseUrl + '/api/v1/auth/refresh',",
+          "        method: 'POST',",
+          "        header: { 'Content-Type': 'application/json' },",
+          "        body: { mode: 'raw', raw: JSON.stringify({ refreshToken: pm.environment.get('refreshToken') }) }",
+          "    }, function (err, res) {",
+          "        if (!err && res && res.code === 200) {",
+          "            const data = res.json();",
+          "            pm.environment.set('accessToken', data.accessToken);",
+          "            pm.environment.set('refreshToken', data.refreshToken);",
+          "            console.log('Auto-refreshed access token after 401');",
+          "        } else {",
+          "            console.error('Auto-refresh failed:', err || (res ? res.code : 'no response'));",
+          "        }",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
   "item": [
     {
       "name": "Login as seller",
       "request": {
-        "auth": { "type": "noauth" },
+        "auth": {
+          "type": "noauth"
+        },
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{\n    \"email\": \"{{sellerEmail}}\",\n    \"password\": \"{{sellerPassword}}\"\n}" },
-        "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] }
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{sellerEmail}}\",\n    \"password\": \"{{sellerPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        }
       },
       "event": [
         {
@@ -38,12 +93,27 @@
       "name": "Create passport",
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\n    \"species\": \"cat\",\n    \"breed\": \"Maine Coon\",\n    \"name\": \"Mira\",\n    \"birthDate\": \"2022-08-01\",\n    \"gender\": \"FEMALE\",\n    \"color\": \"tabby\",\n    \"temperament\": \"calm, friendly\",\n    \"specialNeeds\": null,\n    \"neutered\": true,\n    \"microchipped\": true\n}"
         },
-        "url": { "raw": "{{baseUrl}}/api/v1/passports", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports"] }
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/passports",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "passports"
+          ]
+        }
       },
       "event": [
         {
@@ -67,11 +137,31 @@
         "body": {
           "mode": "formdata",
           "formdata": [
-            { "key": "file", "type": "file", "src": [] },
-            { "key": "type", "value": "PHOTO", "type": "text" }
+            {
+              "key": "file",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "type",
+              "value": "PHOTO",
+              "type": "text"
+            }
           ]
         },
-        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "docs"] },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "passports",
+            "{{passportId}}",
+            "docs"
+          ]
+        },
         "description": "Attach a JPEG/PNG under the 'file' formdata field before sending."
       },
       "event": [
@@ -100,11 +190,31 @@
         "body": {
           "mode": "formdata",
           "formdata": [
-            { "key": "file", "type": "file", "src": [] },
-            { "key": "type", "value": "VET_RECORD", "type": "text" }
+            {
+              "key": "file",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "type",
+              "value": "VET_RECORD",
+              "type": "text"
+            }
           ]
         },
-        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "docs"] }
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "passports",
+            "{{passportId}}",
+            "docs"
+          ]
+        }
       },
       "event": [
         {
@@ -125,7 +235,19 @@
       "request": {
         "method": "GET",
         "header": [],
-        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "docs"] }
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "passports",
+            "{{passportId}}",
+            "docs"
+          ]
+        }
       },
       "event": [
         {
@@ -149,7 +271,20 @@
       "request": {
         "method": "GET",
         "header": [],
-        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs/{{documentId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "docs", "{{documentId}}"] }
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs/{{documentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "passports",
+            "{{passportId}}",
+            "docs",
+            "{{documentId}}"
+          ]
+        }
       },
       "event": [
         {
@@ -170,7 +305,19 @@
       "request": {
         "method": "GET",
         "header": [],
-        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/trust", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "trust"] }
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/trust",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "passports",
+            "{{passportId}}",
+            "trust"
+          ]
+        }
       },
       "event": [
         {
@@ -189,7 +336,20 @@
       "request": {
         "method": "DELETE",
         "header": [],
-        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs/{{documentId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "docs", "{{documentId}}"] }
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs/{{documentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "passports",
+            "{{passportId}}",
+            "docs",
+            "{{documentId}}"
+          ]
+        }
       },
       "event": [
         {

@@ -7,17 +7,72 @@
   },
   "auth": {
     "type": "bearer",
-    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
   },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (pm.response.code === 401 && pm.environment.get('refreshToken')) {",
+          "    const baseUrl = pm.environment.get('baseUrl');",
+          "    pm.sendRequest({",
+          "        url: baseUrl + '/api/v1/auth/refresh',",
+          "        method: 'POST',",
+          "        header: { 'Content-Type': 'application/json' },",
+          "        body: { mode: 'raw', raw: JSON.stringify({ refreshToken: pm.environment.get('refreshToken') }) }",
+          "    }, function (err, res) {",
+          "        if (!err && res && res.code === 200) {",
+          "            const data = res.json();",
+          "            pm.environment.set('accessToken', data.accessToken);",
+          "            pm.environment.set('refreshToken', data.refreshToken);",
+          "            console.log('Auto-refreshed access token after 401');",
+          "        } else {",
+          "            console.error('Auto-refresh failed:', err || (res ? res.code : 'no response'));",
+          "        }",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
   "item": [
     {
       "name": "Login as seller",
       "request": {
-        "auth": { "type": "noauth" },
+        "auth": {
+          "type": "noauth"
+        },
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{\n    \"email\": \"{{sellerEmail}}\",\n    \"password\": \"{{sellerPassword}}\"\n}" },
-        "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] }
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{sellerEmail}}\",\n    \"password\": \"{{sellerPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        }
       },
       "event": [
         {
@@ -38,12 +93,27 @@
       "name": "Create passport",
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\n    \"species\": \"dog\",\n    \"breed\": \"Husky\",\n    \"name\": \"Rex\",\n    \"birthDate\": \"2023-05-10\",\n    \"gender\": \"MALE\",\n    \"color\": \"grey-white\",\n    \"temperament\": \"active, friendly\",\n    \"specialNeeds\": null,\n    \"neutered\": true,\n    \"microchipped\": false\n}"
         },
-        "url": { "raw": "{{baseUrl}}/api/v1/passports", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports"] }
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/passports",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "passports"
+          ]
+        }
       },
       "event": [
         {
@@ -67,11 +137,31 @@
         "body": {
           "mode": "formdata",
           "formdata": [
-            { "key": "file", "type": "file", "src": [] },
-            { "key": "type", "value": "PHOTO", "type": "text" }
+            {
+              "key": "file",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "type",
+              "value": "PHOTO",
+              "type": "text"
+            }
           ]
         },
-        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "docs"] },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "passports",
+            "{{passportId}}",
+            "docs"
+          ]
+        },
         "description": "Attach a JPEG/PNG (<=10MB) under the 'file' field before running."
       },
       "event": [
@@ -96,11 +186,31 @@
         "body": {
           "mode": "formdata",
           "formdata": [
-            { "key": "file", "type": "file", "src": [] },
-            { "key": "type", "value": "VACCINATION_CERT", "type": "text" }
+            {
+              "key": "file",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "type",
+              "value": "VACCINATION_CERT",
+              "type": "text"
+            }
           ]
         },
-        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "docs"] }
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "passports",
+            "{{passportId}}",
+            "docs"
+          ]
+        }
       },
       "event": [
         {
@@ -121,7 +231,19 @@
       "request": {
         "method": "GET",
         "header": [],
-        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/trust", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "trust"] }
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/trust",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "passports",
+            "{{passportId}}",
+            "trust"
+          ]
+        }
       },
       "event": [
         {
@@ -144,12 +266,27 @@
       "name": "Create listing referencing passport",
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\n    \"title\": \"Husky Rex needs a home\",\n    \"description\": \"Friendly dog\",\n    \"species\": \"dog\",\n    \"breed\": \"Husky\",\n    \"age\": 12,\n    \"price\": 20000,\n    \"city\": \"Moscow\",\n    \"passportId\": \"{{passportId}}\"\n}"
         },
-        "url": { "raw": "{{baseUrl}}/api/v1/listings", "host": ["{{baseUrl}}"], "path": ["api", "v1", "listings"] }
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/listings",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "listings"
+          ]
+        }
       },
       "event": [
         {
@@ -170,9 +307,29 @@
       "name": "Send listing to MODERATION",
       "request": {
         "method": "PATCH",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{\n    \"status\": \"MODERATION\"\n}" },
-        "url": { "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}/status", "host": ["{{baseUrl}}"], "path": ["api", "v1", "listings", "{{listingId}}", "status"] }
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"status\": \"MODERATION\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "listings",
+            "{{listingId}}",
+            "status"
+          ]
+        }
       },
       "event": [
         {
@@ -191,11 +348,32 @@
     {
       "name": "Login as moderator",
       "request": {
-        "auth": { "type": "noauth" },
+        "auth": {
+          "type": "noauth"
+        },
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{\n    \"email\": \"{{moderatorEmail}}\",\n    \"password\": \"{{moderatorPassword}}\"\n}" },
-        "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] }
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{moderatorEmail}}\",\n    \"password\": \"{{moderatorPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        }
       },
       "event": [
         {
@@ -217,7 +395,20 @@
       "request": {
         "method": "POST",
         "header": [],
-        "url": { "raw": "{{baseUrl}}/api/v1/moderation/listings/{{listingId}}/approve", "host": ["{{baseUrl}}"], "path": ["api", "v1", "moderation", "listings", "{{listingId}}", "approve"] }
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/moderation/listings/{{listingId}}/approve",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "moderation",
+            "listings",
+            "{{listingId}}",
+            "approve"
+          ]
+        }
       },
       "event": [
         {

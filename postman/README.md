@@ -1,3 +1,5 @@
+**English** | [Русский](./README.ru.md)
+
 # Postman collections
 
 Five Postman collections (v2.1) plus a `hvostid-local` environment file for
@@ -25,11 +27,14 @@ poking the gateway by hand and for smoke-checking via Newman in CI.
 2. In Postman, **File -> Import** and select every `COL-*.json` plus
    `hvostid-local.postman_environment.json` from this directory.
 3. Top-right environment dropdown -> select **`hvostid-local`**.
-4. Run a collection via the Runner, or just open requests and hit *Send*.
+4. Fill in `buyerPassword`, `sellerPassword`, `moderatorPassword` --
+   the env file ships with `<REPLACE_ME>` placeholders so passwords
+   never land in version control.
+5. Run a collection via the Runner, or just open requests and hit *Send*.
 
-The environment ships with throwaway credentials
-(`buyer.t36@hvostid.local` / `seller.t36@hvostid.local` etc.) -- change
-them before sharing real data.
+The environment ships with throwaway emails
+(`buyer.t36@hvostid.local` / `seller.t36@hvostid.local` etc.); edit
+them if you want to test against accounts that already exist locally.
 
 ## What the collections do for you
 
@@ -40,7 +45,9 @@ them before sharing real data.
 - **Auto-refresh on 401.** Each collection has a `test`-level event hook
   that, when a request returns 401 and a refresh token is present, calls
   `POST /api/v1/auth/refresh`, writes the new pair back, and the next
-  request picks it up automatically.
+  request picks it up automatically. A failed refresh is logged via
+  `console.error` so the Postman / Newman console makes the cause
+  obvious.
 - **IDs flow between requests.** `passportId`, `listingId`, `documentId`
   are written by earlier requests so later steps in the same collection
   pick them up from the environment.
