@@ -222,6 +222,7 @@ public class ListingController {
             description = "User has already flagged this listing",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @PostMapping("/{id}/flag")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<FlagListingResponse> flagListing(
             @Parameter(description = "Listing ID", required = true, example = "1") @PathVariable Long id,
             @Valid @RequestBody FlagListingRequest request,

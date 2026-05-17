@@ -77,18 +77,27 @@ public class ListingFlagService {
             return;
         }
 
-        ListingStatus previous = listing.getStatus();
-        listing.setStatus(ListingStatus.MODERATION);
-        listingRepository.save(listing);
+        // Atomic conditional update: only one concurrent flag transaction wins
+        // the PUBLISHED->MODERATION transition; the rest see 0 rows updated
+        // and skip the history record.
+        int updated =
+                listingRepository.transitionStatus(listing.getId(), ListingStatus.PUBLISHED, ListingStatus.MODERATION);
+        if (updated == 0) {
+            return;
+        }
 
         ListingStatusHistory history = new ListingStatusHistory(
-                listing.getId(), previous, ListingStatus.MODERATION, reporterId, SYSTEM_ROLE, AUTO_MODERATION_COMMENT);
+                listing.getId(),
+                ListingStatus.PUBLISHED,
+                ListingStatus.MODERATION,
+                reporterId,
+                SYSTEM_ROLE,
+                AUTO_MODERATION_COMMENT);
         historyRepository.save(history);
 
         log.info(
-                "Auto-moderation: listingId={} moved from {} to MODERATION after {} flags",
+                "Auto-moderation: listingId={} moved from PUBLISHED to MODERATION after {} flags",
                 listing.getId(),
-                previous,
                 pendingCount);
     }
 }

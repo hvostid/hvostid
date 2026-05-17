@@ -30,7 +30,6 @@ import tools.jackson.databind.ObjectMapper;
 @AutoConfigureMockMvc
 @Transactional
 class ListingFlagControllerTest extends AbstractPostgresContainerTest {
-
     private static final Long OWNER_ID = 100L;
 
     @Autowired

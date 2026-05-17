@@ -2,6 +2,7 @@ package ru.hvostid.listing.service;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 import java.util.Optional;
@@ -30,7 +31,6 @@ import ru.hvostid.listing.repository.ListingStatusHistoryRepository;
 
 @ExtendWith(MockitoExtension.class)
 class ListingFlagServiceTest {
-
     private static final Long LISTING_ID = 42L;
     private static final Long OWNER_ID = 100L;
     private static final Long REPORTER_ID = 5L;
@@ -144,14 +144,14 @@ class ListingFlagServiceTest {
         when(flagRepository.save(any(ListingFlag.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(flagRepository.countByListingIdAndStatus(LISTING_ID, FlagStatus.PENDING))
                 .thenReturn(ListingFlagService.AUTO_MODERATION_THRESHOLD);
-        when(listingRepository.save(any(Listing.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(listingRepository.transitionStatus(LISTING_ID, ListingStatus.PUBLISHED, ListingStatus.MODERATION))
+                .thenReturn(1);
 
         FlagListingRequest request = new FlagListingRequest(FlagReason.FAKE_INFO, null);
 
         listingFlagService.flagListing(LISTING_ID, request, REPORTER_ID);
 
-        assertThat(publishedListing.getStatus()).isEqualTo(ListingStatus.MODERATION);
-        verify(listingRepository).save(publishedListing);
+        verify(listingRepository).transitionStatus(LISTING_ID, ListingStatus.PUBLISHED, ListingStatus.MODERATION);
 
         ArgumentCaptor<ListingStatusHistory> historyCaptor = ArgumentCaptor.forClass(ListingStatusHistory.class);
         verify(historyRepository).save(historyCaptor.capture());
@@ -160,6 +160,25 @@ class ListingFlagServiceTest {
         assertThat(history.getToStatus()).isEqualTo(ListingStatus.MODERATION);
         assertThat(history.getChangedByRole()).isEqualTo(ListingFlagService.SYSTEM_ROLE);
         assertThat(history.getChangedByUserId()).isEqualTo(REPORTER_ID);
+    }
+
+    @Test
+    void shouldSkipHistoryWhenConcurrentTransitionAlreadyHappened() {
+        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(publishedListing));
+        when(flagRepository.existsByListingIdAndReporterId(LISTING_ID, REPORTER_ID))
+                .thenReturn(false);
+        when(flagRepository.save(any(ListingFlag.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(flagRepository.countByListingIdAndStatus(LISTING_ID, FlagStatus.PENDING))
+                .thenReturn(ListingFlagService.AUTO_MODERATION_THRESHOLD);
+        when(listingRepository.transitionStatus(LISTING_ID, ListingStatus.PUBLISHED, ListingStatus.MODERATION))
+                .thenReturn(0);
+
+        FlagListingRequest request = new FlagListingRequest(FlagReason.FAKE_INFO, null);
+
+        listingFlagService.flagListing(LISTING_ID, request, REPORTER_ID);
+
+        verify(listingRepository).transitionStatus(LISTING_ID, ListingStatus.PUBLISHED, ListingStatus.MODERATION);
+        verify(historyRepository, never()).save(any());
     }
 
     @Test
@@ -175,8 +194,7 @@ class ListingFlagServiceTest {
 
         listingFlagService.flagListing(LISTING_ID, request, REPORTER_ID);
 
-        assertThat(publishedListing.getStatus()).isEqualTo(ListingStatus.PUBLISHED);
-        verify(listingRepository, never()).save(any(Listing.class));
+        verify(listingRepository, never()).transitionStatus(anyLong(), any(), any());
         verify(historyRepository, never()).save(any());
     }
 }
