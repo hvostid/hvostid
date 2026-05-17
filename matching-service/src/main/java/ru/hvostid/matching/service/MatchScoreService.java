@@ -1,5 +1,6 @@
 package ru.hvostid.matching.service;
 
+import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,8 @@ import ru.hvostid.matching.config.CacheConfig;
 import ru.hvostid.matching.domain.CompatibilityResult;
 import ru.hvostid.matching.domain.DegradedReason;
 import ru.hvostid.matching.domain.PetContext;
+import ru.hvostid.matching.dto.AdaptationPhaseDto;
+import ru.hvostid.matching.dto.FactorScoreDto;
 import ru.hvostid.matching.dto.MatchScoreResponse;
 import ru.hvostid.matching.entity.BuyerQuestionnaire;
 import ru.hvostid.matching.exception.QuestionnaireNotFoundException;
@@ -26,16 +29,22 @@ public class MatchScoreService {
     private final ListingServiceClient listingClient;
     private final PassportServiceClient passportClient;
     private final CompatibilityScoreCalculator calculator;
+    private final MatchExplanationService explanationService;
+    private final AdaptationPlanBuilder adaptationPlanBuilder;
 
     public MatchScoreService(
             BuyerQuestionnaireRepository questionnaireRepository,
             ListingServiceClient listingClient,
             PassportServiceClient passportClient,
-            CompatibilityScoreCalculator calculator) {
+            CompatibilityScoreCalculator calculator,
+            MatchExplanationService explanationService,
+            AdaptationPlanBuilder adaptationPlanBuilder) {
         this.questionnaireRepository = questionnaireRepository;
         this.listingClient = listingClient;
         this.passportClient = passportClient;
         this.calculator = calculator;
+        this.explanationService = explanationService;
+        this.adaptationPlanBuilder = adaptationPlanBuilder;
     }
 
     @Cacheable(cacheNames = CacheConfig.MATCH_SCORES_CACHE, key = "#userId + '_' + #listingId")
@@ -77,6 +86,13 @@ public class MatchScoreService {
         CompatibilityResult result = calculator.calculate(questionnaire, petContext);
         boolean degraded = degradedReason != null;
 
+        String summary = explanationService.buildSummary(petContext, result, degraded);
+        List<String> tips = explanationService.buildTips(petContext, result);
+        List<AdaptationPhaseDto> adaptationPlan = adaptationPlanBuilder.build(petContext);
+        List<FactorScoreDto> factors =
+                result.factors().stream().map(FactorScoreDto::from).toList();
+        String reasonCode = degradedReason == null ? null : degradedReason.code();
+
         log.info(
                 "Match score calculated listingId={} userId={} requestId={} score={} level={} degraded={} degradedReason={}",
                 listingId,
@@ -87,7 +103,8 @@ public class MatchScoreService {
                 degraded,
                 degradedReason);
 
-        return MatchScoreResponse.from(result, degraded, degradedReason);
+        return new MatchScoreResponse(
+                result.score(), result.level(), factors, summary, tips, adaptationPlan, degraded, reasonCode);
     }
 
     BuyerQuestionnaire requireQuestionnaire(long userId) {
@@ -102,30 +119,18 @@ public class MatchScoreService {
 
     /**
      * Scores a single listing snapshot against a pre-loaded questionnaire without
-     * fetching the listing again. Used by recommendations where the candidate set
-     * is already in memory; the {@code degradedReason} is best-effort and is not
-     * exposed in the recommendations payload.
+     * fetching the listing again. Returns the raw {@link CompatibilityResult} since
+     * recommendations only need the score and level — summary / tips / adaptation
+     * plan are produced lazily per match-score request, not per recommendation.
      */
-    MatchScoreResponse scoreSnapshot(BuyerQuestionnaire questionnaire, ListingSnapshot listing, String requestId) {
-        DegradedReason degradedReason = null;
+    CompatibilityResult scoreSnapshot(BuyerQuestionnaire questionnaire, ListingSnapshot listing, String requestId) {
         Optional<PassportSnapshot> passport = Optional.empty();
         Long passportId = parsePassportId(listing.passportId());
-        if (passportId == null) {
-            degradedReason = DegradedReason.PASSPORT_ID_UNPARSEABLE;
-        } else {
+        if (passportId != null) {
             passport = passportClient.getPassport(passportId, requestId);
-            if (passport.isEmpty()) {
-                degradedReason = DegradedReason.PASSPORT_UNAVAILABLE;
-            }
         }
-
         PetContext petContext = PetContext.from(listing, passport);
-        if (petContext.speciesUnknown()) {
-            degradedReason = pickDegradedReason(degradedReason, DegradedReason.SPECIES_UNKNOWN);
-        }
-
-        CompatibilityResult result = calculator.calculate(questionnaire, petContext);
-        return MatchScoreResponse.from(result, degradedReason != null, degradedReason);
+        return calculator.calculate(questionnaire, petContext);
     }
 
     private static DegradedReason pickDegradedReason(DegradedReason current, DegradedReason next) {

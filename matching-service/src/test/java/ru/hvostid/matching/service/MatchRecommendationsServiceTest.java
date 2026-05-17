@@ -20,8 +20,7 @@ import ru.hvostid.matching.client.ListingServiceClient;
 import ru.hvostid.matching.client.ListingSnapshot;
 import ru.hvostid.matching.client.ListingSummary;
 import ru.hvostid.matching.domain.CompatibilityLevel;
-import ru.hvostid.matching.dto.FactorScoreDto;
-import ru.hvostid.matching.dto.MatchScoreResponse;
+import ru.hvostid.matching.domain.CompatibilityResult;
 import ru.hvostid.matching.dto.RecommendationsResponse;
 import ru.hvostid.matching.entity.BuyerQuestionnaire;
 import ru.hvostid.matching.exception.QuestionnaireRequiredException;
@@ -118,10 +117,9 @@ class MatchRecommendationsServiceTest {
         for (int score : scores) {
             String passportId = "p-" + score;
             ListingSnapshot snapshot = new ListingSnapshot((long) score, "dog", "Labrador", 12, passportId);
-            MatchScoreResponse response =
-                    new MatchScoreResponse(score, levelFor(score), List.<FactorScoreDto>of(), false, null);
+            CompatibilityResult result = new CompatibilityResult(score, levelFor(score), List.of(), false);
             when(matchScoreService.scoreSnapshot(eq(questionnaire), eq(snapshot), eq("req-1")))
-                    .thenReturn(response);
+                    .thenReturn(result);
         }
     }
 

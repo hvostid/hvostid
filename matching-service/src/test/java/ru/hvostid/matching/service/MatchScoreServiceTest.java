@@ -39,8 +39,16 @@ class MatchScoreServiceTest {
 
     @BeforeEach
     void setUp() {
+        CompatibilityScoreCalculator calculator = new CompatibilityScoreCalculator();
+        MatchExplanationService explanationService = new MatchExplanationService();
+        AdaptationPlanBuilder adaptationPlanBuilder = new AdaptationPlanBuilder();
         service = new MatchScoreService(
-                questionnaireRepository, listingClient, passportClient, new CompatibilityScoreCalculator());
+                questionnaireRepository,
+                listingClient,
+                passportClient,
+                calculator,
+                explanationService,
+                adaptationPlanBuilder);
     }
 
     @Test
@@ -58,6 +66,10 @@ class MatchScoreServiceTest {
         assertThat(response.factors()).hasSize(8);
         assertThat(response.degraded()).isFalse();
         assertThat(response.degradedReason()).isNull();
+        assertThat(response.summary()).isNotBlank();
+        assertThat(response.tips()).isNotEmpty();
+        assertThat(response.adaptationPlan()).hasSize(3);
+        assertThat(response.adaptationPlan().getFirst().dayRange()).isEqualTo("1-3");
     }
 
     @Test
