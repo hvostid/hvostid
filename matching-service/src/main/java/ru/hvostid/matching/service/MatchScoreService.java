@@ -113,6 +113,38 @@ public class MatchScoreService {
                 .orElseThrow(() -> new QuestionnaireNotFoundException("Questionnaire not found for user: " + userId));
     }
 
+    Optional<BuyerQuestionnaire> findQuestionnaire(long userId) {
+        return questionnaireRepository.findByUserId(userId);
+    }
+
+    /**
+     * Scores a single listing snapshot against a pre-loaded questionnaire without
+     * fetching the listing again. Used by recommendations where the candidate set
+     * is already in memory; the {@code degradedReason} is best-effort and is not
+     * exposed in the recommendations payload.
+     */
+    MatchScoreResponse scoreSnapshot(BuyerQuestionnaire questionnaire, ListingSnapshot listing, String requestId) {
+        DegradedReason degradedReason = null;
+        Optional<PassportSnapshot> passport = Optional.empty();
+        Long passportId = parsePassportId(listing.passportId());
+        if (passportId == null) {
+            degradedReason = DegradedReason.PASSPORT_ID_UNPARSEABLE;
+        } else {
+            passport = passportClient.getPassport(passportId, requestId);
+            if (passport.isEmpty()) {
+                degradedReason = DegradedReason.PASSPORT_UNAVAILABLE;
+            }
+        }
+
+        PetContext petContext = PetContext.from(listing, passport);
+        if (petContext.speciesUnknown()) {
+            degradedReason = pickDegradedReason(degradedReason, DegradedReason.SPECIES_UNKNOWN);
+        }
+
+        CompatibilityResult result = calculator.calculate(questionnaire, petContext);
+        return MatchScoreResponse.from(result, degradedReason != null, degradedReason);
+    }
+
     private static DegradedReason pickDegradedReason(DegradedReason current, DegradedReason next) {
         if (current == null) {
             return next;

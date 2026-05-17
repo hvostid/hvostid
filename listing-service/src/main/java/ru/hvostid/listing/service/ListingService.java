@@ -37,6 +37,16 @@ public class ListingService {
         this.historyRepository = historyRepository;
     }
 
+    /**
+     * Shared "load or 404" helper used by this service and by sibling services
+     * (e.g. {@link ModerationService}) so the not-found message stays consistent.
+     */
+    Listing requireListing(Long id) {
+        return listingRepository
+                .findById(id)
+                .orElseThrow(() -> new ListingNotFoundException(LISTING_NOT_FOUND_MESSAGE + id));
+    }
+
     @Transactional
     public ListingResponse createListing(ListingRequest request, Long sellerId) {
         log.debug("Creating listing for sellerId={}", sellerId);
@@ -65,9 +75,7 @@ public class ListingService {
     public ListingResponse getListing(Long id, Long userId) {
         log.debug("Getting listing id={} for userId={}", id, userId);
 
-        Listing listing = listingRepository
-                .findById(id)
-                .orElseThrow(() -> new ListingNotFoundException(LISTING_NOT_FOUND_MESSAGE + id));
+        Listing listing = requireListing(id);
 
         boolean isOwner = listing.getSellerId().equals(userId);
         boolean isPublished = listing.getStatus() == ListingStatus.PUBLISHED;
@@ -84,9 +92,7 @@ public class ListingService {
     public ListingResponse updateListing(Long id, ListingUpdateRequest request, Long userId) {
         log.debug("Updating listing id={} for userId={}", id, userId);
 
-        Listing listing = listingRepository
-                .findById(id)
-                .orElseThrow(() -> new ListingNotFoundException(LISTING_NOT_FOUND_MESSAGE + id));
+        Listing listing = requireListing(id);
 
         if (!listing.getSellerId().equals(userId)) {
             log.warn("Update denied: not owner listingId={} userId={}", id, userId);
@@ -150,9 +156,7 @@ public class ListingService {
     public ListingResponse updateStatus(Long id, StatusUpdateRequest request, Long userId, Set<String> userRoles) {
         log.debug("Updating status listingId={} to {} by userId={}, roles={}", id, request.status(), userId, userRoles);
 
-        Listing listing = listingRepository
-                .findById(id)
-                .orElseThrow(() -> new ListingNotFoundException(LISTING_NOT_FOUND_MESSAGE + id));
+        Listing listing = requireListing(id);
 
         boolean isOwner = listing.getSellerId().equals(userId);
         ListingStatus oldStatus = listing.getStatus();

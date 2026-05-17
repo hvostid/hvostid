@@ -261,7 +261,7 @@ public class ListingController {
         Set<String> roles = user.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .filter(Objects::nonNull)
-                .map(role -> role.replace("ROLE_", ""))
+                .map(role -> role.startsWith("ROLE_") ? role.substring(5) : role)
                 .collect(Collectors.toSet());
 
         log.debug(

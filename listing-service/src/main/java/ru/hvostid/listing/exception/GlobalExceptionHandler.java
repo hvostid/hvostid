@@ -105,6 +105,19 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(FlagNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleFlagNotFound(FlagNotFoundException ex, HttpServletRequest request) {
+        log.debug("Flag not found: {}", ex.getMessage());
+        return error(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidFlagReviewException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidFlagReview(
+            InvalidFlagReviewException ex, HttpServletRequest request) {
+        log.debug("Invalid flag review: {}", ex.getMessage());
+        return error(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
         log.error("Unexpected error", ex);

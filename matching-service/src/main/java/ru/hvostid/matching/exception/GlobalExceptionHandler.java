@@ -25,6 +25,13 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(QuestionnaireRequiredException.class)
+    public ResponseEntity<ErrorResponse> handleQuestionnaireRequired(
+            QuestionnaireRequiredException ex, HttpServletRequest request) {
+        log.debug("Questionnaire required: {}", ex.getMessage());
+        return error(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(ListingNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleListingNotFound(
             ListingNotFoundException ex, HttpServletRequest request) {
