@@ -34,7 +34,7 @@ public class ListingServiceClient {
             return response != null && response.hasPublishedListing();
         } catch (RestClientException ex) {
             log.warn("Listing service unavailable while checking passportId={}", passportId, ex);
-            throw new ListingServiceUnavailableException("Listing service unavailable");
+            throw new ListingServiceUnavailableException("Listing service unavailable", ex);
         }
     }
 

@@ -47,14 +47,22 @@ public class TrustScoreService {
      *
      * <p>Returns 404 in both "not found" and "not viewable" cases to avoid disclosing
      * which of the two applies.
+     *
+     * <p>Intentionally not annotated with {@code @Transactional}: the access check makes a
+     * synchronous HTTP call to listing-service, which would otherwise hold a database
+     * connection from Hikari for the full duration of the remote round-trip. Each
+     * repository call below opens its own short transaction via Spring Data JPA defaults.
      */
-    @Transactional(readOnly = true)
     public TrustScoreResponse getTrustScore(Long passportId, Long userId, Set<String> userRoles, String requestId) {
+        // findWithVaccinationsById eagerly fetches vaccinations via @EntityGraph,
+        // so the returned entity (although detached after the call) is safe to read
+        // in the rest of this method without an enclosing transaction.
         PetPassport passport = passportRepository
                 .findWithVaccinationsById(passportId)
                 .orElseThrow(() -> new PassportNotFoundException("Passport not found with id: " + passportId));
 
-        if (!canReadTrustScore(passport, userId, userRoles, requestId)) {
+        if (!canReadTrustScoreWithoutListingCheck(passport, userId, userRoles)
+                && !listingServiceClient.hasPublishedListingForPassport(passport.getId(), requestId)) {
             log.warn(
                     "Trust score access denied for passportId={} userId={} (no PUBLISHED listing reference)",
                     passportId,
@@ -68,15 +76,13 @@ public class TrustScoreService {
         return new TrustScoreResponse(breakdown.total(), breakdown);
     }
 
-    private boolean canReadTrustScore(PetPassport passport, Long userId, Set<String> userRoles, String requestId) {
+    private static boolean canReadTrustScoreWithoutListingCheck(
+            PetPassport passport, Long userId, Set<String> userRoles) {
         if (userId != null && userId.equals(passport.getSellerId())) {
             return true;
         }
-        if (userRoles != null
-                && (userRoles.contains(UserRole.ADMIN.value()) || userRoles.contains(UserRole.MODERATOR.value()))) {
-            return true;
-        }
-        return listingServiceClient.hasPublishedListingForPassport(passport.getId(), requestId);
+        return userRoles != null
+                && (userRoles.contains(UserRole.ADMIN.value()) || userRoles.contains(UserRole.MODERATOR.value()));
     }
 
     /**
