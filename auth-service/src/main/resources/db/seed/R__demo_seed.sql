@@ -44,7 +44,8 @@ VALUES
     (13, 'BUYER'),
     (14, 'BUYER');
 
-SELECT setval('users_id_seq', (SELECT COALESCE(MAX(id), 1) FROM users));
+-- Bump past the demo-reserved range so new sign-ups land at id >= 100.
+SELECT setval('users_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM users), 99));
 
 DO $$
 DECLARE

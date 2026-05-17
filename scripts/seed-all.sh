@@ -4,15 +4,33 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
 
-WIPE_VOLUMES=true
+WIPE_VOLUMES=false
+ASSUME_YES=false
 for arg in "$@"; do
     case "${arg}" in
+        --wipe)
+            WIPE_VOLUMES=true
+            ;;
         --no-wipe)
             WIPE_VOLUMES=false
             ;;
+        -y|--yes)
+            ASSUME_YES=true
+            ;;
         -h|--help)
-            echo "Usage: $0 [--no-wipe]"
-            echo "  --no-wipe  Reuse existing Docker volumes (skip docker compose down -v)"
+            cat <<'USAGE'
+Usage: scripts/seed-all.sh [--wipe] [-y|--yes]
+
+  Reseeds the demo dataset on top of the running stack. By default the
+  existing Docker volumes are kept so previously created data is not
+  destroyed; the demo Flyway seed (db/seed/R__demo_seed.sql) rewrites
+  rows with id BETWEEN 1 AND 99 on every backend start.
+
+  --wipe       docker compose down -v before starting (destroys every
+               Postgres / MinIO volume). Requires confirmation unless
+               -y / --yes is set or stdin is not a TTY.
+  -y, --yes    Skip the confirmation prompt for --wipe.
+USAGE
             exit 0
             ;;
         *)
@@ -21,6 +39,14 @@ for arg in "$@"; do
             ;;
     esac
 done
+
+if [[ "${WIPE_VOLUMES}" == true ]] && [[ "${ASSUME_YES}" == false ]] && [[ -t 0 ]]; then
+    read -r -p "--wipe will run 'docker compose down -v' and destroy all volumes. Continue? [y/N] " reply
+    case "${reply}" in
+        y|Y|yes|YES) ;;
+        *) echo "Aborted."; exit 0 ;;
+    esac
+fi
 
 export SPRING_PROFILES_ACTIVE=demo
 

@@ -69,10 +69,9 @@ if ! curl -sf "${health_url}" >/dev/null 2>&1 \
 fi
 
 count=0
-while IFS= read -r entry; do
-    bucket=$(echo "${entry}" | python3 -c "import json,sys; print(json.load(sys.stdin)['bucket'])")
-    object_key=$(echo "${entry}" | python3 -c "import json,sys; print(json.load(sys.stdin)['objectKey'])")
-    local_file=$(echo "${entry}" | python3 -c "import json,sys; print(json.load(sys.stdin)['localFile'])")
+# One python invocation extracts every (bucket, objectKey, localFile) tuple and
+# emits them tab-separated, so we don't spawn three python processes per entry.
+while IFS=$'\t' read -r bucket object_key local_file; do
     source_path="$(mc_path_for_local_file "${local_file}")"
 
     if [[ "${USE_DOCKER_MC}" == false ]] && [[ ! -f "${SEED_DATA_DIR}/${local_file}" ]]; then
@@ -83,6 +82,6 @@ while IFS= read -r entry; do
     run_mc mb --ignore-existing "hvostid-seed/${bucket}" >/dev/null 2>&1 || true
     run_mc cp "${source_path}" "hvostid-seed/${bucket}/${object_key}"
     count=$((count + 1))
-done < <(python3 -c "import json; [print(json.dumps(x)) for x in json.load(open('${MANIFEST}'))]")
+done < <(python3 -c "import json; [print(f\"{x['bucket']}\t{x['objectKey']}\t{x['localFile']}\") for x in json.load(open('${MANIFEST}'))]")
 
 echo "Uploaded ${count} objects to MinIO."

@@ -146,9 +146,25 @@ questionnaires, MinIO photos) with:
 ./scripts/seed-all.sh
 ```
 
-This wipes Docker volumes, starts the stack with `SPRING_PROFILES_ACTIVE=demo`,
-runs Flyway repeatable seed migrations, and uploads sample files to MinIO.
-Use `--no-wipe` to keep existing volumes.
+By default this keeps existing Docker volumes and reuses them — the demo
+Flyway seed (`db/seed/R__demo_seed.sql`) rewrites rows with id between 1
+and 99 on every backend start, so a reseed is non-destructive for ids
+you assigned yourself in the UI.
+
+Add `--wipe` to start from a clean slate (`docker compose down -v`,
+destroys every Postgres / MinIO volume); the script asks for
+confirmation unless `-y` is set or stdin is not a TTY:
+
+```bash
+./scripts/seed-all.sh --wipe       # interactive confirm
+./scripts/seed-all.sh --wipe -y    # CI-friendly
+```
+
+**Reserved id range.** Demo seed owns ids `1..99` in every service
+(users, listings, pet_passports, buyer_questionnaire). Anything you
+create in the UI on the demo profile will be allocated id ≥ 100 (the
+seed bumps the relevant sequences), so seed rewrites do not collide
+with your test data.
 
 All demo accounts share the password **`demo1234`**:
 

@@ -85,9 +85,10 @@ VALUES
     (27, 'PHOTO', 'bruno.jpg', '5/27/demo-photo-27.jpg', 'image/jpeg', 2048, NOW()),
     (31, 'PHOTO', 'cloudy.jpg', '3/31/demo-photo-31.jpg', 'image/jpeg', 2048, NOW());
 
-SELECT setval('pet_passports_id_seq', (SELECT COALESCE(MAX(id), 1) FROM pet_passports));
-SELECT setval('vaccinations_id_seq', (SELECT COALESCE(MAX(id), 1) FROM vaccinations));
-SELECT setval('passport_documents_id_seq', (SELECT COALESCE(MAX(id), 1) FROM passport_documents));
+-- Bump past the demo-reserved range so anything created via the UI lands at id >= 100.
+SELECT setval('pet_passports_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM pet_passports), 99));
+SELECT setval('vaccinations_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM vaccinations), 99));
+SELECT setval('passport_documents_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM passport_documents), 99));
 
 DO $$
 DECLARE

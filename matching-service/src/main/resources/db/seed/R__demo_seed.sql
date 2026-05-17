@@ -15,7 +15,8 @@ VALUES
     (5, 13, 'APARTMENT', 55, FALSE, FALSE, NULL, TRUE, 'Feather allergy', 'BEGINNER', 'LOW', 8000, 'OFFICE', FALSE, 'Cat', NULL, NOW(), NOW()),
     (6, 14, 'FARM', 200, TRUE, FALSE, NULL, FALSE, NULL, 'PROFESSIONAL', 'VERY_HIGH', 30000, 'HOME', TRUE, 'Dog', 'Husky', NOW(), NOW());
 
-SELECT setval('buyer_questionnaire_id_seq', (SELECT COALESCE(MAX(id), 1) FROM buyer_questionnaire));
+-- Bump past the demo-reserved range so anything created via the UI lands at id >= 100.
+SELECT setval('buyer_questionnaire_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM buyer_questionnaire), 99));
 
 DO $$
 DECLARE

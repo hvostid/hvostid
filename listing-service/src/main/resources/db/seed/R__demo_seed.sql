@@ -62,9 +62,28 @@ VALUES
     (5, 13, 'OTHER', 'Seller unresponsive to questions.', 'PENDING', NOW()),
     (7, 14, 'SCAM', 'Duplicate photos found online.', 'PENDING', NOW());
 
-SELECT setval('listings_id_seq', (SELECT COALESCE(MAX(id), 1) FROM listings));
-SELECT setval('listing_flags_id_seq', (SELECT COALESCE(MAX(id), 1) FROM listing_flags));
-SELECT setval('listing_status_history_id_seq', (SELECT COALESCE(MAX(id), 1) FROM listing_status_history));
+-- Synthesize a single status-history row for every non-DRAFT seed listing so
+-- the "listing history" UI is not empty on the demo stand. We attribute the
+-- change to the listing's seller with the SYSTEM role since real moderator
+-- decisions never happened for these rows.
+INSERT INTO listing_status_history (listing_id, from_status, to_status, changed_by_user_id, changed_by_role, comment, changed_at)
+SELECT id,
+       'DRAFT',
+       status,
+       seller_id,
+       'SYSTEM',
+       COALESCE(moderation_comment, 'Demo seed initial status'),
+       COALESCE(sold_at, updated_at)
+FROM listings
+WHERE id BETWEEN 1 AND 99
+  AND status <> 'DRAFT';
+
+-- Sequences are bumped to at least 99 so anything created through the UI on
+-- the demo profile lands at id >= 100, outside the BETWEEN 1 AND 99 window
+-- this seed reclaims on every restart.
+SELECT setval('listings_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM listings), 99));
+SELECT setval('listing_flags_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM listing_flags), 99));
+SELECT setval('listing_status_history_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM listing_status_history), 99));
 
 DO $$
 DECLARE
