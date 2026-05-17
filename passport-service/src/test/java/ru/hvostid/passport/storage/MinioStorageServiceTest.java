@@ -35,7 +35,7 @@ class MinioStorageServiceTest {
     }
 
     @Test
-    void ensureBucketExistsCreatesMissingBucket() throws Exception {
+    void ensureBucketExists_createsMissingBucket() throws Exception {
         storageService.ensureBucketExists(BUCKET);
 
         boolean exists = minioClient.bucketExists(
