@@ -2,6 +2,7 @@ package ru.hvostid.matching.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
@@ -53,5 +54,13 @@ class ListingServiceClientTest {
         server.expect(requestTo("http://listing/api/v1/listings/99")).andRespond(withStatus(HttpStatus.NOT_FOUND));
 
         assertThatThrownBy(() -> client.getListing(99L, 1L, null)).isInstanceOf(ListingNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("403 maps to ListingNotFoundException")
+    void getListing_forbidden_mapsToNotFound() {
+        server.expect(requestTo("http://listing/api/v1/listings/5")).andRespond(withStatus(FORBIDDEN));
+
+        assertThatThrownBy(() -> client.getListing(5L, 1L, "trace-1")).isInstanceOf(ListingNotFoundException.class);
     }
 }

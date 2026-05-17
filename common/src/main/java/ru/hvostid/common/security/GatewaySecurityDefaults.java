@@ -21,6 +21,8 @@ public final class GatewaySecurityDefaults {
         "/actuator/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**"
     };
 
+    private static final String[] INTERNAL_PATHS = {"/internal/**"};
+
     private GatewaySecurityDefaults() {}
 
     /**
@@ -29,6 +31,14 @@ public final class GatewaySecurityDefaults {
      */
     public static String[] alwaysPublic() {
         return ALWAYS_PUBLIC.clone();
+    }
+
+    /**
+     * Service-to-service paths that must not go through the gateway and are trusted
+     * within the internal network (same pattern as auth introspection).
+     */
+    public static String[] internalPaths() {
+        return INTERNAL_PATHS.clone();
     }
 
     /**

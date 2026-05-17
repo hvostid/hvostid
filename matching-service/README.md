@@ -8,9 +8,10 @@ Owns the buyer questionnaire and the owner-pet compatibility score.
 
 - Buyer questionnaire CRUD with upsert semantics (one questionnaire
   per buyer; subsequent submissions overwrite).
-- Compute a compatibility score between a buyer and a listing by
-  reading both the listing (Listing Service) and the pet's passport
-  (Passport Service).
+- Compute a compatibility score between a buyer and a listing via
+  **RestClient** calls to Listing Service and Passport Service (internal
+  read). Response may include `degraded` and `degradedReason` when passport
+  data is partial.
 - Surface ranked recommendations to the buyer.
 
 ## Endpoints

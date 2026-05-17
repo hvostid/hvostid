@@ -25,7 +25,7 @@ public class SecurityConfig {
         return GatewaySecurityDefaults.applyTo(http, authenticationManager)
                 .authorizeHttpRequests(auth -> auth.requestMatchers("/api/v1/auth/**")
                         .permitAll()
-                        .requestMatchers("/internal/**")
+                        .requestMatchers(GatewaySecurityDefaults.internalPaths())
                         .permitAll()
                         .requestMatchers(GatewaySecurityDefaults.alwaysPublic())
                         .permitAll()

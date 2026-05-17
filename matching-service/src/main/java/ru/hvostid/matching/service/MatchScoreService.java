@@ -3,13 +3,15 @@ package ru.hvostid.matching.service;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import ru.hvostid.matching.client.ListingServiceClient;
 import ru.hvostid.matching.client.ListingSnapshot;
 import ru.hvostid.matching.client.PassportServiceClient;
 import ru.hvostid.matching.client.PassportSnapshot;
+import ru.hvostid.matching.config.CacheConfig;
 import ru.hvostid.matching.domain.CompatibilityResult;
+import ru.hvostid.matching.domain.DegradedReason;
 import ru.hvostid.matching.domain.PetContext;
 import ru.hvostid.matching.dto.MatchScoreResponse;
 import ru.hvostid.matching.entity.BuyerQuestionnaire;
@@ -36,44 +38,72 @@ public class MatchScoreService {
         this.calculator = calculator;
     }
 
-    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CacheConfig.MATCH_SCORES_CACHE, key = "#userId + '_' + #listingId")
     public MatchScoreResponse calculateScore(long listingId, long userId, String requestId) {
-        log.debug("Calculating match score listingId={} userId={}", listingId, userId);
+        log.debug("Calculating match score listingId={} userId={} requestId={}", listingId, userId, requestId);
 
-        BuyerQuestionnaire questionnaire = questionnaireRepository
-                .findByUserId(userId)
-                .orElseThrow(() -> new QuestionnaireNotFoundException("Questionnaire not found for user: " + userId));
+        BuyerQuestionnaire questionnaire = requireQuestionnaire(userId);
 
         ListingSnapshot listing = listingClient.getListing(listingId, userId, requestId);
 
-        boolean degraded = false;
+        DegradedReason degradedReason = null;
         Optional<PassportSnapshot> passport = Optional.empty();
         Long passportId = parsePassportId(listing.passportId());
         if (passportId == null) {
-            degraded = true;
-            log.warn("Listing {} has no valid passportId", listingId);
+            degradedReason = DegradedReason.PASSPORT_ID_UNPARSEABLE;
+            log.warn(
+                    "Listing {} has unparseable passportId='{}' requestId={}",
+                    listingId,
+                    listing.passportId(),
+                    requestId);
         } else {
             passport = passportClient.getPassport(passportId, requestId);
             if (passport.isEmpty()) {
-                degraded = true;
+                degradedReason = DegradedReason.PASSPORT_UNAVAILABLE;
+                log.warn(
+                        "Passport unavailable for listingId={} passportId={} requestId={}",
+                        listingId,
+                        passportId,
+                        requestId);
             }
         }
 
         PetContext petContext = PetContext.from(listing, passport);
+        if (petContext.speciesUnknown()) {
+            degradedReason = pickDegradedReason(degradedReason, DegradedReason.SPECIES_UNKNOWN);
+            log.warn("Unknown species for listingId={} requestId={}", listingId, requestId);
+        }
+
         CompatibilityResult result = calculator.calculate(questionnaire, petContext);
+        boolean degraded = degradedReason != null;
 
         log.info(
-                "Match score calculated listingId={} userId={} score={} level={} degraded={}",
+                "Match score calculated listingId={} userId={} requestId={} score={} level={} degraded={} degradedReason={}",
                 listingId,
                 userId,
+                requestId,
                 result.score(),
                 result.level(),
-                degraded);
+                degraded,
+                degradedReason);
 
-        return MatchScoreResponse.from(result, degraded);
+        return MatchScoreResponse.from(result, degraded, degradedReason);
     }
 
-    private Long parsePassportId(String passportId) {
+    BuyerQuestionnaire requireQuestionnaire(long userId) {
+        return questionnaireRepository
+                .findByUserId(userId)
+                .orElseThrow(() -> new QuestionnaireNotFoundException("Questionnaire not found for user: " + userId));
+    }
+
+    private static DegradedReason pickDegradedReason(DegradedReason current, DegradedReason next) {
+        if (current == null) {
+            return next;
+        }
+        return current;
+    }
+
+    static Long parsePassportId(String passportId) {
         if (passportId == null || passportId.isBlank()) {
             return null;
         }

@@ -4,9 +4,10 @@ import java.util.Locale;
 import java.util.Map;
 
 public final class BreedProfileCatalog {
+    static final BreedProfile NEUTRAL_PROFILE = new BreedProfile(PetSize.MEDIUM, 2, 2, false, false, 7000, 2);
+
     private static final BreedProfile DEFAULT_DOG = new BreedProfile(PetSize.MEDIUM, 2, 3, false, false, 8000, 2);
     private static final BreedProfile DEFAULT_CAT = new BreedProfile(PetSize.SMALL, 1, 2, false, false, 5000, 2);
-    private static final BreedProfile DEFAULT_OTHER = DEFAULT_DOG;
 
     private static final Map<String, BreedProfile> BY_BREED = Map.ofEntries(
             Map.entry("husky", new BreedProfile(PetSize.LARGE, 3, 4, true, false, 12000, 3)),
@@ -27,21 +28,26 @@ public final class BreedProfileCatalog {
 
     private BreedProfileCatalog() {}
 
-    public static BreedProfile resolve(String species, String breed) {
+    public static BreedResolution resolve(String species, String breed) {
+        String normalizedSpecies = species == null ? "" : species.trim().toLowerCase(Locale.ROOT);
+        if (normalizedSpecies.isBlank()) {
+            return new BreedResolution(NEUTRAL_PROFILE, true);
+        }
+
         if (breed != null && !breed.isBlank()) {
             BreedProfile byBreed = BY_BREED.get(normalizeKey(breed));
             if (byBreed != null) {
-                return byBreed;
+                return new BreedResolution(byBreed, false);
             }
         }
-        String normalizedSpecies = species == null ? "" : species.trim().toLowerCase(Locale.ROOT);
-        if (normalizedSpecies.contains("cat")) {
-            return DEFAULT_CAT;
+
+        if (normalizedSpecies.contains("cat") || normalizedSpecies.contains("кош")) {
+            return new BreedResolution(DEFAULT_CAT, false);
         }
-        if (normalizedSpecies.contains("dog")) {
-            return DEFAULT_DOG;
+        if (normalizedSpecies.contains("dog") || normalizedSpecies.contains("собак")) {
+            return new BreedResolution(DEFAULT_DOG, false);
         }
-        return DEFAULT_OTHER;
+        return new BreedResolution(NEUTRAL_PROFILE, true);
     }
 
     private static String normalizeKey(String breed) {

@@ -11,15 +11,24 @@ public record PetContext(
         String temperament,
         String specialNeeds,
         BreedProfile profile,
-        boolean passportAvailable) {
+        boolean passportAvailable,
+        boolean speciesUnknown) {
 
     public static PetContext from(ListingSnapshot listing, Optional<PassportSnapshot> passport) {
         String species = firstNonBlank(passport.map(PassportSnapshot::species).orElse(null), listing.species());
         String breed = firstNonBlank(passport.map(PassportSnapshot::breed).orElse(null), listing.breed());
         String temperament = passport.map(PassportSnapshot::temperament).orElse(null);
         String specialNeeds = passport.map(PassportSnapshot::specialNeeds).orElse(null);
-        BreedProfile profile = BreedProfileCatalog.resolve(species, breed);
-        return new PetContext(species, breed, listing.age(), temperament, specialNeeds, profile, passport.isPresent());
+        BreedResolution resolution = BreedProfileCatalog.resolve(species, breed);
+        return new PetContext(
+                species,
+                breed,
+                listing.age(),
+                temperament,
+                specialNeeds,
+                resolution.profile(),
+                passport.isPresent(),
+                resolution.speciesUnknown());
     }
 
     private static String firstNonBlank(String primary, String fallback) {

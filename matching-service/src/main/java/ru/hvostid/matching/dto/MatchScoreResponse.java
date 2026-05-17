@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import ru.hvostid.matching.domain.CompatibilityLevel;
 import ru.hvostid.matching.domain.CompatibilityResult;
+import ru.hvostid.matching.domain.DegradedReason;
 
 @Schema(description = "Compatibility score between buyer and pet listing")
 public record MatchScoreResponse(
@@ -16,11 +17,19 @@ public record MatchScoreResponse(
         @Schema(description = "Per-factor breakdown") List<FactorScoreDto> factors,
 
         @Schema(description = "True when score used partial data (e.g. passport unavailable)", example = "false")
-        boolean degraded) {
+        boolean degraded,
 
-    public static MatchScoreResponse from(CompatibilityResult result, boolean degraded) {
+        @Schema(
+                description =
+                        "Machine-readable reason when degraded=true (PASSPORT_ID_UNPARSEABLE, PASSPORT_UNAVAILABLE, SPECIES_UNKNOWN)",
+                example = "PASSPORT_UNAVAILABLE",
+                nullable = true)
+        String degradedReason) {
+
+    public static MatchScoreResponse from(CompatibilityResult result, boolean degraded, DegradedReason degradedReason) {
         List<FactorScoreDto> factors =
                 result.factors().stream().map(FactorScoreDto::from).toList();
-        return new MatchScoreResponse(result.score(), result.level(), factors, degraded);
+        String reasonCode = degradedReason == null ? null : degradedReason.code();
+        return new MatchScoreResponse(result.score(), result.level(), factors, degraded, reasonCode);
     }
 }

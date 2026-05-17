@@ -11,13 +11,27 @@ import ru.hvostid.matching.entity.*;
 public class CompatibilityScoreCalculator {
 
     private static final int ALLERGY_CAP_MAX_TOTAL = 35;
+    private static final int LEVEL_GREAT_MIN = 80;
+    private static final int LEVEL_GOOD_MIN = 60;
+    private static final int LEVEL_RISKY_MIN = 40;
+    private static final int YOUNG_CHILD_AGE_THRESHOLD = 10;
+
+    /**
+     * Work-schedule scores by attention need (rows 1..3) and schedule column index (HOME=0, HYBRID=1,
+     * OFFICE=2). HYBRID scores above OFFICE because the owner is home part of the week; OFFICE leaves
+     * the pet alone longest.
+     */
+    private static final int[][] WORK_SCHEDULE_MATRIX = {
+        {5, 4, 3},
+        {5, 4, 2},
+        {5, 3, 1}
+    };
 
     public CompatibilityResult calculate(BuyerQuestionnaire questionnaire, PetContext pet) {
         List<FactorScore> factors = new ArrayList<>();
         factors.add(scoreLivingSpace(questionnaire, pet));
         factors.add(scoreChildren(questionnaire, pet));
-        FactorScore allergies = scoreAllergies(questionnaire, pet);
-        factors.add(allergies);
+        factors.add(scoreAllergies(questionnaire, pet));
         factors.add(scoreExperience(questionnaire, pet));
         factors.add(scoreYard(questionnaire, pet));
         factors.add(scoreActivity(questionnaire, pet));
@@ -25,7 +39,7 @@ public class CompatibilityScoreCalculator {
         factors.add(scoreWorkSchedule(questionnaire, pet));
 
         int rawTotal = factors.stream().mapToInt(FactorScore::score).sum();
-        boolean allergyCap = allergies.score() <= 3 && Boolean.TRUE.equals(questionnaire.getHasAllergies());
+        boolean allergyCap = factors.stream().anyMatch(FactorScore::criticalConflict);
         int total = allergyCap ? Math.min(rawTotal, ALLERGY_CAP_MAX_TOTAL) : rawTotal;
         CompatibilityLevel level = mapLevel(total, allergyCap);
 
@@ -48,10 +62,10 @@ public class CompatibilityScoreCalculator {
                         };
                     case HOUSE ->
                         switch (size) {
-                            case SMALL, MEDIUM -> 19;
-                            case LARGE -> Boolean.TRUE.equals(q.getHasYard()) ? 20 : 14;
+                            case SMALL, MEDIUM -> max;
+                            case LARGE -> Boolean.TRUE.equals(q.getHasYard()) ? max : 14;
                         };
-                    case FARM -> 20;
+                    case FARM -> max;
                 };
 
         String comment =
@@ -63,29 +77,28 @@ public class CompatibilityScoreCalculator {
                                 ? "Large pets need more space than a typical apartment provides"
                                 : "Living space fits a large pet";
                 };
-        return new FactorScore(CompatibilityFactor.LIVING_SPACE, clamp(score, max), comment);
+        return FactorScore.of(CompatibilityFactor.LIVING_SPACE, clamp(score, max), comment);
     }
 
     private FactorScore scoreChildren(BuyerQuestionnaire q, PetContext pet) {
         int max = CompatibilityFactor.CHILDREN.maxScore();
         if (!Boolean.TRUE.equals(q.getHasChildren())) {
-            return new FactorScore(
-                    CompatibilityFactor.CHILDREN, max, "No children reported — no child-safety concerns");
+            return FactorScore.of(CompatibilityFactor.CHILDREN, max, "No children reported — no child-safety concerns");
         }
 
         if (!pet.passportAvailable()
                 || pet.temperament() == null
                 || pet.temperament().isBlank()) {
             int neutral = max * 2 / 3;
-            return new FactorScore(
+            return FactorScore.of(
                     CompatibilityFactor.CHILDREN,
                     neutral,
                     "Passport temperament unavailable — moderate child compatibility assumed");
         }
 
         String temp = pet.temperament().toLowerCase(Locale.ROOT);
-        int childAge = q.getChildrenAgeMin() == null ? 10 : q.getChildrenAgeMin();
-        boolean youngChildren = childAge < 10;
+        int childAge = q.getChildrenAgeMin() == null ? YOUNG_CHILD_AGE_THRESHOLD : q.getChildrenAgeMin();
+        boolean youngChildren = childAge < YOUNG_CHILD_AGE_THRESHOLD;
 
         int score;
         String comment;
@@ -102,29 +115,29 @@ public class CompatibilityScoreCalculator {
             score = 10;
             comment = "Neutral temperament — supervise interactions with children";
         }
-        return new FactorScore(CompatibilityFactor.CHILDREN, clamp(score, max), comment);
+        return FactorScore.of(CompatibilityFactor.CHILDREN, clamp(score, max), comment);
     }
 
     private FactorScore scoreAllergies(BuyerQuestionnaire q, PetContext pet) {
         int max = CompatibilityFactor.ALLERGIES.maxScore();
         if (!Boolean.TRUE.equals(q.getHasAllergies())) {
-            return new FactorScore(CompatibilityFactor.ALLERGIES, max, "No allergies reported");
+            return FactorScore.of(CompatibilityFactor.ALLERGIES, max, "No allergies reported");
         }
 
         if (allergenConflictsWithPet(q.getAllergyDetails(), pet)) {
             if (pet.profile().hypoallergenic()) {
-                return new FactorScore(
+                return FactorScore.of(
                         CompatibilityFactor.ALLERGIES,
                         10,
                         "Allergies reported but breed is often tolerated by allergy sufferers");
             }
-            return new FactorScore(
+            return FactorScore.critical(
                     CompatibilityFactor.ALLERGIES,
                     2,
                     "Reported allergies conflict with this species or breed — high risk");
         }
 
-        return new FactorScore(
+        return FactorScore.of(
                 CompatibilityFactor.ALLERGIES, 12, "Allergies reported but no direct conflict detected with this pet");
     }
 
@@ -145,19 +158,18 @@ public class CompatibilityScoreCalculator {
         String comment = gap >= 2
                 ? "Beginner owner, this breed requires experienced handling"
                 : gap == 1 ? "Some experience recommended for this breed" : "Owner experience matches breed care needs";
-        return new FactorScore(CompatibilityFactor.EXPERIENCE, clamp(score, max), comment);
+        return FactorScore.of(CompatibilityFactor.EXPERIENCE, clamp(score, max), comment);
     }
 
     private FactorScore scoreYard(BuyerQuestionnaire q, PetContext pet) {
         int max = CompatibilityFactor.YARD.maxScore();
         if (!pet.profile().needsYard()) {
-            return new FactorScore(CompatibilityFactor.YARD, max, "Breed does not require a yard");
+            return FactorScore.of(CompatibilityFactor.YARD, max, "Breed does not require a yard");
         }
         if (Boolean.TRUE.equals(q.getHasYard())) {
-            return new FactorScore(CompatibilityFactor.YARD, max, "Yard available for an active breed");
+            return FactorScore.of(CompatibilityFactor.YARD, max, "Yard available for an active breed");
         }
-        return new FactorScore(
-                CompatibilityFactor.YARD, 2, "Active breed benefits from a yard, which is not available");
+        return FactorScore.of(CompatibilityFactor.YARD, 2, "Active breed benefits from a yard, which is not available");
     }
 
     private FactorScore scoreActivity(BuyerQuestionnaire q, PetContext pet) {
@@ -178,7 +190,7 @@ public class CompatibilityScoreCalculator {
                 : diff == 1
                         ? "Slight mismatch between owner activity and breed needs"
                         : "Significant activity level mismatch";
-        return new FactorScore(CompatibilityFactor.ACTIVITY, clamp(score, max), comment);
+        return FactorScore.of(CompatibilityFactor.ACTIVITY, clamp(score, max), comment);
     }
 
     private FactorScore scoreBudget(BuyerQuestionnaire q, PetContext pet) {
@@ -201,42 +213,55 @@ public class CompatibilityScoreCalculator {
             score = 2;
             comment = "Budget may be insufficient for ongoing care of this breed";
         }
-        return new FactorScore(CompatibilityFactor.BUDGET, clamp(score, max), comment);
+        return FactorScore.of(CompatibilityFactor.BUDGET, clamp(score, max), comment);
     }
 
     private FactorScore scoreWorkSchedule(BuyerQuestionnaire q, PetContext pet) {
         int max = CompatibilityFactor.WORK_SCHEDULE.maxScore();
-        int attention = pet.profile().attentionNeeds();
-        WorkSchedule schedule = q.getWorkSchedule();
+        int attention = clampAttentionIndex(pet.profile().attentionNeeds());
+        int scheduleIndex = workScheduleIndex(q.getWorkSchedule());
+        int score = WORK_SCHEDULE_MATRIX[attention][scheduleIndex];
 
-        int score =
-                switch (schedule) {
-                    case HOME -> max;
-                    case HYBRID -> attention >= 3 ? 3 : 4;
+        String comment =
+                switch (q.getWorkSchedule()) {
+                    case HOME -> "Home schedule supports pets needing attention";
+                    case HYBRID ->
+                        attention >= 2
+                                ? "Hybrid schedule is better than full office for attentive breeds"
+                                : "Hybrid schedule is acceptable for this breed's attention needs";
                     case OFFICE ->
-                        switch (attention) {
-                            case 1 -> 4;
-                            case 2 -> 2;
-                            default -> 1;
-                        };
+                        attention >= 2
+                                ? "Breed needs attention; office schedule may be challenging"
+                                : "Office schedule is acceptable for this breed's attention needs";
                 };
+        return FactorScore.of(CompatibilityFactor.WORK_SCHEDULE, clamp(score, max), comment);
+    }
 
-        String comment = schedule == WorkSchedule.HOME
-                ? "Home schedule supports pets needing attention"
-                : attention >= 3
-                        ? "Breed needs attention; office schedule may be challenging"
-                        : "Work schedule is acceptable for this breed's attention needs";
-        return new FactorScore(CompatibilityFactor.WORK_SCHEDULE, clamp(score, max), comment);
+    static int workScheduleScore(int attentionNeeds, WorkSchedule schedule) {
+        int attention = clampAttentionIndex(attentionNeeds);
+        return WORK_SCHEDULE_MATRIX[attention][workScheduleIndex(schedule)];
+    }
+
+    private static int clampAttentionIndex(int attentionNeeds) {
+        return Math.max(0, Math.min(2, attentionNeeds - 1));
+    }
+
+    private static int workScheduleIndex(WorkSchedule schedule) {
+        return switch (schedule) {
+            case HOME -> 0;
+            case HYBRID -> 1;
+            case OFFICE -> 2;
+        };
     }
 
     private CompatibilityLevel mapLevel(int total, boolean allergyCap) {
-        if (allergyCap || total < 40) {
+        if (allergyCap || total < LEVEL_RISKY_MIN) {
             return CompatibilityLevel.NOT_RECOMMENDED;
         }
-        if (total >= 80) {
+        if (total >= LEVEL_GREAT_MIN) {
             return CompatibilityLevel.GREAT;
         }
-        if (total >= 60) {
+        if (total >= LEVEL_GOOD_MIN) {
             return CompatibilityLevel.GOOD;
         }
         return CompatibilityLevel.RISKY;
@@ -265,9 +290,6 @@ public class CompatibilityScoreCalculator {
     }
 
     private static int experienceLevel(PetExperience experience) {
-        if (experience == null) {
-            return 0;
-        }
         return switch (experience) {
             case NONE -> 0;
             case BEGINNER -> 1;
@@ -277,9 +299,6 @@ public class CompatibilityScoreCalculator {
     }
 
     private static int activityLevel(ActivityLevel level) {
-        if (level == null) {
-            return 2;
-        }
         return switch (level) {
             case LOW -> 1;
             case MEDIUM -> 2;

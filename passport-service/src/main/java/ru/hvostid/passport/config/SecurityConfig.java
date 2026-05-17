@@ -17,7 +17,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager) {
         return GatewaySecurityDefaults.applyTo(http, authenticationManager)
-                .authorizeHttpRequests(auth -> auth.requestMatchers("/internal/**")
+                .authorizeHttpRequests(auth -> auth.requestMatchers(GatewaySecurityDefaults.internalPaths())
                         .permitAll()
                         .requestMatchers(GatewaySecurityDefaults.alwaysPublic())
                         .permitAll()

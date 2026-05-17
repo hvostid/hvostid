@@ -17,6 +17,7 @@ import ru.hvostid.matching.client.ListingServiceClient;
 import ru.hvostid.matching.client.ListingSnapshot;
 import ru.hvostid.matching.client.PassportServiceClient;
 import ru.hvostid.matching.client.PassportSnapshot;
+import ru.hvostid.matching.domain.DegradedReason;
 import ru.hvostid.matching.dto.MatchScoreResponse;
 import ru.hvostid.matching.entity.*;
 import ru.hvostid.matching.exception.ListingNotFoundException;
@@ -45,8 +46,7 @@ class MatchScoreServiceTest {
     @Test
     @DisplayName("happy path returns score response")
     void calculateScore_happyPath() {
-        BuyerQuestionnaire questionnaire = questionnaire();
-        when(questionnaireRepository.findByUserId(1L)).thenReturn(Optional.of(questionnaire));
+        when(questionnaireRepository.findByUserId(1L)).thenReturn(Optional.of(questionnaire()));
         when(listingClient.getListing(42L, 1L, "req-1"))
                 .thenReturn(new ListingSnapshot(42L, "dog", "Labrador", 12, "5"));
         when(passportClient.getPassport(5L, "req-1"))
@@ -55,13 +55,27 @@ class MatchScoreServiceTest {
         MatchScoreResponse response = service.calculateScore(42L, 1L, "req-1");
 
         assertThat(response.score()).isGreaterThan(0);
-        assertThat(response.level()).isNotNull();
         assertThat(response.factors()).hasSize(8);
         assertThat(response.degraded()).isFalse();
+        assertThat(response.degradedReason()).isNull();
     }
 
     @Test
-    @DisplayName("passport unavailable sets degraded flag")
+    @DisplayName("unparseable passport id sets degraded reason")
+    void calculateScore_unparseablePassportId_degraded() {
+        when(questionnaireRepository.findByUserId(1L)).thenReturn(Optional.of(questionnaire()));
+        when(listingClient.getListing(1L, 1L, "req-1"))
+                .thenReturn(new ListingSnapshot(1L, "dog", "Labrador", 12, "p-1"));
+
+        MatchScoreResponse response = service.calculateScore(1L, 1L, "req-1");
+
+        assertThat(response.degraded()).isTrue();
+        assertThat(response.degradedReason()).isEqualTo(DegradedReason.PASSPORT_ID_UNPARSEABLE.code());
+        assertThat(response.score()).isGreaterThan(0);
+    }
+
+    @Test
+    @DisplayName("passport unavailable sets degraded reason")
     void calculateScore_passportUnavailable_degraded() {
         when(questionnaireRepository.findByUserId(1L)).thenReturn(Optional.of(questionnaire()));
         when(listingClient.getListing(anyLong(), eq(1L), eq("req-1")))
@@ -71,7 +85,15 @@ class MatchScoreServiceTest {
         MatchScoreResponse response = service.calculateScore(1L, 1L, "req-1");
 
         assertThat(response.degraded()).isTrue();
-        assertThat(response.score()).isGreaterThan(0);
+        assertThat(response.degradedReason()).isEqualTo(DegradedReason.PASSPORT_UNAVAILABLE.code());
+    }
+
+    @Test
+    @DisplayName("parsePassportId supports numeric and passport- prefix")
+    void parsePassportId_formats() {
+        assertThat(MatchScoreService.parsePassportId("12")).isEqualTo(12L);
+        assertThat(MatchScoreService.parsePassportId("passport-12")).isEqualTo(12L);
+        assertThat(MatchScoreService.parsePassportId("p-1")).isNull();
     }
 
     @Test

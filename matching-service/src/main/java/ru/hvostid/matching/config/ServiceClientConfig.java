@@ -1,9 +1,10 @@
 package ru.hvostid.matching.config;
 
+import java.net.http.HttpClient;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 @Configuration
@@ -21,16 +22,16 @@ public class ServiceClientConfig {
     }
 
     private static RestClient buildRestClient(HvostidServiceProperties.ServiceEndpoint endpoint) {
-        int connectMillis = (int) endpoint.connectTimeout().toMillis();
-        int readMillis = (int) endpoint.readTimeout().toMillis();
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(endpoint.connectTimeout())
+                .build();
 
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(connectMillis);
-        factory.setReadTimeout(readMillis);
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(endpoint.readTimeout());
 
         return RestClient.builder()
                 .baseUrl(endpoint.url())
-                .requestFactory(factory)
+                .requestFactory(requestFactory)
                 .build();
     }
 }

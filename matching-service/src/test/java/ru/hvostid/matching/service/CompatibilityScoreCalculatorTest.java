@@ -6,11 +6,14 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import ru.hvostid.matching.client.ListingSnapshot;
 import ru.hvostid.matching.client.PassportSnapshot;
 import ru.hvostid.matching.domain.CompatibilityFactor;
 import ru.hvostid.matching.domain.CompatibilityLevel;
 import ru.hvostid.matching.domain.CompatibilityResult;
+import ru.hvostid.matching.domain.FactorScore;
 import ru.hvostid.matching.domain.PetContext;
 import ru.hvostid.matching.entity.*;
 
@@ -41,7 +44,7 @@ class CompatibilityScoreCalculatorTest {
                         "activity",
                         "budget",
                         "work_schedule");
-        int factorSum = result.factors().stream().mapToInt(f -> f.score()).sum();
+        int factorSum = result.factors().stream().mapToInt(FactorScore::score).sum();
         assertThat(result.score()).isEqualTo(factorSum);
     }
 
@@ -59,38 +62,72 @@ class CompatibilityScoreCalculatorTest {
     }
 
     @Test
-    @DisplayName("allergy conflict caps score and yields NOT_RECOMMENDED")
-    void calculate_catAllergyWithDog_notRecommended() {
+    @DisplayName("HOUSE with medium pet scores max living_space")
+    void calculate_houseMediumPet_maxLivingSpace() {
+        BuyerQuestionnaire questionnaire = idealQuestionnaire();
+        PetContext pet = petContext("dog", "Labrador", "friendly", true);
+
+        CompatibilityResult result = calculator.calculate(questionnaire, pet);
+
+        FactorScore livingSpace = factor(result, CompatibilityFactor.LIVING_SPACE);
+        assertThat(livingSpace.score()).isEqualTo(20);
+    }
+
+    @ParameterizedTest(name = "attention={0} schedule={1} -> score={2}")
+    @CsvSource({
+        "1, HOME, 5",
+        "1, HYBRID, 4",
+        "1, OFFICE, 3",
+        "2, HOME, 5",
+        "2, HYBRID, 4",
+        "2, OFFICE, 2",
+        "3, HOME, 5",
+        "3, HYBRID, 3",
+        "3, OFFICE, 1"
+    })
+    @DisplayName("work schedule matrix matches documented scores")
+    void workScheduleMatrix(int attention, WorkSchedule schedule, int expectedScore) {
+        assertThat(CompatibilityScoreCalculator.workScheduleScore(attention, schedule))
+                .isEqualTo(expectedScore);
+    }
+
+    @Test
+    @DisplayName("allergy critical conflict applies cap via criticalConflict flag")
+    void calculate_allergyCritical_capAppliedRegardlessOfScoreValue() {
         BuyerQuestionnaire questionnaire = idealQuestionnaire();
         questionnaire.setHasAllergies(true);
         questionnaire.setAllergyDetails("Severe dog dander allergy");
-        questionnaire.setPetExperience(PetExperience.BEGINNER);
 
         PetContext pet = petContext("dog", "Husky", "active", true);
 
         CompatibilityResult result = calculator.calculate(questionnaire, pet);
 
+        FactorScore allergies = factor(result, CompatibilityFactor.ALLERGIES);
+        assertThat(allergies.criticalConflict()).isTrue();
         assertThat(result.allergyCapApplied()).isTrue();
         assertThat(result.score()).isLessThanOrEqualTo(35);
         assertThat(result.level()).isEqualTo(CompatibilityLevel.NOT_RECOMMENDED);
-        assertThat(result.factors().stream()
-                        .filter(f -> f.factor() == CompatibilityFactor.ALLERGIES)
-                        .findFirst()
-                        .orElseThrow()
-                        .score())
-                .isLessThanOrEqualTo(3);
     }
 
     @Test
-    @DisplayName("unknown breed uses default profile without error")
-    void calculate_unknownBreed_usesDefault() {
+    @DisplayName("unknown species uses neutral profile without large-yard penalty")
+    void calculate_unknownSpecies_neutralProfile() {
         BuyerQuestionnaire questionnaire = idealQuestionnaire();
-        PetContext pet = petContext("dog", "RareBreedXYZ", null, false);
+        questionnaire.setHasYard(false);
+        PetContext pet = petContext("", "RareBreedXYZ", null, false);
 
         CompatibilityResult result = calculator.calculate(questionnaire, pet);
 
-        assertThat(result.factors()).hasSize(8);
-        assertThat(result.score()).isGreaterThan(0);
+        assertThat(pet.speciesUnknown()).isTrue();
+        FactorScore yard = factor(result, CompatibilityFactor.YARD);
+        assertThat(yard.score()).isEqualTo(10);
+    }
+
+    private static FactorScore factor(CompatibilityResult result, CompatibilityFactor factor) {
+        return result.factors().stream()
+                .filter(f -> f.factor() == factor)
+                .findFirst()
+                .orElseThrow();
     }
 
     private static BuyerQuestionnaire idealQuestionnaire() {
