@@ -1,0 +1,102 @@
+[
+  {
+    "bucket": "pet-photos",
+    "objectKey": "3/1/demo-photo-1.jpg",
+    "localFile": "photos/sample-01.jpg"
+  },
+  {
+    "bucket": "pet-photos",
+    "objectKey": "4/2/demo-photo-2.jpg",
+    "localFile": "photos/sample-02.jpg"
+  },
+  {
+    "bucket": "pet-photos",
+    "objectKey": "5/3/demo-photo-3.jpg",
+    "localFile": "photos/sample-03.jpg"
+  },
+  {
+    "bucket": "pet-photos",
+    "objectKey": "6/4/demo-photo-4.jpg",
+    "localFile": "photos/sample-04.jpg"
+  },
+  {
+    "bucket": "pet-photos",
+    "objectKey": "7/5/demo-photo-5.jpg",
+    "localFile": "photos/sample-05.jpg"
+  },
+  {
+    "bucket": "pet-photos",
+    "objectKey": "8/6/demo-photo-6.jpg",
+    "localFile": "photos/sample-06.jpg"
+  },
+  {
+    "bucket": "pet-photos",
+    "objectKey": "3/7/demo-photo-7.jpg",
+    "localFile": "photos/sample-07.jpg"
+  },
+  {
+    "bucket": "pet-photos",
+    "objectKey": "4/8/demo-photo-8.jpg",
+    "localFile": "photos/sample-08.jpg"
+  },
+  {
+    "bucket": "pet-photos",
+    "objectKey": "5/9/demo-photo-9.jpg",
+    "localFile": "photos/sample-09.jpg"
+  },
+  {
+    "bucket": "pet-photos",
+    "objectKey": "6/10/demo-photo-10.jpg",
+    "localFile": "photos/sample-10.jpg"
+  },
+  {
+    "bucket": "pet-photos",
+    "objectKey": "7/11/demo-photo-11.jpg",
+    "localFile": "photos/sample-11.jpg"
+  },
+  {
+    "bucket": "pet-photos",
+    "objectKey": "8/12/demo-photo-12.jpg",
+    "localFile": "photos/sample-12.jpg"
+  },
+  {
+    "bucket": "pet-photos",
+    "objectKey": "5/15/demo-photo-15.jpg",
+    "localFile": "photos/sample-13.jpg"
+  },
+  {
+    "bucket": "pet-photos",
+    "objectKey": "3/19/demo-photo-19.jpg",
+    "localFile": "photos/sample-14.jpg"
+  },
+  {
+    "bucket": "pet-photos",
+    "objectKey": "7/23/demo-photo-23.jpg",
+    "localFile": "photos/sample-15.jpg"
+  },
+  {
+    "bucket": "pet-photos",
+    "objectKey": "5/27/demo-photo-27.jpg",
+    "localFile": "photos/sample-16.jpg"
+  },
+  {
+    "bucket": "pet-photos",
+    "objectKey": "3/31/demo-photo-31.jpg",
+    "localFile": "photos/sample-17.jpg"
+  },
+  {
+    "bucket": "pet-documents",
+    "objectKey": "3/1/demo-vet-cert-1.pdf",
+    "localFile": "documents/sample-vet-01.pdf"
+  },
+  {
+    "bucket": "pet-documents",
+    "objectKey": "7/5/demo-vet-record-5.pdf",
+    "localFile": "documents/sample-vet-02.pdf"
+  },
+  {
+    "bucket": "pet-documents",
+    "objectKey": "5/15/demo-vet-cert-15.pdf",
+    "localFile": "documents/sample-vet-03.pdf"
+  }
+]

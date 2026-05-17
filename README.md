@@ -139,8 +139,41 @@ Once everything is healthy:
 | PostgreSQL          | localhost:5432 (4 databases auto-created)    |
 | MinIO Console       | http://localhost:9001 (`minioadmin` default) |
 
-**Demo data.** Seed loader is tracked in T42; until then, register a
-user via the frontend or the Auth service `register` endpoint.
+**Demo data.** Load a realistic dataset (users, listings, passports,
+questionnaires, MinIO photos) with:
+
+```bash
+./scripts/seed-all.sh
+```
+
+This wipes Docker volumes, starts the stack with `SPRING_PROFILES_ACTIVE=demo`,
+runs Flyway repeatable seed migrations, and uploads sample files to MinIO.
+Use `--no-wipe` to keep existing volumes.
+
+All demo accounts share the password **`demo1234`**:
+
+| Email | Role(s) |
+|-------|---------|
+| admin@demo.hvostid | ADMIN |
+| moderator@demo.hvostid | MODERATOR |
+| seller1@demo.hvostid … seller6@demo.hvostid | SELLER |
+| buyer1@demo.hvostid … buyer6@demo.hvostid | BUYER |
+
+Verify after seed:
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"buyer1@demo.hvostid","password":"demo1234"}'
+# Use accessToken from the response:
+curl -s http://localhost:8080/api/v1/listings \
+  -H "Authorization: Bearer <accessToken>"
+```
+
+Seed runs only when the `demo` Spring profile is active. Production
+deploys (`SPRING_PROFILES_ACTIVE=prod`) do not load `db/seed` migrations.
+The catalog UI page is still tracked in T30; seeded listings are available
+via the API immediately after `./scripts/seed-all.sh`.
 
 ## Development
 
