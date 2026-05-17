@@ -233,18 +233,58 @@ class ListingServiceStatusTransitionTest {
     }
 
     @Test
-    void shouldNotAllowTransitionFromTerminalStateArchived() {
-        // given
+    void shouldAllowOwnerToUnarchiveArchivedListing() {
+        // T09: ARCHIVED is no longer terminal; owner can revive into DRAFT.
+        listing.setStatus(ListingStatus.ARCHIVED);
+        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.save(any(Listing.class))).thenReturn(listing);
+
+        StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.DRAFT, null);
+
+        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of(UserRole.SELLER.value()));
+
+        assertThat(listing.getStatus()).isEqualTo(ListingStatus.DRAFT);
+        verify(historyRepository).save(any());
+    }
+
+    @Test
+    void shouldNotAllowNonOwnerToUnarchive() {
         listing.setStatus(ListingStatus.ARCHIVED);
         when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.DRAFT, null);
 
-        // then
+        assertThatThrownBy(() -> listingService.updateStatus(
+                        LISTING_ID, request, OTHER_USER_ID, Set.of(UserRole.SELLER.value())))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void shouldNotAllowArchivedToAnyOtherStatus() {
+        listing.setStatus(ListingStatus.ARCHIVED);
+        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+
+        StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.PUBLISHED, null);
+
         assertThatThrownBy(() ->
                         listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of(UserRole.SELLER.value())))
                 .isInstanceOf(InvalidStatusTransitionException.class)
-                .hasMessageContaining("Cannot change status from terminal state: ARCHIVED");
+                .hasMessageContaining("Invalid status transition from ARCHIVED to PUBLISHED");
+    }
+
+    @Test
+    void shouldStampSoldAtWhenTransitioningToSold() {
+        listing.setStatus(ListingStatus.PUBLISHED);
+        assertThat(listing.getSoldAt()).isNull();
+        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.save(any(Listing.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.SOLD, null);
+
+        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of(UserRole.SELLER.value()));
+
+        assertThat(listing.getStatus()).isEqualTo(ListingStatus.SOLD);
+        assertThat(listing.getSoldAt()).isNotNull();
     }
 
     @Test

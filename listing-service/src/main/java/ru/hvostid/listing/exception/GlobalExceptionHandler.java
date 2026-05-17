@@ -79,6 +79,12 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex, HttpServletRequest request) {
+        log.debug("Unauthorized: {}", ex.getMessage());
+        return error(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(DuplicateFlagException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateFlag(DuplicateFlagException ex, HttpServletRequest request) {
         log.debug("Duplicate flag: {}", ex.getMessage());

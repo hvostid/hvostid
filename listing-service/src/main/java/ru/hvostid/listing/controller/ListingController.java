@@ -34,6 +34,8 @@ import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
 import ru.hvostid.listing.dto.StatusUpdateRequest;
+import ru.hvostid.listing.entity.ListingStatus;
+import ru.hvostid.listing.exception.UnauthorizedException;
 import ru.hvostid.listing.service.ListingFlagService;
 import ru.hvostid.listing.service.ListingService;
 
@@ -134,29 +136,52 @@ public class ListingController {
     }
 
     @Operation(
-            summary = "Get published listings with optional search",
-            description = "Returns a paginated list of published listings. "
-                    + "Use 'q' parameter for full-text search across title, description, and breed.")
+            summary = "Get listings",
+            description = "Without parameters returns published listings. "
+                    + "Use 'q' for full-text search over published listings. "
+                    + "Use 'my=true' (auth required) to fetch the caller's own listings in any status; "
+                    + "combine with 'status' to filter, e.g. 'my=true&status=ARCHIVED'.")
     @ApiResponse(
             responseCode = "200",
-            description = "List of published listings (may be empty)",
+            description = "Paginated listings (may be empty)",
             content = @Content(schema = @Schema(implementation = Page.class)))
+    @ApiResponse(
+            responseCode = "401",
+            description = "'my=true' was requested without an authenticated user",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @GetMapping
     public ResponseEntity<Page<ListingResponse>> getListings(
             @RequestParam(value = "q", required = false)
                     @Size(max = 500, message = "Search query too long, max 500 characters")
                     String keyword,
-            @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
+            @Parameter(description = "Return only listings owned by the authenticated caller")
+                    @RequestParam(value = "my", required = false, defaultValue = "false")
+                    boolean my,
+            @Parameter(description = "Filter by listing status (only honored together with my=true)")
+                    @RequestParam(value = "status", required = false)
+                    ListingStatus status,
+            @ParameterObject @PageableDefault(size = 20) Pageable pageable,
+            @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
 
         log.debug(
-                "GET /api/v1/listings, keyword='{}', page={}, size={}",
+                "GET /api/v1/listings, keyword='{}', my={}, status={}, page={}, size={}",
                 keyword,
+                my,
+                status,
                 pageable.getPageNumber(),
                 pageable.getPageSize());
 
         int maxSize = 100;
         if (pageable.getPageSize() > maxSize) {
             pageable = PageRequest.of(pageable.getPageNumber(), maxSize, pageable.getSort());
+        }
+
+        if (my) {
+            if (user == null) {
+                throw new UnauthorizedException("Authentication is required for 'my=true'");
+            }
+            long userId = GatewayPreAuthentication.currentUserId(user);
+            return ResponseEntity.ok(listingService.getMyListings(userId, status, pageable));
         }
 
         Page<ListingResponse> responses = listingService.searchListings(keyword, pageable);

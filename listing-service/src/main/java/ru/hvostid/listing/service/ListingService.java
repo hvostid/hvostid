@@ -1,5 +1,6 @@
 package ru.hvostid.listing.service;
 
+import java.time.Instant;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -121,6 +122,20 @@ public class ListingService {
         return listingRepository.findByStatus(ListingStatus.PUBLISHED, pageable).map(ListingResponse::from);
     }
 
+    @Transactional(readOnly = true)
+    public Page<ListingResponse> getMyListings(Long sellerId, ListingStatus status, Pageable pageable) {
+        log.debug(
+                "Getting own listings sellerId={} status={} page={} size={}",
+                sellerId,
+                status,
+                pageable.getPageNumber(),
+                pageable.getPageSize());
+        Page<Listing> page = status == null
+                ? listingRepository.findBySellerId(sellerId, pageable)
+                : listingRepository.findBySellerIdAndStatus(sellerId, status, pageable);
+        return page.map(ListingResponse::from);
+    }
+
     @Transactional
     public ListingResponse updateStatus(Long id, StatusUpdateRequest request, Long userId, Set<String> userRoles) {
         log.debug("Updating status listingId={} to {} by userId={}, roles={}", id, request.status(), userId, userRoles);
@@ -148,6 +163,9 @@ public class ListingService {
         listing.setModerationComment(normalizedComment);
 
         listing.setStatus(newStatus);
+        if (newStatus == ListingStatus.SOLD) {
+            listing.setSoldAt(Instant.now());
+        }
         Listing saved = listingRepository.save(listing);
 
         String role = determineRole(userRoles, isOwner);
