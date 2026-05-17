@@ -139,8 +139,57 @@ Once everything is healthy:
 | PostgreSQL          | localhost:5432 (4 databases auto-created)    |
 | MinIO Console       | http://localhost:9001 (`minioadmin` default) |
 
-**Demo data.** Seed loader is tracked in T42; until then, register a
-user via the frontend or the Auth service `register` endpoint.
+**Demo data.** Load a realistic dataset (users, listings, passports,
+questionnaires, MinIO photos) with:
+
+```bash
+./scripts/seed-all.sh
+```
+
+By default this keeps existing Docker volumes and reuses them — the demo
+Flyway seed (`db/seed/R__demo_seed.sql`) rewrites rows with id between 1
+and 99 on every backend start, so a reseed is non-destructive for ids
+you assigned yourself in the UI.
+
+Add `--wipe` to start from a clean slate (`docker compose down -v`,
+destroys every Postgres / MinIO volume); the script asks for
+confirmation unless `-y` is set or stdin is not a TTY:
+
+```bash
+./scripts/seed-all.sh --wipe       # interactive confirm
+./scripts/seed-all.sh --wipe -y    # CI-friendly
+```
+
+**Reserved id range.** Demo seed owns ids `1..99` in every service
+(users, listings, pet_passports, buyer_questionnaire). Anything you
+create in the UI on the demo profile will be allocated id ≥ 100 (the
+seed bumps the relevant sequences), so seed rewrites do not collide
+with your test data.
+
+All demo accounts share the password **`demo1234`**:
+
+| Email | Role(s) |
+|-------|---------|
+| admin@demo.hvostid | ADMIN |
+| moderator@demo.hvostid | MODERATOR |
+| seller1@demo.hvostid … seller6@demo.hvostid | SELLER |
+| buyer1@demo.hvostid … buyer6@demo.hvostid | BUYER |
+
+Verify after seed:
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"buyer1@demo.hvostid","password":"demo1234"}'
+# Use accessToken from the response:
+curl -s http://localhost:8080/api/v1/listings \
+  -H "Authorization: Bearer <accessToken>"
+```
+
+Seed runs only when the `demo` Spring profile is active. Production
+deploys (`SPRING_PROFILES_ACTIVE=prod`) do not load `db/seed` migrations.
+The catalog UI page is still tracked in T30; seeded listings are available
+via the API immediately after `./scripts/seed-all.sh`.
 
 ## Development
 
