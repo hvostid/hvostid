@@ -24,6 +24,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.hvostid.common.dto.ErrorResponse;
 import ru.hvostid.common.security.GatewayPreAuthentication;
@@ -34,6 +35,7 @@ import ru.hvostid.listing.dto.StatusUpdateRequest;
 import ru.hvostid.listing.service.ListingService;
 
 @RestController
+@Validated
 @RequestMapping("/api/v1/listings")
 @Tag(name = "Listings")
 public class ListingController {

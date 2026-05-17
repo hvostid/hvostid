@@ -1,14 +1,19 @@
 package ru.hvostid.listing.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
 import ru.hvostid.listing.dto.ListingRequest;
@@ -19,6 +24,7 @@ import ru.hvostid.listing.entity.ListingStatus;
 import ru.hvostid.listing.repository.ListingRepository;
 
 @SpringBootTest
+@AutoConfigureMockMvc
 @Transactional
 class ListingSearchIntegrationTest extends AbstractPostgresContainerTest {
 
@@ -27,6 +33,9 @@ class ListingSearchIntegrationTest extends AbstractPostgresContainerTest {
 
     @Autowired
     private ListingRepository listingRepository;
+
+    @Autowired
+    private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
@@ -228,6 +237,15 @@ class ListingSearchIntegrationTest extends AbstractPostgresContainerTest {
         Page<ListingResponse> result = listingService.searchListings(veryLongKeyword, PageRequest.of(0, 10));
 
         assertThat(result.getContent()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("HTTP endpoint rejects too long keyword with 400")
+    void httpSearchWithTooLongKeyword_returnsBadRequest() throws Exception {
+        String tooLongKeyword = "a".repeat(1000);
+
+        mockMvc.perform(get("/api/v1/listings").param("q", tooLongKeyword).header(USER_ID, 1L))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
