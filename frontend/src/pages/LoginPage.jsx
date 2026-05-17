@@ -25,6 +25,7 @@ export default function LoginPage() {
     // Например: /login?redirect=/profile → from = '/profile'
     const params = new URLSearchParams(location.search);
     const from = params.get('redirect') || '/';
+    const isRegistered = params.get('registered') === 'true';
 
     // Валидация формы перед отправкой
     const validateForm = () => {
