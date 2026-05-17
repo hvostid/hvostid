@@ -79,6 +79,19 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex, HttpServletRequest request) {
+        log.debug("Unauthorized: {}", ex.getMessage());
+        return error(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(
+            IllegalArgumentException ex, HttpServletRequest request) {
+        log.debug("Illegal argument: {}", ex.getMessage());
+        return error(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(DuplicateFlagException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateFlag(DuplicateFlagException ex, HttpServletRequest request) {
         log.debug("Duplicate flag: {}", ex.getMessage());
@@ -121,13 +134,6 @@ public class GlobalExceptionHandler {
                         request.getRequestURI(),
                         request.getHeader(SecurityHeaders.REQUEST_ID),
                         fieldErrors));
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponse> handleIllegalArgument(
-            IllegalArgumentException ex, HttpServletRequest request) {
-        log.debug("Invalid argument: {}", ex.getMessage());
-        return error(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
     private static ResponseEntity<ErrorResponse> error(HttpStatus status, String message, HttpServletRequest request) {

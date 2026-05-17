@@ -42,7 +42,10 @@ public record ListingResponse(
         Instant createdAt,
 
         @Schema(description = "Last update timestamp", example = "2026-05-13T11:00:00Z")
-        Instant updatedAt) {
+        Instant updatedAt,
+
+        @Schema(description = "Timestamp when the listing transitioned to SOLD", example = "2026-05-15T18:00:00Z")
+        Instant soldAt) {
     public static ListingResponse from(Listing listing) {
         return new ListingResponse(
                 listing.getId(),
@@ -57,6 +60,7 @@ public record ListingResponse(
                 listing.getStatus(),
                 listing.getPassportId(),
                 listing.getCreatedAt(),
-                listing.getUpdatedAt());
+                listing.getUpdatedAt(),
+                listing.getSoldAt());
     }
 }

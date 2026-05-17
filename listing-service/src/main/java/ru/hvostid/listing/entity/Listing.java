@@ -51,6 +51,9 @@ public class Listing {
     @Column(name = "moderation_comment", length = 500)
     private String moderationComment;
 
+    @Column(name = "sold_at")
+    private Instant soldAt;
+
     protected Listing() {}
 
     public static Builder builder() {
@@ -241,5 +244,13 @@ public class Listing {
 
     public void setModerationComment(String moderationComment) {
         this.moderationComment = moderationComment;
+    }
+
+    public Instant getSoldAt() {
+        return soldAt;
+    }
+
+    public void setSoldAt(Instant soldAt) {
+        this.soldAt = soldAt;
     }
 }

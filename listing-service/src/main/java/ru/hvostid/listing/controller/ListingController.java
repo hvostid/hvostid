@@ -33,13 +33,15 @@ import org.springframework.web.bind.annotation.*;
 import ru.hvostid.common.dto.ErrorResponse;
 import ru.hvostid.common.security.GatewayPreAuthentication;
 import ru.hvostid.listing.ListingConstants;
-import ru.hvostid.listing.dto.ListingFilterRequest;
 import ru.hvostid.listing.dto.FlagListingRequest;
 import ru.hvostid.listing.dto.FlagListingResponse;
+import ru.hvostid.listing.dto.ListingFilterRequest;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
 import ru.hvostid.listing.dto.StatusUpdateRequest;
+import ru.hvostid.listing.entity.ListingStatus;
+import ru.hvostid.listing.exception.UnauthorizedException;
 import ru.hvostid.listing.service.ListingFlagService;
 import ru.hvostid.listing.service.ListingService;
 
@@ -140,15 +142,26 @@ public class ListingController {
     }
 
     @Operation(
-            summary = "Get published listings with optional search and filters",
-            description = "Returns a paginated list of published listings. "
-                    + "Use 'q' parameter for full-text search across title, description, and breed. "
-                    + "For searches, results are sorted by relevance. "
-                    + "For non-search queries, sort parameter applies: price_asc, price_desc, created_desc (default).")
+            summary = "Get listings",
+            description = "Without parameters returns published listings. "
+                    + "Use 'q' for full-text search over published listings (sorted by relevance). "
+                    + "For non-search queries, optional filters apply: species, breed, ageMin/ageMax, "
+                    + "priceMin/priceMax, city, plus 'sort' (price_asc, price_desc, created_desc). "
+                    + "Use 'my=true' (auth required) to fetch the caller's own listings in any status; "
+                    + "combine with 'status' to filter, e.g. 'my=true&status=ARCHIVED'. "
+                    + "'my=true' is mutually exclusive with 'q' and the catalog filters.")
     @ApiResponse(
             responseCode = "200",
-            description = "List of published listings (may be empty)",
+            description = "Paginated listings (may be empty)",
             content = @Content(schema = @Schema(implementation = Page.class)))
+    @ApiResponse(
+            responseCode = "400",
+            description = "Validation error or incompatible parameter combination",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(
+            responseCode = "401",
+            description = "'my=true' was requested without an authenticated user",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @GetMapping
     public ResponseEntity<Page<ListingResponse>> getListings(
             @RequestParam(value = "q", required = false)
@@ -163,33 +176,50 @@ public class ListingController {
             @RequestParam(required = false) @Min(0) @Max(999999999) Integer priceMin,
             @RequestParam(required = false) @Min(0) @Max(999999999) Integer priceMax,
             @RequestParam(required = false) @Size(max = 100, message = "City too long, max 100 characters") String city,
-
-            // Sort parameter - only used when no keyword search
             @RequestParam(defaultValue = "created_desc")
                     @Pattern(
                             regexp = "^(price_asc|price_desc|created_desc)$",
                             message = "Sort must be one of: price_asc, price_desc, created_desc")
                     String sort,
-            @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
+            @Parameter(description = "Return only listings owned by the authenticated caller")
+                    @RequestParam(value = "my", required = false, defaultValue = "false")
+                    boolean my,
+            @Parameter(description = "Filter by listing status (only honored together with my=true)")
+                    @RequestParam(value = "status", required = false)
+                    ListingStatus status,
+            @ParameterObject @PageableDefault(size = 20) Pageable pageable,
+            @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
 
         boolean hasKeyword = keyword != null && !keyword.isBlank() && !"\"\"".equals(keyword.trim());
+        ListingFilterRequest filters =
+                new ListingFilterRequest(species, breed, ageMin, ageMax, priceMin, priceMax, city);
 
         log.debug(
-                "GET /api/v1/listings, hasKeyword={}, species={}, breed={}, ageMin={}, ageMax={}, "
-                        + "priceMin={}, priceMax={}, city={}, sort={}, page={}, size={}",
+                "GET /api/v1/listings, hasKeyword={}, filters={}, sort={}, my={}, status={}, page={}, size={}",
                 hasKeyword,
-                species,
-                breed,
-                ageMin,
-                ageMax,
-                priceMin,
-                priceMax,
-                city,
+                filters,
                 sort,
+                my,
+                status,
                 pageable.getPageNumber(),
                 pageable.getPageSize());
 
-        // Validate range consistency
+        if (pageable.getPageSize() > ListingConstants.MAX_PAGE_SIZE) {
+            throw new IllegalArgumentException("Page size cannot exceed " + ListingConstants.MAX_PAGE_SIZE);
+        }
+
+        if (my) {
+            if (user == null) {
+                throw new UnauthorizedException("Authentication is required for 'my=true'");
+            }
+            if (hasKeyword || !filters.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Parameters 'q' and catalog filters are not supported together with 'my=true'");
+            }
+            long userId = GatewayPreAuthentication.currentUserId(user);
+            return ResponseEntity.ok(listingService.getMyListings(userId, status, pageable));
+        }
+
         if (ageMin != null && ageMax != null && ageMin > ageMax) {
             throw new IllegalArgumentException("ageMin must be less than or equal to ageMax");
         }
@@ -197,29 +227,14 @@ public class ListingController {
             throw new IllegalArgumentException("priceMin must be less than or equal to priceMax");
         }
 
-        // Validate page size
-        if (pageable.getPageSize() > ListingConstants.MAX_PAGE_SIZE) {
-            throw new IllegalArgumentException("Page size cannot exceed " + ListingConstants.MAX_PAGE_SIZE);
-        }
-
-        // Apply sort only for non-search queries (search uses relevance sorting)
         Pageable effectivePageable = pageable;
         if (!hasKeyword) {
-            Sort sortBy = parseSort(sort);
-            effectivePageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sortBy);
+            effectivePageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), parseSort(sort));
         }
 
-        // Build filter request
-        ListingFilterRequest filters =
-                new ListingFilterRequest(species, breed, ageMin, ageMax, priceMin, priceMax, city);
-
-        Page<ListingResponse> responses;
-        if (hasKeyword) {
-            responses = listingService.searchWithFilters(keyword, filters, effectivePageable);
-        } else {
-            responses = listingService.getListingsWithFilters(filters, effectivePageable);
-        }
-
+        Page<ListingResponse> responses = hasKeyword
+                ? listingService.searchWithFilters(keyword, filters, effectivePageable)
+                : listingService.getListingsWithFilters(filters, effectivePageable);
         return ResponseEntity.ok(responses);
     }
 
@@ -265,6 +280,8 @@ public class ListingController {
             case "price_desc" -> Sort.by(Sort.Direction.DESC, "price");
             default -> Sort.by(Sort.Direction.DESC, "createdAt");
         };
+    }
+
     @Operation(
             summary = "Report a listing as problematic",
             description =

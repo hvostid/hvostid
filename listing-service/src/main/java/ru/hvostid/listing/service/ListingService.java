@@ -1,12 +1,10 @@
 package ru.hvostid.listing.service;
 
-import java.util.List;
+import java.time.Instant;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -126,6 +124,20 @@ public class ListingService {
         return listingRepository.findByStatus(ListingStatus.PUBLISHED, pageable).map(ListingResponse::from);
     }
 
+    @Transactional(readOnly = true)
+    public Page<ListingResponse> getMyListings(Long sellerId, ListingStatus status, Pageable pageable) {
+        log.debug(
+                "Getting own listings sellerId={} status={} page={} size={}",
+                sellerId,
+                status,
+                pageable.getPageNumber(),
+                pageable.getPageSize());
+        Page<Listing> page = status == null
+                ? listingRepository.findBySellerId(sellerId, pageable)
+                : listingRepository.findBySellerIdAndStatus(sellerId, status, pageable);
+        return page.map(ListingResponse::from);
+    }
+
     @Transactional
     public ListingResponse updateStatus(Long id, StatusUpdateRequest request, Long userId, Set<String> userRoles) {
         log.debug("Updating status listingId={} to {} by userId={}, roles={}", id, request.status(), userId, userRoles);
@@ -152,7 +164,18 @@ public class ListingService {
                 (request.comment() != null && !request.comment().isBlank()) ? request.comment() : null;
         listing.setModerationComment(normalizedComment);
 
+        // Unarchiving makes the title visible again under the active-title
+        // unique rule, so re-check for duplicates against the seller's other
+        // non-ARCHIVED listings. The check excludes the current row because
+        // it is still ARCHIVED at this point.
+        if (oldStatus == ListingStatus.ARCHIVED && newStatus != ListingStatus.ARCHIVED) {
+            checkForDuplicateTitle(listing.getSellerId(), listing.getTitle());
+        }
+
         listing.setStatus(newStatus);
+        if (newStatus == ListingStatus.SOLD) {
+            listing.setSoldAt(Instant.now());
+        }
         Listing saved = listingRepository.save(listing);
 
         String role = determineRole(userRoles, isOwner);
@@ -187,7 +210,17 @@ public class ListingService {
         String sanitizedKeyword = normalizeKeyword(keyword);
 
         return listingRepository
-                .searchByKeyword(ListingStatus.PUBLISHED.name(), sanitizedKeyword, pageable)
+                .searchByKeyword(
+                        ListingStatus.PUBLISHED.name(),
+                        sanitizedKeyword,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        pageable)
                 .map(ListingResponse::from);
     }
 
@@ -208,84 +241,32 @@ public class ListingService {
 
         String sanitizedKeyword = normalizeKeyword(keyword);
 
-        Pageable safePageable = pageable;
-        if (pageable.getPageSize() > ListingConstants.MAX_SEARCH_RESULTS) {
-            safePageable =
-                    PageRequest.of(pageable.getPageNumber(), ListingConstants.MAX_SEARCH_RESULTS, pageable.getSort());
+        // Deep-pagination cap: refuse to return matches past the configured horizon.
+        // Bounded by ListingController (MAX_PAGE_SIZE), so we only need to guard the offset.
+        if (pageable.getOffset() >= ListingConstants.MAX_SEARCH_RESULTS) {
+            return Page.empty(pageable);
         }
 
-        if (safePageable.getOffset() >= ListingConstants.MAX_SEARCH_RESULTS) {
-            return Page.empty(safePageable);
-        }
+        ListingFilterRequest effective =
+                filters == null ? new ListingFilterRequest(null, null, null, null, null, null, null) : filters;
 
-        Page<Listing> searchResults =
-                listingRepository.searchByKeyword(ListingStatus.PUBLISHED.name(), sanitizedKeyword, safePageable);
+        Page<Listing> searchResults = listingRepository.searchByKeyword(
+                ListingStatus.PUBLISHED.name(),
+                sanitizedKeyword,
+                blankToNull(effective.species()),
+                blankToNull(effective.breed()),
+                effective.ageMin(),
+                effective.ageMax(),
+                effective.priceMin(),
+                effective.priceMax(),
+                blankToNull(effective.city()),
+                pageable);
 
-        if (filters == null || filters.isEmpty()) {
-            return searchResults.map(ListingResponse::from);
-        }
-
-        // Apply filters in-memory
-        List<ListingResponse> filtered = searchResults.getContent().stream()
-                .filter(listing -> matchesFilters(listing, filters))
-                .map(ListingResponse::from)
-                .toList();
-
-        return new PageImpl<>(filtered, safePageable, searchResults.getTotalElements());
+        return searchResults.map(ListingResponse::from);
     }
 
-    private boolean matchesFilters(Listing listing, ListingFilterRequest filters) {
-        if (filters == null) {
-            return true;
-        }
-
-        if (filters.species() != null && !filters.species().isBlank()) {
-            String species = listing.getSpecies();
-            if (species == null
-                    || !species.toLowerCase().contains(filters.species().toLowerCase())) {
-                return false;
-            }
-        }
-
-        if (filters.breed() != null && !filters.breed().isBlank()) {
-            String breed = listing.getBreed();
-            if (breed == null || !breed.toLowerCase().contains(filters.breed().toLowerCase())) {
-                return false;
-            }
-        }
-
-        if (filters.city() != null && !filters.city().isBlank()) {
-            String city = listing.getCity();
-            if (city == null || !city.equalsIgnoreCase(filters.city())) {
-                return false;
-            }
-        }
-
-        if (filters.ageMin() != null || filters.ageMax() != null) {
-            Integer age = listing.getAge();
-            if (age == null) {
-                return false;
-            }
-            if (filters.ageMin() != null && age < filters.ageMin()) {
-                return false;
-            }
-            if (filters.ageMax() != null && age > filters.ageMax()) {
-                return false;
-            }
-        }
-
-        if (filters.priceMin() != null || filters.priceMax() != null) {
-            Integer price = listing.getPrice();
-            if (price == null) {
-                return false;
-            }
-            if (filters.priceMin() != null && price < filters.priceMin()) {
-                return false;
-            }
-            return filters.priceMax() == null || price <= filters.priceMax();
-        }
-
-        return true;
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     private String determineRole(Set<String> userRoles, boolean isOwner) {
@@ -296,8 +277,12 @@ public class ListingService {
     }
 
     private void checkForDuplicate(ListingRequest request, Long sellerId) {
-        boolean exists = listingRepository.existsBySellerIdAndTitleAndStatusNot(
-                sellerId, normalize(request.title()), ListingStatus.ARCHIVED);
+        checkForDuplicateTitle(sellerId, normalize(request.title()));
+    }
+
+    private void checkForDuplicateTitle(Long sellerId, String title) {
+        boolean exists =
+                listingRepository.existsBySellerIdAndTitleAndStatusNot(sellerId, title, ListingStatus.ARCHIVED);
         if (exists) {
             throw new DuplicateListingException("You already have a listing with this title");
         }
