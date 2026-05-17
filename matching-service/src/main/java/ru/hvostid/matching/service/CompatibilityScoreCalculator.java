@@ -269,24 +269,14 @@ public class CompatibilityScoreCalculator {
 
     private static boolean allergenConflictsWithPet(String allergyDetails, PetContext pet) {
         String details = allergyDetails == null ? "" : allergyDetails.toLowerCase(Locale.ROOT);
-        String species = pet.species().toLowerCase(Locale.ROOT);
-        boolean mentionsCats = containsAny(details, "cat", "кош", "feline", "dander");
-        boolean mentionsDogs = containsAny(details, "dog", "собак", "canine", "dander", "fur", "hair");
-        boolean mentionsGeneral = containsAny(details, "pet", "animal", "dander", "fur", "шерст", "пух", "аллерг");
-
-        boolean isCat = containsAny(species, "cat", "feline", "кош");
-        boolean isDog = containsAny(species, "dog", "canine", "собак");
-
-        if (mentionsGeneral) {
+        if (containsAny(details, "pet", "animal", "dander", "fur", "шерст", "пух", "аллерг")) {
             return true;
         }
-        if (isCat && mentionsCats) {
-            return true;
-        }
-        if (isDog && mentionsDogs) {
-            return true;
-        }
-        return false;
+        return switch (SpeciesKind.classify(pet.species())) {
+            case CAT -> containsAny(details, "cat", "кош", "feline", "dander");
+            case DOG -> containsAny(details, "dog", "собак", "canine", "dander", "fur", "hair");
+            case OTHER -> false;
+        };
     }
 
     private static int experienceLevel(PetExperience experience) {

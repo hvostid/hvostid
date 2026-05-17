@@ -29,11 +29,6 @@ public final class BreedProfileCatalog {
     private BreedProfileCatalog() {}
 
     public static BreedResolution resolve(String species, String breed) {
-        String normalizedSpecies = species == null ? "" : species.trim().toLowerCase(Locale.ROOT);
-        if (normalizedSpecies.isBlank()) {
-            return new BreedResolution(NEUTRAL_PROFILE, true);
-        }
-
         if (breed != null && !breed.isBlank()) {
             BreedProfile byBreed = BY_BREED.get(normalizeKey(breed));
             if (byBreed != null) {
@@ -41,13 +36,11 @@ public final class BreedProfileCatalog {
             }
         }
 
-        if (normalizedSpecies.contains("cat") || normalizedSpecies.contains("кош")) {
-            return new BreedResolution(DEFAULT_CAT, false);
-        }
-        if (normalizedSpecies.contains("dog") || normalizedSpecies.contains("собак")) {
-            return new BreedResolution(DEFAULT_DOG, false);
-        }
-        return new BreedResolution(NEUTRAL_PROFILE, true);
+        return switch (SpeciesKind.classify(species)) {
+            case CAT -> new BreedResolution(DEFAULT_CAT, false);
+            case DOG -> new BreedResolution(DEFAULT_DOG, false);
+            case OTHER -> new BreedResolution(NEUTRAL_PROFILE, true);
+        };
     }
 
     private static String normalizeKey(String breed) {
