@@ -1,0 +1,237 @@
+{
+  "info": {
+    "_postman_id": "col-02-listing-passport",
+    "name": "COL-02 Listing + Passport integration",
+    "description": "Seller flow: create passport, upload photo + vaccination cert, check trust score, create listing referencing the passport, push to MODERATION, moderator approves. Prerequisites: a SELLER account and a MODERATOR account exist in auth-service. Edit `sellerEmail` / `moderatorEmail` / passwords in the environment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Login as seller",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n    \"email\": \"{{sellerEmail}}\",\n    \"password\": \"{{sellerPassword}}\"\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const data = pm.response.json();",
+              "pm.environment.set('accessToken', data.accessToken);",
+              "pm.environment.set('refreshToken', data.refreshToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create passport",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"species\": \"dog\",\n    \"breed\": \"Husky\",\n    \"name\": \"Rex\",\n    \"birthDate\": \"2023-05-10\",\n    \"gender\": \"MALE\",\n    \"color\": \"grey-white\",\n    \"temperament\": \"active, friendly\",\n    \"specialNeeds\": null,\n    \"neutered\": true,\n    \"microchipped\": false\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/v1/passports", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+              "const data = pm.response.json();",
+              "pm.environment.set('passportId', data.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Upload photo to passport",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "file", "type": "file", "src": [] },
+            { "key": "type", "value": "PHOTO", "type": "text" }
+          ]
+        },
+        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "docs"] },
+        "description": "Attach a JPEG/PNG (<=10MB) under the 'file' field before running."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201 or 400 (file not attached)', () => {",
+              "    pm.expect([201, 400]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Upload vaccination cert",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "file", "type": "file", "src": [] },
+            { "key": "type", "value": "VACCINATION_CERT", "type": "text" }
+          ]
+        },
+        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "docs"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201 or 400 (file not attached)', () => {",
+              "    pm.expect([201, 400]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get trust score",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/trust", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "trust"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const data = pm.response.json();",
+              "pm.test('Has score and breakdown', () => {",
+              "    pm.expect(data.score).to.be.a('number');",
+              "    pm.expect(data.breakdown).to.be.an('object');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create listing referencing passport",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"title\": \"Husky Rex needs a home\",\n    \"description\": \"Friendly dog\",\n    \"species\": \"dog\",\n    \"breed\": \"Husky\",\n    \"age\": 12,\n    \"price\": 20000,\n    \"city\": \"Moscow\",\n    \"passportId\": \"{{passportId}}\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/v1/listings", "host": ["{{baseUrl}}"], "path": ["api", "v1", "listings"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+              "const data = pm.response.json();",
+              "pm.environment.set('listingId', data.id);",
+              "pm.test('Listing is DRAFT', () => pm.expect(data.status).to.eql('DRAFT'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Send listing to MODERATION",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n    \"status\": \"MODERATION\"\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}/status", "host": ["{{baseUrl}}"], "path": ["api", "v1", "listings", "{{listingId}}", "status"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const data = pm.response.json();",
+              "pm.test('Listing is MODERATION', () => pm.expect(data.status).to.eql('MODERATION'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login as moderator",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n    \"email\": \"{{moderatorEmail}}\",\n    \"password\": \"{{moderatorPassword}}\"\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const data = pm.response.json();",
+              "pm.environment.set('accessToken', data.accessToken);",
+              "pm.environment.set('refreshToken', data.refreshToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Moderator approves listing",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/v1/moderation/listings/{{listingId}}/approve", "host": ["{{baseUrl}}"], "path": ["api", "v1", "moderation", "listings", "{{listingId}}", "approve"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const data = pm.response.json();",
+              "pm.test('Listing is PUBLISHED', () => pm.expect(data.status).to.eql('PUBLISHED'));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

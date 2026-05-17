@@ -1,0 +1,209 @@
+{
+  "info": {
+    "_postman_id": "col-04-passport-files",
+    "name": "COL-04 Passport files",
+    "description": "Seller flow for passport documents in MinIO: create passport, upload a PHOTO and a VET_RECORD, list documents, get a pre-signed download URL, check trust score, delete a document. Attach real files under the 'file' formdata field before running.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Login as seller",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n    \"email\": \"{{sellerEmail}}\",\n    \"password\": \"{{sellerPassword}}\"\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const data = pm.response.json();",
+              "pm.environment.set('accessToken', data.accessToken);",
+              "pm.environment.set('refreshToken', data.refreshToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create passport",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"species\": \"cat\",\n    \"breed\": \"Maine Coon\",\n    \"name\": \"Mira\",\n    \"birthDate\": \"2022-08-01\",\n    \"gender\": \"FEMALE\",\n    \"color\": \"tabby\",\n    \"temperament\": \"calm, friendly\",\n    \"specialNeeds\": null,\n    \"neutered\": true,\n    \"microchipped\": true\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/v1/passports", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+              "const data = pm.response.json();",
+              "pm.environment.set('passportId', data.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Upload PHOTO",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "file", "type": "file", "src": [] },
+            { "key": "type", "value": "PHOTO", "type": "text" }
+          ]
+        },
+        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "docs"] },
+        "description": "Attach a JPEG/PNG under the 'file' formdata field before sending."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201 or 400 (file not attached)', () => {",
+              "    pm.expect([201, 400]).to.include(pm.response.code);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    const data = pm.response.json();",
+              "    pm.environment.set('documentId', data.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Upload VET_RECORD",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "file", "type": "file", "src": [] },
+            { "key": "type", "value": "VET_RECORD", "type": "text" }
+          ]
+        },
+        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "docs"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201 or 400 (file not attached)', () => {",
+              "    pm.expect([201, 400]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List documents",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "docs"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const data = pm.response.json();",
+              "pm.test('Returns an array', () => pm.expect(data).to.be.an('array'));",
+              "if (Array.isArray(data) && data.length > 0 && !pm.environment.get('documentId')) {",
+              "    pm.environment.set('documentId', data[0].id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get download URL",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs/{{documentId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "docs", "{{documentId}}"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 or 404 (no document uploaded)', () => {",
+              "    pm.expect([200, 404]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get trust score",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/trust", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "trust"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete document",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/v1/passports/{{passportId}}/docs/{{documentId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "passports", "{{passportId}}", "docs", "{{documentId}}"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 204 or 404 (already gone)', () => {",
+              "    pm.expect([204, 404]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

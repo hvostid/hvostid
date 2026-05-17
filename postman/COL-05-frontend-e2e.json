@@ -1,0 +1,184 @@
+{
+  "info": {
+    "_postman_id": "col-05-frontend-e2e",
+    "name": "COL-05 Frontend end-to-end",
+    "description": "Sequenced flow that mirrors what a buyer does in the SPA: register, login, browse catalog, view a listing, calculate match score, attempt to create a listing (expected 403 for a buyer-only account), logout.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Register",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n    \"email\": \"{{buyerEmail}}\",\n    \"password\": \"{{buyerPassword}}\",\n    \"name\": \"{{buyerName}}\"\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "register"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Register accepted (201) or already exists (409)', () => {",
+              "    pm.expect([201, 409]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n    \"email\": \"{{buyerEmail}}\",\n    \"password\": \"{{buyerPassword}}\"\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const data = pm.response.json();",
+              "pm.environment.set('accessToken', data.accessToken);",
+              "pm.environment.set('refreshToken', data.refreshToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Browse catalog",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/listings?page=0&size=20",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "listings"],
+          "query": [
+            { "key": "page", "value": "0" },
+            { "key": "size", "value": "20" }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const data = pm.response.json();",
+              "if (data.content && data.content.length > 0) {",
+              "    pm.environment.set('listingId', data.content[0].id);",
+              "    console.log('Picked listingId=' + data.content[0].id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "View listing",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "listings", "{{listingId}}"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 or 404 (no listings seeded)', () => {",
+              "    pm.expect([200, 404]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Calculate match score",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n    \"listingId\": {{listingId}}\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/match/score", "host": ["{{baseUrl}}"], "path": ["api", "v1", "match", "score"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200, 400 or 404', () => {",
+              "    pm.expect([200, 400, 404]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create listing (expected 403 for buyer)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"title\": \"From COL-05\",\n    \"description\": \"Buyer attempting to create a listing\",\n    \"species\": \"dog\",\n    \"breed\": \"Labrador\",\n    \"age\": 12,\n    \"price\": 10000,\n    \"city\": \"Moscow\",\n    \"passportId\": \"1\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/v1/listings", "host": ["{{baseUrl}}"], "path": ["api", "v1", "listings"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Buyer is forbidden (403) or unauthorized (401)', () => {",
+              "    pm.expect([401, 403]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Logout",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n    \"refreshToken\": \"{{refreshToken}}\"\n}" },
+        "url": { "raw": "{{baseUrl}}/api/v1/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "logout"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "pm.environment.set('accessToken', '');",
+              "pm.environment.set('refreshToken', '');"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
