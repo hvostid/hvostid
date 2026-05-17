@@ -3,14 +3,14 @@ package ru.hvostid.passport;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.MinIOContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
 
-@Testcontainers
 public abstract class AbstractPassportIntegrationTest extends AbstractPostgresContainerTest {
-    @Container
-    static final MinIOContainer minio = new MinIOContainer(MinioTestImage.resolve());
+    private static final MinIOContainer minio = new MinIOContainer(MinioTestImage.resolve());
+
+    static {
+        minio.start();
+    }
 
     @DynamicPropertySource
     static void minioProperties(DynamicPropertyRegistry registry) {

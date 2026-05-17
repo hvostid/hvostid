@@ -25,6 +25,17 @@
   доступно владельцу, `MODERATOR` и `ADMIN`.
 - `PUT /api/v1/passports/{petId}` -- частично обновить паспорт,
   доступно только владельцу с ролью `SELLER`.
+- `POST /api/v1/passports/{petId}/docs` -- загрузить фото или документ,
+  доступно только владельцу с ролью `SELLER`.
+- `GET /api/v1/passports/{petId}/docs` -- получить список документов,
+  доступно владельцу, `MODERATOR` и `ADMIN`.
+- `GET /api/v1/passports/{petId}/docs/{docId}` -- получить временную
+  ссылку на скачивание, ответ `302 Found`.
+- `DELETE /api/v1/passports/{petId}/docs/{docId}` -- удалить документ,
+  доступно только владельцу с ролью `SELLER`.
+
+Документы принимаются в форматах `jpg`, `jpeg`, `png`, `pdf`.
+Максимальный размер файла -- 10 MB.
 
 ## Переменные окружения
 
