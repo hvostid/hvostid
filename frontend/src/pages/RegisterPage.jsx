@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Input from '../components/Input';
 
+export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function RegisterPage() {
     const navigate = useNavigate();
     const { register } = useAuth();
@@ -42,7 +44,7 @@ export default function RegisterPage() {
         if (!email.trim()) {
             setEmailError('Email is required');
             isValid = false;
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        } else if (!EMAIL_REGEX.test(email.trim())) {
             setEmailError('Please enter a valid email (example: name@domain.com)');
             isValid = false;
         } else {
@@ -61,7 +63,10 @@ export default function RegisterPage() {
         }
 
         // Confirm password validation
-        if (password !== confirmPassword) {
+        if (!confirmPassword) {
+            setConfirmPasswordError('Please confirm your password');
+            isValid = false;
+        } else if (password !== confirmPassword) {
             setConfirmPasswordError('Passwords do not match');
             isValid = false;
         } else {
