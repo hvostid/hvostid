@@ -9,7 +9,7 @@ import ru.hvostid.listing.entity.ListingStatus;
 import ru.hvostid.listing.exception.AccessDeniedException;
 import ru.hvostid.listing.exception.InvalidStatusTransitionException;
 
-public class StatusTransitionValidator {
+public final class StatusTransitionValidator {
     // Terminal states - from these you cannot transition to any other state
     private static final Set<ListingStatus> TERMINAL_STATES = Set.of(ListingStatus.ARCHIVED, ListingStatus.SOLD);
 
@@ -40,6 +40,10 @@ public class StatusTransitionValidator {
 
         // REJECTED -> DRAFT (owner can edit and resubmit)
         addRule(ListingStatus.REJECTED, ListingStatus.DRAFT, Set.of(), false, true);
+    }
+
+    private StatusTransitionValidator() {
+        throw new AssertionError("Utility class must not be instantiated");
     }
 
     private static void addRule(

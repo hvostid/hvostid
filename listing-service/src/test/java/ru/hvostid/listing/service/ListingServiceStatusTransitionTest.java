@@ -45,8 +45,17 @@ class ListingServiceStatusTransitionTest {
 
     @BeforeEach
     void setUp() {
-        listing = new Listing(
-                OWNER_ID, "Test Listing", "Description", "Dog", "Labrador", 12, 500, "Moscow", "PASSPORT123");
+        listing = Listing.builder()
+                .sellerId(OWNER_ID)
+                .title("Test Listing")
+                .description("Description")
+                .species("Dog")
+                .breed("Labrador")
+                .age(12)
+                .price(500)
+                .city("Moscow")
+                .passportId("PASSPORT123")
+                .build();
         listing.setId(LISTING_ID);
     }
 

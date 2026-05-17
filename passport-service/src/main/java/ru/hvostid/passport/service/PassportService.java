@@ -27,18 +27,19 @@ public class PassportService {
     @Transactional
     public PassportResponse createPassport(CreatePassportRequest request, Long sellerId) {
         log.debug("Creating passport for sellerId={}", sellerId);
-        PetPassport passport = new PetPassport(
-                sellerId,
-                normalize(request.species()),
-                normalize(request.breed()),
-                normalize(request.name()),
-                request.birthDate(),
-                request.gender(),
-                normalize(request.color()),
-                normalize(request.temperament()),
-                normalize(request.specialNeeds()),
-                request.neutered(),
-                request.microchipped());
+        PetPassport passport = PetPassport.builder()
+                .sellerId(sellerId)
+                .species(normalize(request.species()))
+                .breed(normalize(request.breed()))
+                .name(normalize(request.name()))
+                .birthDate(request.birthDate())
+                .gender(request.gender())
+                .color(normalize(request.color()))
+                .temperament(normalize(request.temperament()))
+                .specialNeeds(normalize(request.specialNeeds()))
+                .neutered(request.neutered())
+                .microchipped(request.microchipped())
+                .build();
 
         PetPassport saved = passportRepository.save(passport);
         log.info("Passport created id={} sellerId={}", saved.getId(), saved.getSellerId());

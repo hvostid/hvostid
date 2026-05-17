@@ -57,29 +57,95 @@ public class PetPassport {
 
     protected PetPassport() {}
 
-    public PetPassport(
-            Long sellerId,
-            String species,
-            String breed,
-            String name,
-            LocalDate birthDate,
-            Gender gender,
-            String color,
-            String temperament,
-            String specialNeeds,
-            boolean neutered,
-            boolean microchipped) {
-        this.sellerId = sellerId;
-        this.species = species;
-        this.breed = breed;
-        this.name = name;
-        this.birthDate = birthDate;
-        this.gender = gender;
-        this.color = color;
-        this.temperament = temperament;
-        this.specialNeeds = specialNeeds;
-        this.neutered = neutered;
-        this.microchipped = microchipped;
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static final class Builder {
+        private Long sellerId;
+        private String species;
+        private String breed;
+        private String name;
+        private LocalDate birthDate;
+        private Gender gender;
+        private String color;
+        private String temperament;
+        private String specialNeeds;
+        private boolean neutered;
+        private boolean microchipped;
+
+        private Builder() {}
+
+        public Builder sellerId(Long sellerId) {
+            this.sellerId = sellerId;
+            return this;
+        }
+
+        public Builder species(String species) {
+            this.species = species;
+            return this;
+        }
+
+        public Builder breed(String breed) {
+            this.breed = breed;
+            return this;
+        }
+
+        public Builder name(String name) {
+            this.name = name;
+            return this;
+        }
+
+        public Builder birthDate(LocalDate birthDate) {
+            this.birthDate = birthDate;
+            return this;
+        }
+
+        public Builder gender(Gender gender) {
+            this.gender = gender;
+            return this;
+        }
+
+        public Builder color(String color) {
+            this.color = color;
+            return this;
+        }
+
+        public Builder temperament(String temperament) {
+            this.temperament = temperament;
+            return this;
+        }
+
+        public Builder specialNeeds(String specialNeeds) {
+            this.specialNeeds = specialNeeds;
+            return this;
+        }
+
+        public Builder neutered(boolean neutered) {
+            this.neutered = neutered;
+            return this;
+        }
+
+        public Builder microchipped(boolean microchipped) {
+            this.microchipped = microchipped;
+            return this;
+        }
+
+        public PetPassport build() {
+            PetPassport passport = new PetPassport();
+            passport.sellerId = this.sellerId;
+            passport.species = this.species;
+            passport.breed = this.breed;
+            passport.name = this.name;
+            passport.birthDate = this.birthDate;
+            passport.gender = this.gender;
+            passport.color = this.color;
+            passport.temperament = this.temperament;
+            passport.specialNeeds = this.specialNeeds;
+            passport.neutered = this.neutered;
+            passport.microchipped = this.microchipped;
+            return passport;
+        }
     }
 
     @PrePersist

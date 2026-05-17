@@ -21,8 +21,7 @@ import ru.hvostid.common.security.GatewaySecurityDefaults;
 @EnableConfigurationProperties(AuthTokenProperties.class)
 public class SecurityConfig {
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager)
-            throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager) {
         return GatewaySecurityDefaults.applyTo(http, authenticationManager)
                 .authorizeHttpRequests(auth -> auth.requestMatchers("/api/v1/auth/**")
                         .permitAll()
