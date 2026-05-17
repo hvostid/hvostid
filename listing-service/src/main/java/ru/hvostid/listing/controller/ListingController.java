@@ -7,6 +7,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.Objects;
 import java.util.Set;
@@ -17,6 +20,7 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,8 +32,10 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.hvostid.common.dto.ErrorResponse;
 import ru.hvostid.common.security.GatewayPreAuthentication;
+import ru.hvostid.listing.ListingConstants;
 import ru.hvostid.listing.dto.FlagListingRequest;
 import ru.hvostid.listing.dto.FlagListingResponse;
+import ru.hvostid.listing.dto.ListingFilterRequest;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
@@ -138,13 +144,20 @@ public class ListingController {
     @Operation(
             summary = "Get listings",
             description = "Without parameters returns published listings. "
-                    + "Use 'q' for full-text search over published listings. "
+                    + "Use 'q' for full-text search over published listings (sorted by relevance). "
+                    + "For non-search queries, optional filters apply: species, breed, ageMin/ageMax, "
+                    + "priceMin/priceMax, city, plus 'sort' (price_asc, price_desc, created_desc). "
                     + "Use 'my=true' (auth required) to fetch the caller's own listings in any status; "
-                    + "combine with 'status' to filter, e.g. 'my=true&status=ARCHIVED'.")
+                    + "combine with 'status' to filter, e.g. 'my=true&status=ARCHIVED'. "
+                    + "'my=true' is mutually exclusive with 'q' and the catalog filters.")
     @ApiResponse(
             responseCode = "200",
             description = "Paginated listings (may be empty)",
             content = @Content(schema = @Schema(implementation = Page.class)))
+    @ApiResponse(
+            responseCode = "400",
+            description = "Validation error or incompatible parameter combination",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(
             responseCode = "401",
             description = "'my=true' was requested without an authenticated user",
@@ -154,6 +167,20 @@ public class ListingController {
             @RequestParam(value = "q", required = false)
                     @Size(max = 500, message = "Search query too long, max 500 characters")
                     String keyword,
+            @RequestParam(required = false) @Size(max = 100, message = "Species too long, max 100 characters")
+                    String species,
+            @RequestParam(required = false) @Size(max = 100, message = "Breed too long, max 100 characters")
+                    String breed,
+            @RequestParam(required = false) @Min(0) @Max(5000) Integer ageMin,
+            @RequestParam(required = false) @Min(0) @Max(5000) Integer ageMax,
+            @RequestParam(required = false) @Min(0) @Max(999999999) Integer priceMin,
+            @RequestParam(required = false) @Min(0) @Max(999999999) Integer priceMax,
+            @RequestParam(required = false) @Size(max = 100, message = "City too long, max 100 characters") String city,
+            @RequestParam(defaultValue = "created_desc")
+                    @Pattern(
+                            regexp = "^(price_asc|price_desc|created_desc)$",
+                            message = "Sort must be one of: price_asc, price_desc, created_desc")
+                    String sort,
             @Parameter(description = "Return only listings owned by the authenticated caller")
                     @RequestParam(value = "my", required = false, defaultValue = "false")
                     boolean my,
@@ -163,31 +190,51 @@ public class ListingController {
             @ParameterObject @PageableDefault(size = 20) Pageable pageable,
             @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
 
+        boolean hasKeyword = keyword != null && !keyword.isBlank() && !"\"\"".equals(keyword.trim());
+        ListingFilterRequest filters =
+                new ListingFilterRequest(species, breed, ageMin, ageMax, priceMin, priceMax, city);
+
         log.debug(
-                "GET /api/v1/listings, keyword='{}', my={}, status={}, page={}, size={}",
-                keyword,
+                "GET /api/v1/listings, hasKeyword={}, filters={}, sort={}, my={}, status={}, page={}, size={}",
+                hasKeyword,
+                filters,
+                sort,
                 my,
                 status,
                 pageable.getPageNumber(),
                 pageable.getPageSize());
 
-        int maxSize = 100;
-        if (pageable.getPageSize() > maxSize) {
-            pageable = PageRequest.of(pageable.getPageNumber(), maxSize, pageable.getSort());
+        if (pageable.getPageSize() > ListingConstants.MAX_PAGE_SIZE) {
+            throw new IllegalArgumentException("Page size cannot exceed " + ListingConstants.MAX_PAGE_SIZE);
         }
 
         if (my) {
             if (user == null) {
                 throw new UnauthorizedException("Authentication is required for 'my=true'");
             }
-            if (keyword != null && !keyword.isBlank()) {
-                throw new IllegalArgumentException("Parameter 'q' is not supported together with 'my=true'");
+            if (hasKeyword || !filters.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Parameters 'q' and catalog filters are not supported together with 'my=true'");
             }
             long userId = GatewayPreAuthentication.currentUserId(user);
             return ResponseEntity.ok(listingService.getMyListings(userId, status, pageable));
         }
 
-        Page<ListingResponse> responses = listingService.searchListings(keyword, pageable);
+        if (ageMin != null && ageMax != null && ageMin > ageMax) {
+            throw new IllegalArgumentException("ageMin must be less than or equal to ageMax");
+        }
+        if (priceMin != null && priceMax != null && priceMin > priceMax) {
+            throw new IllegalArgumentException("priceMin must be less than or equal to priceMax");
+        }
+
+        Pageable effectivePageable = pageable;
+        if (!hasKeyword) {
+            effectivePageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), parseSort(sort));
+        }
+
+        Page<ListingResponse> responses = hasKeyword
+                ? listingService.searchWithFilters(keyword, filters, effectivePageable)
+                : listingService.getListingsWithFilters(filters, effectivePageable);
         return ResponseEntity.ok(responses);
     }
 
@@ -225,6 +272,14 @@ public class ListingController {
 
         ListingResponse response = listingService.updateStatus(id, request, userId, roles);
         return ResponseEntity.ok(response);
+    }
+
+    private Sort parseSort(String sort) {
+        return switch (sort) {
+            case "price_asc" -> Sort.by(Sort.Direction.ASC, "price");
+            case "price_desc" -> Sort.by(Sort.Direction.DESC, "price");
+            default -> Sort.by(Sort.Direction.DESC, "createdAt");
+        };
     }
 
     @Operation(

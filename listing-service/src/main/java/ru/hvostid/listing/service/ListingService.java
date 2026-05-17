@@ -6,9 +6,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.hvostid.common.security.UserRole;
+import ru.hvostid.listing.ListingConstants;
+import ru.hvostid.listing.dto.ListingFilterRequest;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
@@ -18,6 +21,7 @@ import ru.hvostid.listing.entity.ListingStatus;
 import ru.hvostid.listing.entity.ListingStatusHistory;
 import ru.hvostid.listing.exception.*;
 import ru.hvostid.listing.repository.ListingRepository;
+import ru.hvostid.listing.repository.ListingSpecifications;
 import ru.hvostid.listing.repository.ListingStatusHistoryRepository;
 
 @Service
@@ -51,11 +55,9 @@ public class ListingService {
                 .passportId(normalize(request.passportId()))
                 .build();
 
-        // Persist the listing entity.
         Listing saved = listingRepository.save(listing);
         log.info("Listing created id={} sellerId={}", saved.getId(), saved.getSellerId());
 
-        // Map the entity to the response DTO.
         return ListingResponse.from(saved);
     }
 
@@ -205,11 +207,66 @@ public class ListingService {
             return findPublishedListings(pageable);
         }
 
-        String sanitizedKeyword = keyword.trim().replaceAll("\\s+", " ");
+        String sanitizedKeyword = normalizeKeyword(keyword);
 
         return listingRepository
-                .searchByKeyword(ListingStatus.PUBLISHED.name(), sanitizedKeyword, pageable)
+                .searchByKeyword(
+                        ListingStatus.PUBLISHED.name(),
+                        sanitizedKeyword,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        pageable)
                 .map(ListingResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ListingResponse> getListingsWithFilters(ListingFilterRequest filters, Pageable pageable) {
+        log.debug("Getting listings with filters: {}", filters);
+        Specification<Listing> spec = ListingSpecifications.withFilters(filters);
+        return listingRepository.findAll(spec, pageable).map(ListingResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ListingResponse> searchWithFilters(String keyword, ListingFilterRequest filters, Pageable pageable) {
+        log.debug("Searching with keyword='{}' and filters: {}", keyword, filters);
+
+        if (keyword == null || keyword.isBlank() || "\"\"".equals(keyword.trim())) {
+            return getListingsWithFilters(filters, pageable);
+        }
+
+        String sanitizedKeyword = normalizeKeyword(keyword);
+
+        // Deep-pagination cap: refuse to return matches past the configured horizon.
+        // Bounded by ListingController (MAX_PAGE_SIZE), so we only need to guard the offset.
+        if (pageable.getOffset() >= ListingConstants.MAX_SEARCH_RESULTS) {
+            return Page.empty(pageable);
+        }
+
+        ListingFilterRequest effective =
+                filters == null ? new ListingFilterRequest(null, null, null, null, null, null, null) : filters;
+
+        Page<Listing> searchResults = listingRepository.searchByKeyword(
+                ListingStatus.PUBLISHED.name(),
+                sanitizedKeyword,
+                blankToNull(effective.species()),
+                blankToNull(effective.breed()),
+                effective.ageMin(),
+                effective.ageMax(),
+                effective.priceMin(),
+                effective.priceMax(),
+                blankToNull(effective.city()),
+                pageable);
+
+        return searchResults.map(ListingResponse::from);
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     private String determineRole(Set<String> userRoles, boolean isOwner) {
@@ -229,6 +286,10 @@ public class ListingService {
         if (exists) {
             throw new DuplicateListingException("You already have a listing with this title");
         }
+    }
+
+    public static String normalizeKeyword(String keyword) {
+        return keyword == null ? null : keyword.trim().replaceAll("\\s+", " ");
     }
 
     private String normalize(String value) {
