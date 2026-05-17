@@ -44,7 +44,7 @@ export default function RegisterPage() {
         if (!email.trim()) {
             setEmailError('Email is required');
             isValid = false;
-        } else if (!EMAIL_REGEX.test(email)) {
+        } else if (!EMAIL_REGEX.test(email.trim())) {
             setEmailError('Please enter a valid email (example: name@domain.com)');
             isValid = false;
         } else {
