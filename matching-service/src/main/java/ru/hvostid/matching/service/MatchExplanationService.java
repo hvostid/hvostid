@@ -1,6 +1,5 @@
 package ru.hvostid.matching.service;
 
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -74,14 +73,13 @@ public class MatchExplanationService {
     }
 
     private static String weakFactorsSummary(List<FactorScore> weakFactors) {
-        List<String> parts = new ArrayList<>();
-        for (FactorScore factor : weakFactors) {
-            parts.add(factor.comment());
+        List<String> parts =
+                weakFactors.stream().limit(2).map(FactorScore::comment).toList();
+        if (parts.isEmpty()) {
+            return "";
         }
-        if (parts.size() == 1) {
-            return parts.getFirst();
-        }
-        return String.join(" Also, ", parts.subList(0, Math.min(2, parts.size())));
+        String summary = (parts.size() == 1) ? parts.getFirst() : String.join(". Also, ", parts);
+        return summary.endsWith(".") ? summary : summary + ".";
     }
 
     private static String breedExperienceNote(PetContext pet, CompatibilityResult result) {
@@ -134,8 +132,8 @@ public class MatchExplanationService {
             tips.add("This breed benefits from outdoor space or frequent off-leash exercise");
         }
         if (pet.profile().activityNeeds() >= 3) {
-            int hours = pet.profile().activityNeeds() >= 4 ? 2 : 1;
-            tips.add("Plan for " + hours + "-2 hours of daily exercise and mental enrichment");
+            String range = (pet.profile().activityNeeds() >= 4) ? "at least 2" : "1-2";
+            tips.add("Plan for " + range + " hours of daily exercise and mental enrichment");
         }
         if (pet.profile().careDifficulty() >= 3) {
             tips.add("Research breed-specific care requirements before committing");
@@ -143,7 +141,6 @@ public class MatchExplanationService {
     }
 
     private static List<String> limitTips(Set<String> tips, int max) {
-        List<String> list = new ArrayList<>(tips);
-        return list.subList(0, Math.min(max, list.size()));
+        return tips.stream().limit(max).toList();
     }
 }

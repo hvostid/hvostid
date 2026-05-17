@@ -24,6 +24,29 @@ Owns the buyer questionnaire and the owner-pet compatibility score.
 | GET    | `/api/v1/match/recommendations`        | buyer  | Ranked listings                |
 | POST   | `/api/v1/match/score`                  | buyer  | Score for a single listing     |
 
+`POST /api/v1/match/score` returns score breakdown plus explanation fields:
+
+```json
+{
+  "score": 78,
+  "level": "GOOD",
+  "factors": [
+    { "name": "living_space", "score": 18, "maxScore": 20, "comment": "..." }
+  ],
+  "summary": "Good match overall. ...",
+  "tips": ["Consider enrolling in a pet training course before adoption"],
+  "adaptationPlan": [
+    {
+      "dayRange": "1-3",
+      "title": "Getting to know each other",
+      "tasks": ["Set up a quiet corner", "..."]
+    }
+  ],
+  "degraded": false,
+  "degradedReason": null
+}
+```
+
 Full spec at http://localhost:8084/swagger-ui.html.
 
 ## Environment variables
