@@ -229,8 +229,6 @@ public class CompatibilityScoreCalculator {
         return new FactorScore(CompatibilityFactor.WORK_SCHEDULE, clamp(score, max), comment);
     }
 
-    // Fix: removed always-true if (total >= 40) branch and unreachable NOT_RECOMMENDED fallback.
-    // The cascade is: allergyCap/< 40 → NOT_RECOMMENDED, >= 80 → GREAT, >= 60 → GOOD, else → RISKY.
     private CompatibilityLevel mapLevel(int total, boolean allergyCap) {
         if (allergyCap || total < 40) {
             return CompatibilityLevel.NOT_RECOMMENDED;
@@ -251,7 +249,6 @@ public class CompatibilityScoreCalculator {
         boolean mentionsDogs = containsAny(details, "dog", "собак", "canine", "dander", "fur", "hair");
         boolean mentionsGeneral = containsAny(details, "pet", "animal", "dander", "fur", "шерст", "пух", "аллерг");
 
-        // Use normalized species detection consistent with BreedProfileCatalog conventions
         boolean isCat = containsAny(species, "cat", "feline", "кош");
         boolean isDog = containsAny(species, "dog", "canine", "собак");
 
@@ -264,7 +261,6 @@ public class CompatibilityScoreCalculator {
         if (isDog && mentionsDogs) {
             return true;
         }
-        // Fix: if species is neither cat nor dog, allergy mentions for cats/dogs do not conflict.
         return false;
     }
 
