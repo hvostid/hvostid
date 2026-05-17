@@ -53,6 +53,13 @@ public class PassportService {
         return PassportResponse.from(passport);
     }
 
+    @Transactional(readOnly = true)
+    public PassportResponse getPassportForInternal(Long passportId) {
+        log.debug("Internal passport read id={}", passportId);
+        PetPassport passport = getPassportWithVaccinations(passportId);
+        return PassportResponse.from(passport);
+    }
+
     @Transactional
     public PassportResponse updatePassport(Long passportId, UpdatePassportRequest request, Long sellerId) {
         log.debug("Updating passport id={} sellerId={}", passportId, sellerId);
