@@ -133,7 +133,8 @@ public class PassportDocumentController {
     private Set<String> currentRoles(UserDetails user) {
         return user.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .map(authority -> authority.replace("ROLE_", ""))
+                .filter(auth -> auth != null)
+                .map(auth -> auth.startsWith("ROLE_") ? auth.substring(5) : auth)
                 .collect(Collectors.toSet());
     }
 }

@@ -9,8 +9,8 @@ class PassportObjectNameFactoryTest {
 
     @Test
     void createBuildsPassportScopedObjectNameWithLowercaseExtension() {
-        Long sellerId = 1L;
-        Long passportId = 2L;
+        long sellerId = 1L;
+        long passportId = 2L;
 
         String objectName = factory.create(sellerId, passportId, "Vet Certificate.PDF");
 
@@ -22,8 +22,8 @@ class PassportObjectNameFactoryTest {
 
     @Test
     void createOmitsExtensionWhenFilenameHasNoExtension() {
-        Long sellerId = 1L;
-        Long passportId = 2L;
+        long sellerId = 1L;
+        long passportId = 2L;
 
         String objectName = factory.create(sellerId, passportId, "document");
 

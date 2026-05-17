@@ -61,8 +61,8 @@ public class PassportDocumentService {
                 objectNameFactory.create(passport.getSellerId(), passport.getId(), file.getOriginalFilename());
         log.debug("Uploading passport document passportId={} type={} bucket={}", passportId, type, bucket);
 
-        try {
-            storageService.upload(bucket, storagePath, file.getInputStream(), file.getSize(), file.getContentType());
+        try (var inputStream = file.getInputStream()) {
+            storageService.upload(bucket, storagePath, inputStream, file.getSize(), file.getContentType());
         } catch (IOException ex) {
             throw new InvalidPassportDocumentException("Failed to read document file");
         }
@@ -102,8 +102,8 @@ public class PassportDocumentService {
         PetPassport passport = accessService.getExistingPassport(passportId);
         accessService.requireOwner(passport, userId, "delete documents from");
         PassportDocument document = getDocument(passportId, documentId);
-        storageService.delete(bucketFor(document.getType()), document.getStoragePath());
         documentRepository.delete(document);
+        storageService.delete(bucketFor(document.getType()), document.getStoragePath());
         log.info("Passport document deleted id={} passportId={}", documentId, passportId);
     }
 
