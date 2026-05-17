@@ -14,5 +14,9 @@ public interface ListingFlagRepository extends JpaRepository<ListingFlag, Long> 
 
     Page<ListingFlag> findByStatus(FlagStatus status, Pageable pageable);
 
-    List<ListingFlag> findByListingIdOrderByCreatedAtDesc(Long listingId);
+    /**
+     * Most recent flags first, bounded to the latest 50 so the moderation detail view
+     * does not pull an unbounded list for pathologically flagged listings.
+     */
+    List<ListingFlag> findTop50ByListingIdOrderByCreatedAtDesc(Long listingId);
 }

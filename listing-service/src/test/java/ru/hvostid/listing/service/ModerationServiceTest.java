@@ -75,12 +75,13 @@ class ModerationServiceTest {
     void reviewFlag_setsStatusFromPendingToDismissed() {
         ListingFlag flag = new ListingFlag(42L, 5L, FlagReason.SCAM, "fake");
         when(flagRepository.findById(1L)).thenReturn(Optional.of(flag));
-        when(flagRepository.save(any(ListingFlag.class))).thenAnswer(inv -> inv.getArgument(0));
 
         FlagListingResponse response = moderationService.reviewFlag(1L, FlagStatus.DISMISSED);
 
         assertThat(response.status()).isEqualTo(FlagStatus.DISMISSED);
         assertThat(flag.getStatus()).isEqualTo(FlagStatus.DISMISSED);
+        // No explicit save: the dirty managed entity is flushed at @Transactional commit.
+        verify(flagRepository, never()).save(any());
     }
 
     @Test

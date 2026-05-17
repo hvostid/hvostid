@@ -172,7 +172,7 @@ public class ModerationController {
         return user.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .filter(Objects::nonNull)
-                .map(authority -> authority.replace("ROLE_", ""))
+                .map(authority -> authority.startsWith("ROLE_") ? authority.substring(5) : authority)
                 .collect(Collectors.toSet());
     }
 }

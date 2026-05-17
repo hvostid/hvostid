@@ -18,14 +18,12 @@ import ru.hvostid.listing.entity.ListingFlag;
 import ru.hvostid.listing.entity.ListingStatus;
 import ru.hvostid.listing.exception.FlagNotFoundException;
 import ru.hvostid.listing.exception.InvalidFlagReviewException;
-import ru.hvostid.listing.exception.ListingNotFoundException;
 import ru.hvostid.listing.repository.ListingFlagRepository;
 import ru.hvostid.listing.repository.ListingRepository;
 
 @Service
 public class ModerationService {
     private static final Logger log = LoggerFactory.getLogger(ModerationService.class);
-    private static final String LISTING_NOT_FOUND_MESSAGE = "Listing not found with id: ";
 
     private final ListingService listingService;
     private final ListingRepository listingRepository;
@@ -48,10 +46,8 @@ public class ModerationService {
 
     @Transactional(readOnly = true)
     public ModeratedListingDetailResponse getListingDetail(Long listingId) {
-        Listing listing = listingRepository
-                .findById(listingId)
-                .orElseThrow(() -> new ListingNotFoundException(LISTING_NOT_FOUND_MESSAGE + listingId));
-        List<FlagListingResponse> flags = flagRepository.findByListingIdOrderByCreatedAtDesc(listingId).stream()
+        Listing listing = listingService.requireListing(listingId);
+        List<FlagListingResponse> flags = flagRepository.findTop50ByListingIdOrderByCreatedAtDesc(listingId).stream()
                 .map(FlagListingResponse::from)
                 .toList();
         return new ModeratedListingDetailResponse(ListingResponse.from(listing), flags);
@@ -104,9 +100,9 @@ public class ModerationService {
             throw new InvalidFlagReviewException(
                     "Only PENDING flags can be reviewed; current status: " + flag.getStatus());
         }
+        // Dirty entity is auto-flushed at @Transactional commit; an explicit save is redundant.
         flag.setStatus(decision);
-        ListingFlag saved = flagRepository.save(flag);
         log.info("Flag id={} listingId={} reviewed -> {}", flagId, flag.getListingId(), decision);
-        return FlagListingResponse.from(saved);
+        return FlagListingResponse.from(flag);
     }
 }
