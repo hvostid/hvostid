@@ -1,13 +1,19 @@
 package ru.hvostid.listing.service;
 
+import java.util.List;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.hvostid.common.security.UserRole;
+import ru.hvostid.listing.ListingConstants;
+import ru.hvostid.listing.dto.ListingFilterRequest;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
@@ -17,6 +23,7 @@ import ru.hvostid.listing.entity.ListingStatus;
 import ru.hvostid.listing.entity.ListingStatusHistory;
 import ru.hvostid.listing.exception.*;
 import ru.hvostid.listing.repository.ListingRepository;
+import ru.hvostid.listing.repository.ListingSpecifications;
 import ru.hvostid.listing.repository.ListingStatusHistoryRepository;
 
 @Service
@@ -48,11 +55,9 @@ public class ListingService {
                 normalize(request.city()),
                 normalize(request.passportId()));
 
-        // Persist the listing entity.
         Listing saved = listingRepository.save(listing);
         log.info("Listing created id={} sellerId={}", saved.getId(), saved.getSellerId());
 
-        // Map the entity to the response DTO.
         return ListingResponse.from(saved);
     }
 
@@ -173,11 +178,108 @@ public class ListingService {
             return getPublishedListings(pageable);
         }
 
-        String sanitizedKeyword = keyword.trim().replaceAll("\\s+", " ");
+        String sanitizedKeyword = normalizeKeyword(keyword);
 
         return listingRepository
                 .searchByKeyword(ListingStatus.PUBLISHED.name(), sanitizedKeyword, pageable)
                 .map(ListingResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ListingResponse> getListingsWithFilters(ListingFilterRequest filters, Pageable pageable) {
+        log.debug("Getting listings with filters: {}", filters);
+        Specification<Listing> spec = ListingSpecifications.withFilters(filters);
+        return listingRepository.findAll(spec, pageable).map(ListingResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ListingResponse> searchWithFilters(String keyword, ListingFilterRequest filters, Pageable pageable) {
+        log.debug("Searching with keyword='{}' and filters: {}", keyword, filters);
+
+        if (keyword == null || keyword.isBlank() || "\"\"".equals(keyword.trim())) {
+            return getListingsWithFilters(filters, pageable);
+        }
+
+        String sanitizedKeyword = normalizeKeyword(keyword);
+
+        Pageable safePageable = pageable;
+        if (pageable.getPageSize() > ListingConstants.MAX_SEARCH_RESULTS) {
+            safePageable =
+                    PageRequest.of(pageable.getPageNumber(), ListingConstants.MAX_SEARCH_RESULTS, pageable.getSort());
+        }
+
+        if (safePageable.getOffset() >= ListingConstants.MAX_SEARCH_RESULTS) {
+            return Page.empty(safePageable);
+        }
+
+        Page<Listing> searchResults =
+                listingRepository.searchByKeyword(ListingStatus.PUBLISHED.name(), sanitizedKeyword, safePageable);
+
+        if (filters == null || filters.isEmpty()) {
+            return searchResults.map(ListingResponse::from);
+        }
+
+        // Apply filters in-memory
+        List<ListingResponse> filtered = searchResults.getContent().stream()
+                .filter(listing -> matchesFilters(listing, filters))
+                .map(ListingResponse::from)
+                .toList();
+
+        return new PageImpl<>(filtered, safePageable, searchResults.getTotalElements());
+    }
+
+    private boolean matchesFilters(Listing listing, ListingFilterRequest filters) {
+        if (filters == null) {
+            return true;
+        }
+
+        if (filters.species() != null && !filters.species().isBlank()) {
+            String species = listing.getSpecies();
+            if (species == null
+                    || !species.toLowerCase().contains(filters.species().toLowerCase())) {
+                return false;
+            }
+        }
+
+        if (filters.breed() != null && !filters.breed().isBlank()) {
+            String breed = listing.getBreed();
+            if (breed == null || !breed.toLowerCase().contains(filters.breed().toLowerCase())) {
+                return false;
+            }
+        }
+
+        if (filters.city() != null && !filters.city().isBlank()) {
+            String city = listing.getCity();
+            if (city == null || !city.equalsIgnoreCase(filters.city())) {
+                return false;
+            }
+        }
+
+        if (filters.ageMin() != null || filters.ageMax() != null) {
+            Integer age = listing.getAge();
+            if (age == null) {
+                return false;
+            }
+            if (filters.ageMin() != null && age < filters.ageMin()) {
+                return false;
+            }
+            if (filters.ageMax() != null && age > filters.ageMax()) {
+                return false;
+            }
+        }
+
+        if (filters.priceMin() != null || filters.priceMax() != null) {
+            Integer price = listing.getPrice();
+            if (price == null) {
+                return false;
+            }
+            if (filters.priceMin() != null && price < filters.priceMin()) {
+                return false;
+            }
+            return filters.priceMax() == null || price <= filters.priceMax();
+        }
+
+        return true;
     }
 
     private String determineRole(Set<String> userRoles, boolean isOwner) {
@@ -193,6 +295,10 @@ public class ListingService {
         if (exists) {
             throw new DuplicateListingException("You already have a listing with this title");
         }
+    }
+
+    public static String normalizeKeyword(String keyword) {
+        return keyword == null ? null : keyword.trim().replaceAll("\\s+", " ");
     }
 
     private String normalize(String value) {

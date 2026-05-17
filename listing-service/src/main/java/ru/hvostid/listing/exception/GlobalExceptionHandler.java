@@ -110,6 +110,13 @@ public class GlobalExceptionHandler {
                         fieldErrors));
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(
+            IllegalArgumentException ex, HttpServletRequest request) {
+        log.debug("Invalid argument: {}", ex.getMessage());
+        return error(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     private static ResponseEntity<ErrorResponse> error(HttpStatus status, String message, HttpServletRequest request) {
         return ResponseEntity.status(status)
                 .body(new ErrorResponse(

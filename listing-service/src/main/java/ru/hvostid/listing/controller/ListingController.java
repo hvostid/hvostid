@@ -7,6 +7,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.Objects;
 import java.util.Set;
@@ -17,6 +20,7 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +32,8 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.hvostid.common.dto.ErrorResponse;
 import ru.hvostid.common.security.GatewayPreAuthentication;
+import ru.hvostid.listing.ListingConstants;
+import ru.hvostid.listing.dto.ListingFilterRequest;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
@@ -129,9 +135,11 @@ public class ListingController {
     }
 
     @Operation(
-            summary = "Get published listings with optional search",
+            summary = "Get published listings with optional search and filters",
             description = "Returns a paginated list of published listings. "
-                    + "Use 'q' parameter for full-text search across title, description, and breed.")
+                    + "Use 'q' parameter for full-text search across title, description, and breed. "
+                    + "For searches, results are sorted by relevance. "
+                    + "For non-search queries, sort parameter applies: price_asc, price_desc, created_desc (default).")
     @ApiResponse(
             responseCode = "200",
             description = "List of published listings (may be empty)",
@@ -141,20 +149,72 @@ public class ListingController {
             @RequestParam(value = "q", required = false)
                     @Size(max = 500, message = "Search query too long, max 500 characters")
                     String keyword,
+            @RequestParam(required = false) @Size(max = 100, message = "Species too long, max 100 characters")
+                    String species,
+            @RequestParam(required = false) @Size(max = 100, message = "Breed too long, max 100 characters")
+                    String breed,
+            @RequestParam(required = false) @Min(0) @Max(5000) Integer ageMin,
+            @RequestParam(required = false) @Min(0) @Max(5000) Integer ageMax,
+            @RequestParam(required = false) @Min(0) @Max(999999999) Integer priceMin,
+            @RequestParam(required = false) @Min(0) @Max(999999999) Integer priceMax,
+            @RequestParam(required = false) @Size(max = 100, message = "City too long, max 100 characters") String city,
+
+            // Sort parameter - only used when no keyword search
+            @RequestParam(defaultValue = "created_desc")
+                    @Pattern(
+                            regexp = "^(price_asc|price_desc|created_desc)$",
+                            message = "Sort must be one of: price_asc, price_desc, created_desc")
+                    String sort,
             @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
 
+        boolean hasKeyword = keyword != null && !keyword.isBlank() && !"\"\"".equals(keyword.trim());
+
         log.debug(
-                "GET /api/v1/listings, keyword='{}', page={}, size={}",
-                keyword,
+                "GET /api/v1/listings, hasKeyword={}, species={}, breed={}, ageMin={}, ageMax={}, "
+                        + "priceMin={}, priceMax={}, city={}, sort={}, page={}, size={}",
+                hasKeyword,
+                species,
+                breed,
+                ageMin,
+                ageMax,
+                priceMin,
+                priceMax,
+                city,
+                sort,
                 pageable.getPageNumber(),
                 pageable.getPageSize());
 
-        int maxSize = 100;
-        if (pageable.getPageSize() > maxSize) {
-            pageable = PageRequest.of(pageable.getPageNumber(), maxSize, pageable.getSort());
+        // Validate range consistency
+        if (ageMin != null && ageMax != null && ageMin > ageMax) {
+            throw new IllegalArgumentException("ageMin must be less than or equal to ageMax");
+        }
+        if (priceMin != null && priceMax != null && priceMin > priceMax) {
+            throw new IllegalArgumentException("priceMin must be less than or equal to priceMax");
         }
 
-        Page<ListingResponse> responses = listingService.searchListings(keyword, pageable);
+        // Validate page size
+        if (pageable.getPageSize() > ListingConstants.MAX_PAGE_SIZE) {
+            throw new IllegalArgumentException("Page size cannot exceed " + ListingConstants.MAX_PAGE_SIZE);
+        }
+
+        // Apply sort only for non-search queries (search uses relevance sorting)
+        Pageable effectivePageable = pageable;
+        if (!hasKeyword) {
+            Sort sortBy = parseSort(sort);
+            effectivePageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sortBy);
+        }
+
+        // Build filter request
+        ListingFilterRequest filters =
+                new ListingFilterRequest(species, breed, ageMin, ageMax, priceMin, priceMax, city);
+
+        Page<ListingResponse> responses;
+        if (hasKeyword) {
+            responses = listingService.searchWithFilters(keyword, filters, effectivePageable);
+        } else {
+            responses = listingService.getListingsWithFilters(filters, effectivePageable);
+        }
+
         return ResponseEntity.ok(responses);
     }
 
@@ -192,5 +252,13 @@ public class ListingController {
 
         ListingResponse response = listingService.updateStatus(id, request, userId, roles);
         return ResponseEntity.ok(response);
+    }
+
+    private Sort parseSort(String sort) {
+        return switch (sort) {
+            case "price_asc" -> Sort.by(Sort.Direction.ASC, "price");
+            case "price_desc" -> Sort.by(Sort.Direction.DESC, "price");
+            default -> Sort.by(Sort.Direction.DESC, "createdAt");
+        };
     }
 }
