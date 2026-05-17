@@ -5,6 +5,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import ru.hvostid.listing.entity.Listing;
@@ -16,6 +17,13 @@ public interface ListingRepository extends JpaRepository<Listing, Long>, JpaSpec
     Page<Listing> findAll(Specification<Listing> spec, Pageable pageable);
 
     boolean existsBySellerIdAndTitleAndStatusNot(Long sellerId, String title, ListingStatus status);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Listing l SET l.status = :newStatus WHERE l.id = :id AND l.status = :expectedStatus")
+    int transitionStatus(
+            @Param("id") Long id,
+            @Param("expectedStatus") ListingStatus expectedStatus,
+            @Param("newStatus") ListingStatus newStatus);
 
     @Query(value = """
     SELECT * FROM listings l

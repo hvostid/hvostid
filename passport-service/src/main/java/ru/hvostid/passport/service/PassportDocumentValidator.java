@@ -14,13 +14,17 @@ import ru.hvostid.passport.exception.UnsupportedPassportDocumentException;
 public class PassportDocumentValidator {
     public static final long MAX_FILE_SIZE_BYTES = 10L * 1024L * 1024L;
 
+    private static final String MIME_IMAGE_JPEG = "image/jpeg";
+    private static final String MIME_IMAGE_PNG = "image/png";
+    private static final String MIME_APPLICATION_PDF = "application/pdf";
+
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "pdf");
-    private static final Set<String> ALLOWED_MIME_TYPES = Set.of("image/jpeg", "image/png", "application/pdf");
+    private static final Set<String> ALLOWED_MIME_TYPES = Set.of(MIME_IMAGE_JPEG, MIME_IMAGE_PNG, MIME_APPLICATION_PDF);
     private static final Map<String, Set<String>> MIME_TYPES_BY_EXTENSION = Map.of(
-            "jpg", Set.of("image/jpeg"),
-            "jpeg", Set.of("image/jpeg"),
-            "png", Set.of("image/png"),
-            "pdf", Set.of("application/pdf"));
+            "jpg", Set.of(MIME_IMAGE_JPEG),
+            "jpeg", Set.of(MIME_IMAGE_JPEG),
+            "png", Set.of(MIME_IMAGE_PNG),
+            "pdf", Set.of(MIME_APPLICATION_PDF));
 
     public void validate(MultipartFile file) {
         if (file == null || file.isEmpty()) {
