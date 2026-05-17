@@ -79,6 +79,19 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(DuplicateFlagException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateFlag(DuplicateFlagException ex, HttpServletRequest request) {
+        log.debug("Duplicate flag: {}", ex.getMessage());
+        return error(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ListingNotFlaggableException.class)
+    public ResponseEntity<ErrorResponse> handleListingNotFlaggable(
+            ListingNotFlaggableException ex, HttpServletRequest request) {
+        log.debug("Listing not flaggable: {}", ex.getMessage());
+        return error(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
         log.error("Unexpected error", ex);

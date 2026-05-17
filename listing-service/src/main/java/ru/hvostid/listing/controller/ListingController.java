@@ -28,10 +28,13 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.hvostid.common.dto.ErrorResponse;
 import ru.hvostid.common.security.GatewayPreAuthentication;
+import ru.hvostid.listing.dto.FlagListingRequest;
+import ru.hvostid.listing.dto.FlagListingResponse;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
 import ru.hvostid.listing.dto.StatusUpdateRequest;
+import ru.hvostid.listing.service.ListingFlagService;
 import ru.hvostid.listing.service.ListingService;
 
 @RestController
@@ -42,9 +45,11 @@ public class ListingController {
     private static final Logger log = LoggerFactory.getLogger(ListingController.class);
 
     private final ListingService listingService;
+    private final ListingFlagService listingFlagService;
 
-    public ListingController(ListingService listingService) {
+    public ListingController(ListingService listingService, ListingFlagService listingFlagService) {
         this.listingService = listingService;
+        this.listingFlagService = listingFlagService;
     }
 
     @Operation(
@@ -192,5 +197,39 @@ public class ListingController {
 
         ListingResponse response = listingService.updateStatus(id, request, userId, roles);
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "Report a listing as problematic",
+            description =
+                    "Submits a flag against a published listing. The reporter must be authenticated and cannot flag their own listing. A user may submit at most one flag per listing. When the listing accumulates 3+ pending flags, it is automatically moved to MODERATION.")
+    @ApiResponse(
+            responseCode = "201",
+            description = "Flag created",
+            content = @Content(schema = @Schema(implementation = FlagListingResponse.class)))
+    @ApiResponse(
+            responseCode = "400",
+            description = "Validation error or listing not in a flaggable state",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "401", description = "Missing or invalid authenticated user", content = @Content)
+    @ApiResponse(responseCode = "403", description = "Listing owner cannot flag their own listing", content = @Content)
+    @ApiResponse(
+            responseCode = "404",
+            description = "Listing not found",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(
+            responseCode = "409",
+            description = "User has already flagged this listing",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @PostMapping("/{id}/flag")
+    public ResponseEntity<FlagListingResponse> flagListing(
+            @Parameter(description = "Listing ID", required = true, example = "1") @PathVariable Long id,
+            @Valid @RequestBody FlagListingRequest request,
+            @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
+        long userId = GatewayPreAuthentication.currentUserId(user);
+        log.debug("POST /api/v1/listings/{}/flag, userId={}, reason={}", id, userId, request.reason());
+
+        FlagListingResponse response = listingFlagService.flagListing(id, request, userId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
