@@ -13,7 +13,7 @@ import org.springframework.web.client.RestClient;
  * and enables typed configuration properties.
  */
 @Configuration
-@EnableConfigurationProperties({AuthProperties.class, RateLimitProperties.class})
+@EnableConfigurationProperties({AuthProperties.class, RateLimitProperties.class, CorsProperties.class})
 public class GatewayConfig {
     @Bean
     public RestClient introspectionRestClient(AuthProperties authProperties) {
