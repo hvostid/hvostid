@@ -21,7 +21,7 @@ Owns the buyer questionnaire and the owner-pet compatibility score.
 | PUT    | `/api/v1/match/questionnaire`          | buyer  | Upsert                         |
 | DELETE | `/api/v1/match/questionnaire`          | buyer  |                                |
 | GET    | `/api/v1/match/recommendations`        | buyer  | Ranked listings                |
-| GET    | `/api/v1/match/score/{listingId}`      | buyer  | Score for a single listing     |
+| POST   | `/api/v1/match/score`                  | buyer  | Score for a single listing     |
 
 Full spec at http://localhost:8084/swagger-ui.html.
 
