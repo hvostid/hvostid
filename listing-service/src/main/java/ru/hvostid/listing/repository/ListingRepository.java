@@ -19,6 +19,8 @@ public interface ListingRepository extends JpaRepository<Listing, Long>, JpaSpec
 
     boolean existsBySellerIdAndTitleAndStatusNot(Long sellerId, String title, ListingStatus status);
 
+    boolean existsByPassportIdAndStatus(String passportId, ListingStatus status);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Listing l SET l.status = :newStatus WHERE l.id = :id AND l.status = :expectedStatus")
     int transitionStatus(

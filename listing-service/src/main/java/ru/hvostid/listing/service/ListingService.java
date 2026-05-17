@@ -125,6 +125,14 @@ public class ListingService {
     }
 
     @Transactional(readOnly = true)
+    public boolean hasPublishedListingForPassport(String passportId) {
+        if (passportId == null || passportId.isBlank()) {
+            return false;
+        }
+        return listingRepository.existsByPassportIdAndStatus(passportId.trim(), ListingStatus.PUBLISHED);
+    }
+
+    @Transactional(readOnly = true)
     public Page<ListingResponse> getMyListings(Long sellerId, ListingStatus status, Pageable pageable) {
         log.debug(
                 "Getting own listings sellerId={} status={} page={} size={}",

@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.Objects;
 import java.util.Set;
@@ -20,6 +21,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import ru.hvostid.common.dto.ErrorResponse;
+import ru.hvostid.common.http.SecurityHeaders;
 import ru.hvostid.common.security.GatewayPreAuthentication;
 import ru.hvostid.passport.dto.CreatePassportRequest;
 import ru.hvostid.passport.dto.PassportResponse;
@@ -120,7 +122,7 @@ public class PassportController {
     @Operation(
             summary = "Get the trust score for a pet passport",
             description =
-                    "Returns a 0-100 trust score with the per-component breakdown. Available to any authenticated user so buyers can evaluate listings.")
+                    "Returns a 0-100 trust score with the per-component breakdown. The passport's owner, moderators, and admins always receive a result. Other authenticated callers receive a result only when the passport is referenced by at least one PUBLISHED listing; otherwise the endpoint returns 404 to prevent passport-id enumeration.")
     @ApiResponse(
             responseCode = "200",
             description = "Trust score",
@@ -128,14 +130,23 @@ public class PassportController {
     @ApiResponse(responseCode = "401", description = "Missing or invalid authenticated user", content = @Content)
     @ApiResponse(
             responseCode = "404",
-            description = "Passport not found",
+            description = "Passport not found or not visible to the caller",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(
+            responseCode = "503",
+            description = "Listing service unavailable",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @GetMapping("/{petId}/trust")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<TrustScoreResponse> getTrustScore(
-            @Parameter(description = "Pet passport ID", required = true, example = "1") @PathVariable Long petId) {
-        log.debug("GET /api/v1/passports/{}/trust", petId);
-        return ResponseEntity.ok(trustScoreService.getTrustScore(petId));
+            @Parameter(description = "Pet passport ID", required = true, example = "1") @PathVariable Long petId,
+            @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user,
+            HttpServletRequest httpRequest) {
+        long userId = GatewayPreAuthentication.currentUserId(user);
+        Set<String> roles = currentRoles(user);
+        String requestId = httpRequest.getHeader(SecurityHeaders.REQUEST_ID);
+        log.debug("GET /api/v1/passports/{}/trust, userId={}, roles={}", petId, userId, roles);
+        return ResponseEntity.ok(trustScoreService.getTrustScore(petId, userId, roles, requestId));
     }
 
     private Set<String> currentRoles(UserDetails user) {

@@ -39,6 +39,7 @@ import ru.hvostid.listing.dto.ListingFilterRequest;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
+import ru.hvostid.listing.dto.PassportPublishedStatusResponse;
 import ru.hvostid.listing.dto.StatusUpdateRequest;
 import ru.hvostid.listing.entity.ListingStatus;
 import ru.hvostid.listing.exception.UnauthorizedException;
@@ -315,5 +316,23 @@ public class ListingController {
 
         FlagListingResponse response = listingFlagService.flagListing(id, request, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @Operation(
+            summary = "Check if a passport is referenced by a PUBLISHED listing",
+            description =
+                    "Returns true when at least one PUBLISHED listing references the given passport id. Used by passport-service to gate buyer-facing endpoints that would otherwise leak passport existence. Existence-only signal; PUBLISHED listings are already public.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Status returned (hasPublishedListing may be true or false)",
+            content = @Content(schema = @Schema(implementation = PassportPublishedStatusResponse.class)))
+    @GetMapping("/passports/{passportId}/has-published")
+    public ResponseEntity<PassportPublishedStatusResponse> hasPublishedListingForPassport(
+            @Parameter(description = "Passport identifier as stored on the listing", required = true, example = "42")
+                    @PathVariable
+                    String passportId) {
+        log.debug("GET /api/v1/listings/passports/{}/has-published", passportId);
+        boolean exists = listingService.hasPublishedListingForPassport(passportId);
+        return ResponseEntity.ok(new PassportPublishedStatusResponse(passportId, exists));
     }
 }

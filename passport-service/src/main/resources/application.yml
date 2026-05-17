@@ -30,6 +30,10 @@ hvostid:
         buckets:
             documents: ${MINIO_DOCUMENTS_BUCKET:pet-documents}
             photos: ${MINIO_PHOTOS_BUCKET:pet-photos}
+    listing-service:
+        url: http://${LISTING_SERVICE_HOST:localhost}:8082
+        connect-timeout: 2s
+        read-timeout: 3s
 
 management:
     endpoints:
