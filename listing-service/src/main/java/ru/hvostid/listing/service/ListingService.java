@@ -1,5 +1,6 @@
 package ru.hvostid.listing.service;
 
+import java.time.Instant;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -121,6 +122,20 @@ public class ListingService {
         return listingRepository.findByStatus(ListingStatus.PUBLISHED, pageable).map(ListingResponse::from);
     }
 
+    @Transactional(readOnly = true)
+    public Page<ListingResponse> getMyListings(Long sellerId, ListingStatus status, Pageable pageable) {
+        log.debug(
+                "Getting own listings sellerId={} status={} page={} size={}",
+                sellerId,
+                status,
+                pageable.getPageNumber(),
+                pageable.getPageSize());
+        Page<Listing> page = status == null
+                ? listingRepository.findBySellerId(sellerId, pageable)
+                : listingRepository.findBySellerIdAndStatus(sellerId, status, pageable);
+        return page.map(ListingResponse::from);
+    }
+
     @Transactional
     public ListingResponse updateStatus(Long id, StatusUpdateRequest request, Long userId, Set<String> userRoles) {
         log.debug("Updating status listingId={} to {} by userId={}, roles={}", id, request.status(), userId, userRoles);
@@ -147,7 +162,18 @@ public class ListingService {
                 (request.comment() != null && !request.comment().isBlank()) ? request.comment() : null;
         listing.setModerationComment(normalizedComment);
 
+        // Unarchiving makes the title visible again under the active-title
+        // unique rule, so re-check for duplicates against the seller's other
+        // non-ARCHIVED listings. The check excludes the current row because
+        // it is still ARCHIVED at this point.
+        if (oldStatus == ListingStatus.ARCHIVED && newStatus != ListingStatus.ARCHIVED) {
+            checkForDuplicateTitle(listing.getSellerId(), listing.getTitle());
+        }
+
         listing.setStatus(newStatus);
+        if (newStatus == ListingStatus.SOLD) {
+            listing.setSoldAt(Instant.now());
+        }
         Listing saved = listingRepository.save(listing);
 
         String role = determineRole(userRoles, isOwner);
@@ -194,8 +220,12 @@ public class ListingService {
     }
 
     private void checkForDuplicate(ListingRequest request, Long sellerId) {
-        boolean exists = listingRepository.existsBySellerIdAndTitleAndStatusNot(
-                sellerId, normalize(request.title()), ListingStatus.ARCHIVED);
+        checkForDuplicateTitle(sellerId, normalize(request.title()));
+    }
+
+    private void checkForDuplicateTitle(Long sellerId, String title) {
+        boolean exists =
+                listingRepository.existsBySellerIdAndTitleAndStatusNot(sellerId, title, ListingStatus.ARCHIVED);
         if (exists) {
             throw new DuplicateListingException("You already have a listing with this title");
         }

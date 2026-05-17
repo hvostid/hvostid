@@ -10,8 +10,10 @@ import ru.hvostid.listing.exception.AccessDeniedException;
 import ru.hvostid.listing.exception.InvalidStatusTransitionException;
 
 public final class StatusTransitionValidator {
-    // Terminal states - from these you cannot transition to any other state
-    private static final Set<ListingStatus> TERMINAL_STATES = Set.of(ListingStatus.ARCHIVED, ListingStatus.SOLD);
+    // Terminal states - from these you cannot transition to any other state.
+    // ARCHIVED is intentionally NOT terminal: T09 allows the owner to revive
+    // an archived listing back into DRAFT.
+    private static final Set<ListingStatus> TERMINAL_STATES = Set.of(ListingStatus.SOLD);
 
     // Allowed transitions (from -> Set of possible transitions)
     private static final Map<ListingStatus, Set<StatusTransition>> ALLOWED_TRANSITIONS =
@@ -40,6 +42,9 @@ public final class StatusTransitionValidator {
 
         // REJECTED -> DRAFT (owner can edit and resubmit)
         addRule(ListingStatus.REJECTED, ListingStatus.DRAFT, Set.of(), false, true);
+
+        // ARCHIVED -> DRAFT (owner can unarchive and edit again)
+        addRule(ListingStatus.ARCHIVED, ListingStatus.DRAFT, Set.of(), false, true);
     }
 
     private StatusTransitionValidator() {
