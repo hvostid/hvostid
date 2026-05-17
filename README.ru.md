@@ -18,6 +18,7 @@
 - [Архитектура](#архитектура)
 - [Технологический стек](#технологический-стек)
 - [Quick Start](#quick-start)
+- [Production demo](#production-demo)
 - [Разработка](#разработка)
 - [Документация API](#документация-api)
 - [CI/CD](#cicd)
@@ -192,6 +193,51 @@ Seed загружается только при профиле `demo`. В produc
 (`SPRING_PROFILES_ACTIVE=prod`) миграции из `db/seed` не подключаются.
 Страница каталога на фронтенде — в T30; объявления доступны через API
 сразу после `./scripts/seed-all.sh`.
+
+## Production demo
+
+Профиль для защиты курсовой или любого «почти боевого» запуска: образы
+тянутся из GHCR (собираются на `main` в CD), с хоста доступны только SPA
+и API Gateway, логи на уровне INFO, Swagger UI отключён.
+
+**Требования:** Docker 24+, Docker Compose v2 и образы в GHCR (см.
+[CI/CD](#cicd)). Для приватных packages сначала выполните `docker login`.
+
+```bash
+cp .env.prod.example .env.prod
+# Заполните .env.prod: DB_PASSWORD, MINIO_ACCESS_KEY, MINIO_SECRET_KEY,
+# IMAGE_TAG (например latest или short SHA с main), GHCR_OWNER.
+
+docker login ghcr.io   # если образы приватные
+
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+```
+
+| Что        | URL                      |
+|------------|--------------------------|
+| Frontend   | http://localhost         |
+| API        | http://localhost:8080    |
+
+Nginx во frontend-контейнере проксирует `/api/` на `api-gateway:8080` —
+пересборка фронтенда под среду не нужна. `HVOSTID_CORS_ALLOWED_ORIGINS`
+задаёт origin SPA для прямых запросов к gateway на порту 8080 (по
+умолчанию `http://localhost`).
+
+**Не публикуются на хост:** auth, listing, passport, matching, PostgreSQL
+и MinIO. Проверка: `docker compose -f docker-compose.prod.yml ps` — в
+колонке PORTS только `frontend` и `api-gateway`.
+
+**Демо-данные.** `./scripts/seed-all.sh` рассчитан на dev compose и профиль
+`demo`. При `SPRING_PROFILES_ACTIVE=prod` seed-миграции Flyway не
+подключаются — зарегистрируйте пользователя в UI и пройдите сценарий
+вручную, либо используйте dev-стек + seed для готового набора данных.
+
+**Остановка и удаление volumes:**
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml down -v
+```
 
 ## Разработка
 

@@ -17,6 +17,7 @@ than just price and breed.
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
 - [Quick Start](#quick-start)
+- [Production demo](#production-demo)
 - [Development](#development)
 - [API Documentation](#api-documentation)
 - [CI/CD](#cicd)
@@ -190,6 +191,54 @@ Seed runs only when the `demo` Spring profile is active. Production
 deploys (`SPRING_PROFILES_ACTIVE=prod`) do not load `db/seed` migrations.
 The catalog UI page is still tracked in T30; seeded listings are available
 via the API immediately after `./scripts/seed-all.sh`.
+
+## Production demo
+
+Use this profile for a course defense or any “almost production” run:
+images are pulled from GHCR (built on `main` by CD), only the SPA and API
+Gateway are reachable from the host, logging is at INFO, and Swagger UI is
+disabled.
+
+**Requirements:** Docker 24+, Docker Compose v2, and images published to
+GHCR (see [CI/CD](#cicd)). If packages are private, log in first.
+
+```bash
+cp .env.prod.example .env.prod
+# Edit .env.prod: set DB_PASSWORD, MINIO_ACCESS_KEY, MINIO_SECRET_KEY,
+# IMAGE_TAG (e.g. latest or a short SHA from main), and GHCR_OWNER.
+
+docker login ghcr.io   # if images are private
+
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+```
+
+| What     | URL                      |
+|----------|--------------------------|
+| Frontend | http://localhost         |
+| API      | http://localhost:8080    |
+
+The frontend nginx container proxies `/api/` to `api-gateway:8080`, so
+the SPA does not need a rebuild per environment. Set
+`HVOSTID_CORS_ALLOWED_ORIGINS` to the browser origin of the SPA (default
+`http://localhost`) when calling the gateway directly on port 8080.
+
+**What is not exposed on the host:** auth, listing, passport, matching
+services, PostgreSQL, and MinIO have no published ports. Verify with
+`docker compose -f docker-compose.prod.yml ps` — only `frontend` and
+`api-gateway` should list PORTS.
+
+**Demo data.** `./scripts/seed-all.sh` targets the dev compose file and
+the `demo` Spring profile. With `SPRING_PROFILES_ACTIVE=prod`, Flyway
+seed migrations are not loaded — register a user in the UI and exercise
+listings/matching manually, or use the dev stack + seed for a pre-filled
+dataset.
+
+**Stop and remove volumes:**
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml down -v
+```
 
 ## Development
 
