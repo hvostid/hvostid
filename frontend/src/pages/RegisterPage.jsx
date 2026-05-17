@@ -43,7 +43,7 @@ export default function RegisterPage() {
         if (!email.trim()) {
             setEmailError('Email обязателен');
             isValid = false;
-        } else if (!email.includes('@') || !email.includes('.')) {
+        } else if (!/^\S+@\S+\.\S+$/.test(email)) {
             setEmailError('Введите корректный email');
             isValid = false;
         } else {
