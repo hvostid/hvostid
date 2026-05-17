@@ -258,7 +258,6 @@ class ListingSearchIntegrationTest extends AbstractPostgresContainerTest {
                 1000,
                 "Moscow",
                 "passport-draft");
-        ListingResponse draft = listingService.createListing(request, 1L);
 
         Page<ListingResponse> result = listingService.searchListings("секретное", PageRequest.of(0, 10));
 
