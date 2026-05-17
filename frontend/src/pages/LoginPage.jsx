@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Input from '../components/Input';
+import { EMAIL_REGEX } from './RegisterPage';
 
 export default function LoginPage() {
     const navigate = useNavigate();
@@ -12,7 +13,7 @@ export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
-    // Error state
+    // Error stateq
     const [emailError, setEmailError] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const [generalError, setGeneralError] = useState('');
@@ -33,7 +34,7 @@ export default function LoginPage() {
         if (!email.trim()) {
             setEmailError('Email is required');
             isValid = false;
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        } else if (!EMAIL_REGEX.test(email)) {
             setEmailError('Please enter a valid email (example: name@domain.com)');
             isValid = false;
         } else {
