@@ -24,6 +24,31 @@
 | GET    | `/api/v1/match/recommendations`        | buyer  | Отсортированные объявления       |
 | POST   | `/api/v1/match/score`                  | buyer  | Оценка для одного объявления     |
 
+`POST /api/v1/match/score` возвращает оценку, комментарии по факторам,
+резюме, советы и 14-дневный план адаптации (`summary`, `tips`,
+`adaptationPlan`).
+
+```json
+{
+  "score": 78,
+  "level": "GOOD",
+  "factors": [
+    { "name": "living_space", "score": 18, "maxScore": 20, "comment": "..." }
+  ],
+  "summary": "Good match overall. ...",
+  "tips": ["Consider enrolling in a pet training course before adoption"],
+  "adaptationPlan": [
+    {
+      "dayRange": "1-3",
+      "title": "Getting to know each other",
+      "tasks": ["Set up a quiet corner", "..."]
+    }
+  ],
+  "degraded": false,
+  "degradedReason": null
+}
+```
+
 Полная спецификация: http://localhost:8084/swagger-ui.html.
 
 ## Переменные окружения

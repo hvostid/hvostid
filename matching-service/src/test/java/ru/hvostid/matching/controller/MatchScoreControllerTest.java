@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import ru.hvostid.matching.config.SecurityConfig;
 import ru.hvostid.matching.domain.CompatibilityLevel;
 import ru.hvostid.matching.domain.DegradedReason;
+import ru.hvostid.matching.dto.AdaptationPhaseDto;
 import ru.hvostid.matching.dto.FactorScoreDto;
 import ru.hvostid.matching.dto.MatchScoreResponse;
 import ru.hvostid.matching.exception.QuestionnaireNotFoundException;
@@ -48,6 +49,10 @@ class MatchScoreControllerTest {
                     78,
                     CompatibilityLevel.GOOD,
                     List.of(new FactorScoreDto("living_space", 18, 20, "Apartment is suitable")),
+                    "Good match overall.",
+                    List.of("Consider a training course"),
+                    List.of(new AdaptationPhaseDto(
+                            "1-3", "Getting to know each other", List.of("Set up a quiet corner"))),
                     false,
                     null);
             when(matchScoreService.calculateScore(eq(42L), eq(1L), any())).thenReturn(response);
@@ -62,14 +67,24 @@ class MatchScoreControllerTest {
                     .andExpect(jsonPath("$.degraded", is(false)))
                     .andExpect(jsonPath("$.degradedReason").doesNotExist())
                     .andExpect(jsonPath("$.factors", hasSize(1)))
-                    .andExpect(jsonPath("$.factors[0].name", is("living_space")));
+                    .andExpect(jsonPath("$.factors[0].name", is("living_space")))
+                    .andExpect(jsonPath("$.summary", is("Good match overall.")))
+                    .andExpect(jsonPath("$.tips", hasSize(1)))
+                    .andExpect(jsonPath("$.adaptationPlan[0].dayRange", is("1-3")));
         }
 
         @Test
         @DisplayName("returns degraded reason in response")
         void calculate_degraded_returnsReason() throws Exception {
             MatchScoreResponse response = new MatchScoreResponse(
-                    50, CompatibilityLevel.RISKY, List.of(), true, DegradedReason.PASSPORT_UNAVAILABLE.code());
+                    50,
+                    CompatibilityLevel.RISKY,
+                    List.of(),
+                    "Match has notable risks.",
+                    List.of(),
+                    List.of(),
+                    true,
+                    DegradedReason.PASSPORT_UNAVAILABLE.code());
             when(matchScoreService.calculateScore(eq(1L), eq(1L), any())).thenReturn(response);
 
             mockMvc.perform(post(SCORE_URL)

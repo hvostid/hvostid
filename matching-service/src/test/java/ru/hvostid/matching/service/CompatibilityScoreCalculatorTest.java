@@ -110,6 +110,17 @@ class CompatibilityScoreCalculatorTest {
     }
 
     @Test
+    @DisplayName("every factor has a non-blank comment")
+    void calculate_allFactors_haveComments() {
+        BuyerQuestionnaire questionnaire = idealQuestionnaire();
+        PetContext pet = petContext("dog", "Labrador", "friendly, gentle", true);
+
+        CompatibilityResult result = calculator.calculate(questionnaire, pet);
+
+        assertThat(result.factors()).allSatisfy(f -> assertThat(f.comment()).isNotBlank());
+    }
+
+    @Test
     @DisplayName("unknown species uses neutral profile without large-yard penalty")
     void calculate_unknownSpecies_neutralProfile() {
         BuyerQuestionnaire questionnaire = idealQuestionnaire();
