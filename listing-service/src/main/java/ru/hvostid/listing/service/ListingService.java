@@ -3,7 +3,6 @@ package ru.hvostid.listing.service;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -176,19 +175,9 @@ public class ListingService {
 
         String sanitizedKeyword = keyword.trim().replaceAll("\\s+", " ");
 
-        if (sanitizedKeyword.length() > 500) {
-            log.warn("Search keyword too long: {} chars, truncating", sanitizedKeyword.length());
-            sanitizedKeyword = sanitizedKeyword.substring(0, 500);
-        }
-
-        try {
-            return listingRepository
-                    .searchByKeyword(ListingStatus.PUBLISHED.name(), sanitizedKeyword, pageable)
-                    .map(ListingResponse::from);
-        } catch (DataAccessException e) {
-            log.warn("Invalid search keyword: {}", sanitizedKeyword, e);
-            return Page.empty(pageable);
-        }
+        return listingRepository
+                .searchByKeyword(ListingStatus.PUBLISHED.name(), sanitizedKeyword, pageable)
+                .map(ListingResponse::from);
     }
 
     private String determineRole(Set<String> userRoles, boolean isOwner) {

@@ -24,6 +24,13 @@ public interface ListingRepository extends JpaRepository<Listing, Long> {
         ts_rank(l.search_vector_ru, plainto_tsquery('russian', :keyword)),
         ts_rank(l.search_vector_en, plainto_tsquery('simple', :keyword))
     ) DESC
+    """, countQuery = """
+    SELECT count(*) FROM listings l
+    WHERE l.status = :status
+    AND (
+        l.search_vector_ru @@ plainto_tsquery('russian', :keyword)
+        OR l.search_vector_en @@ plainto_tsquery('simple', :keyword)
+    )
     """, nativeQuery = true)
     Page<Listing> searchByKeyword(@Param("status") String status, @Param("keyword") String keyword, Pageable pageable);
 }
