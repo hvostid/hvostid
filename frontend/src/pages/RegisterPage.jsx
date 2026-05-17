@@ -61,7 +61,10 @@ export default function RegisterPage() {
         }
 
         // Confirm password validation
-        if (password !== confirmPassword) {
+        if (!confirmPassword) {
+            setConfirmPasswordError('Please confirm your password');
+            isValid = false;
+        } else if (password !== confirmPassword) {
             setConfirmPasswordError('Passwords do not match');
             isValid = false;
         } else {
