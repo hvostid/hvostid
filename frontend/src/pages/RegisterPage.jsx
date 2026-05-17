@@ -1,4 +1,3 @@
-// pages/RegisterPage.jsx
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -39,11 +38,11 @@ export default function RegisterPage() {
             setNameError('');
         }
 
-        // Email validation
+        // Email validation with strict regex
         if (!email.trim()) {
             setEmailError('Email is required');
             isValid = false;
-        } else if (!/^\S+@\S+\.\S+$/.test(email)) {
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             setEmailError('Please enter a valid email (example: name@domain.com)');
             isValid = false;
         } else {
@@ -54,8 +53,8 @@ export default function RegisterPage() {
         if (!password) {
             setPasswordError('Password is required');
             isValid = false;
-        } else if (password.length < 8) {
-            setPasswordError('Password must be at least 8 characters');
+        } else if (password.length < 6) {
+            setPasswordError('Password must be at least 6 characters');
             isValid = false;
         } else {
             setPasswordError('');
@@ -104,7 +103,7 @@ export default function RegisterPage() {
     };
 
     return (
-        <div className="min-h-[calc(100vh-56px)] flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="flex-1 flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-md w-full space-y-8">
                 {/* Header */}
                 <div>
@@ -135,6 +134,7 @@ export default function RegisterPage() {
                     <div className="space-y-4">
                         <Input
                             id="name"
+                            name="name"
                             type="text"
                             label="Full name"
                             value={name}
@@ -147,6 +147,7 @@ export default function RegisterPage() {
 
                         <Input
                             id="email"
+                            name="email"
                             type="email"
                             label="Email"
                             value={email}
@@ -159,6 +160,7 @@ export default function RegisterPage() {
 
                         <Input
                             id="password"
+                            name="password"
                             type="password"
                             label="Password"
                             value={password}
@@ -171,6 +173,7 @@ export default function RegisterPage() {
 
                         <Input
                             id="confirmPassword"
+                            name="confirmPassword"
                             type="password"
                             label="Confirm password"
                             value={confirmPassword}

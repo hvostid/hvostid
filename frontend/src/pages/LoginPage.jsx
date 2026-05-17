@@ -1,11 +1,9 @@
-// pages/LoginPage.jsx
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Input from '../components/Input';
 
 export default function LoginPage() {
-    // Hooks
     const navigate = useNavigate();
     const location = useLocation();
     const { login } = useAuth();
@@ -31,11 +29,11 @@ export default function LoginPage() {
     const validateForm = () => {
         let isValid = true;
 
-        // Email validation
+        // Email validation with strict regex
         if (!email.trim()) {
             setEmailError('Email is required');
             isValid = false;
-        } else if (!/^\S+@\S+\.\S+$/.test(email)) {
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             setEmailError('Please enter a valid email (example: name@domain.com)');
             isValid = false;
         } else {
@@ -70,10 +68,9 @@ export default function LoginPage() {
         } catch (err) {
             console.error('Login error:', err);
 
-            if (err.response?.status === 401) {
+            // Security: Do not distinguish between 401 and 404 to prevent user enumeration
+            if (err.response?.status === 401 || err.response?.status === 404) {
                 setGeneralError('Invalid email or password');
-            } else if (err.response?.status === 404) {
-                setGeneralError('User not found');
             } else {
                 setGeneralError('Server error. Please try again later.');
             }
@@ -83,7 +80,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-[calc(100vh-56px)] flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="flex-1 flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-md w-full space-y-8">
                 {/* Header */}
                 <div>
@@ -123,6 +120,7 @@ export default function LoginPage() {
                     <div className="space-y-4">
                         <Input
                             id="email"
+                            name="email"
                             type="email"
                             label="Email"
                             value={email}
@@ -135,6 +133,7 @@ export default function LoginPage() {
 
                         <Input
                             id="password"
+                            name="password"
                             type="password"
                             label="Password"
                             value={password}

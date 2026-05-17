@@ -1,5 +1,6 @@
 export default function Input({
     id,
+    name,
     type,
     label,
     value,
@@ -8,6 +9,7 @@ export default function Input({
     required,
     autoComplete,
     placeholder,
+    ...props // Allows passing additional HTML attributes (disabled, onBlur, etc.)
 }) {
     return (
         <div className="mb-4">
@@ -18,6 +20,7 @@ export default function Input({
 
             <input
                 id={id}
+                name={name || id} // Default to id if name is not provided
                 type={type}
                 value={value}
                 onChange={onChange}
@@ -29,6 +32,7 @@ export default function Input({
           focus:outline-none focus:ring-indigo-500 focus:border-indigo-500
           ${error ? 'border-red-500' : 'border-gray-300'}
         `}
+                {...props} // Spread all additional props to the input element
             />
 
             {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
