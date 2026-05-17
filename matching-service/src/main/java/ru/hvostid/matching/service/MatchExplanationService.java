@@ -2,6 +2,7 @@ package ru.hvostid.matching.service;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 import ru.hvostid.matching.domain.CompatibilityFactor;
@@ -102,20 +103,19 @@ public class MatchExplanationService {
         return "";
     }
 
-    private static java.util.Optional<String> tipForFactor(FactorScore factor) {
+    private static Optional<String> tipForFactor(FactorScore factor) {
         return switch (factor.factor()) {
-            case LIVING_SPACE -> java.util.Optional.of("Consider whether you can provide more space or outdoor access");
-            case CHILDREN -> java.util.Optional.of("Supervise all interactions with children and introduce slowly");
+            case LIVING_SPACE -> Optional.of("Consider whether you can provide more space or outdoor access");
+            case CHILDREN -> Optional.of("Supervise all interactions with children and introduce slowly");
             case ALLERGIES ->
                 factor.criticalConflict()
-                        ? java.util.Optional.of("Consult an allergist before proceeding with adoption")
-                        : java.util.Optional.of("Discuss allergy management strategies with your doctor");
-            case EXPERIENCE -> java.util.Optional.of("Consider enrolling in a pet training course before adoption");
-            case YARD -> java.util.Optional.of("Plan regular visits to parks or open areas for exercise");
-            case ACTIVITY -> java.util.Optional.of("Aim for at least 1-2 hours of daily activity for active breeds");
-            case BUDGET -> java.util.Optional.of("Review monthly care costs and build a pet care budget");
-            case WORK_SCHEDULE ->
-                java.util.Optional.of("Consider pet sitters or daycare if you are away for long hours");
+                        ? Optional.of("Consult an allergist before proceeding with adoption")
+                        : Optional.of("Discuss allergy management strategies with your doctor");
+            case EXPERIENCE -> Optional.of("Consider enrolling in a pet training course before adoption");
+            case YARD -> Optional.of("Plan regular visits to parks or open areas for exercise");
+            case ACTIVITY -> Optional.of("Aim for at least 1-2 hours of daily activity for active breeds");
+            case BUDGET -> Optional.of("Review monthly care costs and build a pet care budget");
+            case WORK_SCHEDULE -> Optional.of("Consider pet sitters or daycare if you are away for long hours");
         };
     }
 
