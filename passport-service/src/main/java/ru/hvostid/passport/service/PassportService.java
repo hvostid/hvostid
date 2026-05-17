@@ -18,10 +18,15 @@ public class PassportService {
 
     private final PetPassportRepository passportRepository;
     private final PassportAccessService accessService;
+    private final TrustScoreService trustScoreService;
 
-    public PassportService(PetPassportRepository passportRepository, PassportAccessService accessService) {
+    public PassportService(
+            PetPassportRepository passportRepository,
+            PassportAccessService accessService,
+            TrustScoreService trustScoreService) {
         this.passportRepository = passportRepository;
         this.accessService = accessService;
+        this.trustScoreService = trustScoreService;
     }
 
     @Transactional
@@ -43,6 +48,7 @@ public class PassportService {
 
         PetPassport saved = passportRepository.save(passport);
         log.info("Passport created id={} sellerId={}", saved.getId(), saved.getSellerId());
+        trustScoreService.recalculate(saved.getId());
         return PassportResponse.from(saved);
     }
 
@@ -73,6 +79,7 @@ public class PassportService {
 
         PetPassport updated = passportRepository.save(passport);
         log.info("Passport updated id={} sellerId={}", updated.getId(), sellerId);
+        trustScoreService.recalculate(updated.getId());
         return PassportResponse.from(updated);
     }
 

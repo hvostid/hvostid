@@ -32,6 +32,7 @@ public class PassportDocumentService {
     private final PassportObjectNameFactory objectNameFactory;
     private final MinioStorageService storageService;
     private final MinioProperties minioProperties;
+    private final TrustScoreService trustScoreService;
 
     public PassportDocumentService(
             PassportAccessService accessService,
@@ -39,13 +40,15 @@ public class PassportDocumentService {
             PassportDocumentValidator validator,
             PassportObjectNameFactory objectNameFactory,
             MinioStorageService storageService,
-            MinioProperties minioProperties) {
+            MinioProperties minioProperties,
+            TrustScoreService trustScoreService) {
         this.accessService = accessService;
         this.documentRepository = documentRepository;
         this.validator = validator;
         this.objectNameFactory = objectNameFactory;
         this.storageService = storageService;
         this.minioProperties = minioProperties;
+        this.trustScoreService = trustScoreService;
     }
 
     @Transactional
@@ -72,6 +75,7 @@ public class PassportDocumentService {
                     passport, type, file.getOriginalFilename(), storagePath, file.getContentType(), file.getSize());
             PassportDocument saved = documentRepository.saveAndFlush(document);
             log.info("Passport document uploaded id={} passportId={} type={}", saved.getId(), passportId, type);
+            trustScoreService.recalculate(passportId);
             return PassportDocumentResponse.from(saved);
         } catch (RuntimeException ex) {
             deleteUploadedObjectAfterMetadataFailure(bucket, storagePath, ex);
@@ -105,6 +109,7 @@ public class PassportDocumentService {
         documentRepository.delete(document);
         storageService.delete(bucketFor(document.getType()), document.getStoragePath());
         log.info("Passport document deleted id={} passportId={}", documentId, passportId);
+        trustScoreService.recalculate(passportId);
     }
 
     private PassportDocument getDocument(Long passportId, Long documentId) {

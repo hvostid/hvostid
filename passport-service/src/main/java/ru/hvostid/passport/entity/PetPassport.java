@@ -45,6 +45,12 @@ public class PetPassport {
     @Column(nullable = false)
     private boolean microchipped;
 
+    @Column(name = "trust_score", nullable = false)
+    private int trustScore;
+
+    @Column(nullable = false)
+    private boolean moderated;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -246,6 +252,22 @@ public class PetPassport {
 
     public void setMicrochipped(boolean microchipped) {
         this.microchipped = microchipped;
+    }
+
+    public int getTrustScore() {
+        return trustScore;
+    }
+
+    public void setTrustScore(int trustScore) {
+        this.trustScore = trustScore;
+    }
+
+    public boolean isModerated() {
+        return moderated;
+    }
+
+    public void setModerated(boolean moderated) {
+        this.moderated = moderated;
     }
 
     public Instant getCreatedAt() {
