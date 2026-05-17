@@ -11,15 +11,13 @@ import ru.hvostid.matching.domain.CompatibilityResult;
 import ru.hvostid.matching.domain.FactorScore;
 import ru.hvostid.matching.domain.PetContext;
 import ru.hvostid.matching.domain.SpeciesKind;
-import ru.hvostid.matching.entity.BuyerQuestionnaire;
 
 @Component
 public class MatchExplanationService {
 
     private static final double WEAK_FACTOR_RATIO = 0.5;
 
-    public String buildSummary(
-            BuyerQuestionnaire questionnaire, PetContext pet, CompatibilityResult result, boolean degraded) {
+    public String buildSummary(PetContext pet, CompatibilityResult result, boolean degraded) {
         StringBuilder sb = new StringBuilder();
         sb.append(levelOpening(result.level()));
 
@@ -41,7 +39,7 @@ public class MatchExplanationService {
         return sb.toString().trim();
     }
 
-    public List<String> buildTips(BuyerQuestionnaire questionnaire, PetContext pet, CompatibilityResult result) {
+    public List<String> buildTips(PetContext pet, CompatibilityResult result) {
         Set<String> tips = new LinkedHashSet<>();
 
         for (FactorScore factor : weakFactors(result)) {
@@ -49,7 +47,7 @@ public class MatchExplanationService {
         }
 
         addSpeciesTips(tips, pet);
-        addProfileTips(tips, pet, result);
+        addProfileTips(tips, pet);
 
         if (tips.isEmpty()) {
             tips.add("Maintain routines and monitor the pet's behavior during the first two weeks");
@@ -127,7 +125,7 @@ public class MatchExplanationService {
         }
     }
 
-    private static void addProfileTips(Set<String> tips, PetContext pet, CompatibilityResult result) {
+    private static void addProfileTips(Set<String> tips, PetContext pet) {
         if (pet.profile().needsYard()) {
             tips.add("This breed benefits from outdoor space or frequent off-leash exercise");
         }

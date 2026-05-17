@@ -29,7 +29,7 @@ class MatchExplanationServiceTest {
         PetContext pet = petContext("dog", "Labrador", "friendly, patient", true);
         CompatibilityResult result = calculator.calculate(questionnaire, pet);
 
-        String summary = service.buildSummary(questionnaire, pet, result, false);
+        String summary = service.buildSummary(pet, result, false);
 
         assertThat(summary).isNotBlank();
         assertThat(summary).containsIgnoringCase("match");
@@ -44,7 +44,7 @@ class MatchExplanationServiceTest {
         PetContext pet = petContext("dog", "Husky", "active", true);
         CompatibilityResult result = calculator.calculate(questionnaire, pet);
 
-        String summary = service.buildSummary(questionnaire, pet, result, false);
+        String summary = service.buildSummary(pet, result, false);
 
         assertThat(summary).containsIgnoringCase("not recommended");
     }
@@ -56,7 +56,7 @@ class MatchExplanationServiceTest {
         PetContext pet = petContext("dog", "Labrador", "friendly", true);
         CompatibilityResult result = calculator.calculate(questionnaire, pet);
 
-        String summary = service.buildSummary(questionnaire, pet, result, true);
+        String summary = service.buildSummary(pet, result, true);
 
         assertThat(summary).containsIgnoringCase("partial passport");
     }
@@ -71,7 +71,7 @@ class MatchExplanationServiceTest {
         PetContext pet = petContext("dog", "Husky", "active", true);
         CompatibilityResult result = calculator.calculate(questionnaire, pet);
 
-        var tips = service.buildTips(questionnaire, pet, result);
+        var tips = service.buildTips(pet, result);
 
         assertThat(tips).isNotEmpty();
         assertThat(String.join(" ", tips)).containsIgnoringCase("training");
@@ -84,7 +84,7 @@ class MatchExplanationServiceTest {
         PetContext pet = petContext("dog", "Labrador", "friendly", true);
         CompatibilityResult result = calculator.calculate(questionnaire, pet);
 
-        var tips = service.buildTips(questionnaire, pet, result);
+        var tips = service.buildTips(pet, result);
 
         assertThat(tips).isNotEmpty();
         assertThat(tips.size()).isLessThanOrEqualTo(6);

@@ -86,8 +86,8 @@ public class MatchScoreService {
         CompatibilityResult result = calculator.calculate(questionnaire, petContext);
         boolean degraded = degradedReason != null;
 
-        String summary = explanationService.buildSummary(questionnaire, petContext, result, degraded);
-        List<String> tips = explanationService.buildTips(questionnaire, petContext, result);
+        String summary = explanationService.buildSummary(petContext, result, degraded);
+        List<String> tips = explanationService.buildTips(petContext, result);
         List<AdaptationPhaseDto> adaptationPlan = adaptationPlanBuilder.build(petContext);
         List<FactorScoreDto> factors =
                 result.factors().stream().map(FactorScoreDto::from).toList();
