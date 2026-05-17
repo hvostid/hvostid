@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -23,6 +24,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.hvostid.common.dto.ErrorResponse;
 import ru.hvostid.common.security.GatewayPreAuthentication;
@@ -33,6 +35,7 @@ import ru.hvostid.listing.dto.StatusUpdateRequest;
 import ru.hvostid.listing.service.ListingService;
 
 @RestController
+@Validated
 @RequestMapping("/api/v1/listings")
 @Tag(name = "Listings")
 public class ListingController {
@@ -126,24 +129,32 @@ public class ListingController {
     }
 
     @Operation(
-            summary = "Get published listings",
-            description =
-                    "Returns a paginated list of all published listings. Draft, moderation, rejected, and archived listings are excluded.")
+            summary = "Get published listings with optional search",
+            description = "Returns a paginated list of published listings. "
+                    + "Use 'q' parameter for full-text search across title, description, and breed.")
     @ApiResponse(
             responseCode = "200",
             description = "List of published listings (may be empty)",
             content = @Content(schema = @Schema(implementation = Page.class)))
     @GetMapping
     public ResponseEntity<Page<ListingResponse>> getListings(
+            @RequestParam(value = "q", required = false)
+                    @Size(max = 500, message = "Search query too long, max 500 characters")
+                    String keyword,
             @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
-        log.debug("GET /api/v1/listings, page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
+
+        log.debug(
+                "GET /api/v1/listings, keyword='{}', page={}, size={}",
+                keyword,
+                pageable.getPageNumber(),
+                pageable.getPageSize());
 
         int maxSize = 100;
         if (pageable.getPageSize() > maxSize) {
             pageable = PageRequest.of(pageable.getPageNumber(), maxSize, pageable.getSort());
         }
 
-        Page<ListingResponse> responses = listingService.getPublishedListings(pageable);
+        Page<ListingResponse> responses = listingService.searchListings(keyword, pageable);
         return ResponseEntity.ok(responses);
     }
 

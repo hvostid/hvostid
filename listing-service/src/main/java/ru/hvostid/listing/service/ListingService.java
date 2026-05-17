@@ -161,6 +161,25 @@ public class ListingService {
         return ListingResponse.from(saved);
     }
 
+    @Transactional(readOnly = true)
+    public Page<ListingResponse> searchListings(String keyword, Pageable pageable) {
+        log.debug(
+                "Searching listings with keyword='{}', page={}, size={}",
+                keyword,
+                pageable.getPageNumber(),
+                pageable.getPageSize());
+
+        if (keyword == null || keyword.isBlank() || "\"\"".equals(keyword.trim())) {
+            return getPublishedListings(pageable);
+        }
+
+        String sanitizedKeyword = keyword.trim().replaceAll("\\s+", " ");
+
+        return listingRepository
+                .searchByKeyword(ListingStatus.PUBLISHED.name(), sanitizedKeyword, pageable)
+                .map(ListingResponse::from);
+    }
+
     private String determineRole(Set<String> userRoles, boolean isOwner) {
         if (userRoles.contains(UserRole.ADMIN.value())) return UserRole.ADMIN.value();
         if (userRoles.contains(UserRole.MODERATOR.value())) return UserRole.MODERATOR.value();

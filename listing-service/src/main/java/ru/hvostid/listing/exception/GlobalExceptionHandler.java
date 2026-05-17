@@ -1,6 +1,7 @@
 package ru.hvostid.listing.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -82,6 +83,31 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
         log.error("Unexpected error", ex);
         return error(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", request);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(
+            ConstraintViolationException ex, HttpServletRequest request) {
+        log.debug("Constraint violation: {}", ex.getMessage());
+
+        Map<String, String> fieldErrors = new HashMap<>();
+        ex.getConstraintViolations().forEach(violation -> {
+            String field = violation.getPropertyPath().toString();
+            // For request params, field looks like "getListings.keyword"
+            if (field.contains(".")) {
+                field = field.substring(field.lastIndexOf('.') + 1);
+            }
+            fieldErrors.put(field, violation.getMessage());
+        });
+
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse(
+                        HttpStatus.BAD_REQUEST.value(),
+                        HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                        "Validation failed",
+                        request.getRequestURI(),
+                        request.getHeader(SecurityHeaders.REQUEST_ID),
+                        fieldErrors));
     }
 
     private static ResponseEntity<ErrorResponse> error(HttpStatus status, String message, HttpServletRequest request) {
