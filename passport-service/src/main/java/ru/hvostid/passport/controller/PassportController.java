@@ -23,8 +23,10 @@ import ru.hvostid.common.dto.ErrorResponse;
 import ru.hvostid.common.security.GatewayPreAuthentication;
 import ru.hvostid.passport.dto.CreatePassportRequest;
 import ru.hvostid.passport.dto.PassportResponse;
+import ru.hvostid.passport.dto.TrustScoreResponse;
 import ru.hvostid.passport.dto.UpdatePassportRequest;
 import ru.hvostid.passport.service.PassportService;
+import ru.hvostid.passport.service.TrustScoreService;
 
 @RestController
 @RequestMapping("/api/v1/passports")
@@ -33,9 +35,11 @@ public class PassportController {
     private static final Logger log = LoggerFactory.getLogger(PassportController.class);
 
     private final PassportService passportService;
+    private final TrustScoreService trustScoreService;
 
-    public PassportController(PassportService passportService) {
+    public PassportController(PassportService passportService, TrustScoreService trustScoreService) {
         this.passportService = passportService;
+        this.trustScoreService = trustScoreService;
     }
 
     @Operation(
@@ -111,6 +115,27 @@ public class PassportController {
 
         PassportResponse response = passportService.updatePassport(petId, request, sellerId);
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "Get the trust score for a pet passport",
+            description =
+                    "Returns a 0-100 trust score with the per-component breakdown. Available to any authenticated user so buyers can evaluate listings.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Trust score",
+            content = @Content(schema = @Schema(implementation = TrustScoreResponse.class)))
+    @ApiResponse(responseCode = "401", description = "Missing or invalid authenticated user", content = @Content)
+    @ApiResponse(
+            responseCode = "404",
+            description = "Passport not found",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @GetMapping("/{petId}/trust")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<TrustScoreResponse> getTrustScore(
+            @Parameter(description = "Pet passport ID", required = true, example = "1") @PathVariable Long petId) {
+        log.debug("GET /api/v1/passports/{}/trust", petId);
+        return ResponseEntity.ok(trustScoreService.getTrustScore(petId));
     }
 
     private Set<String> currentRoles(UserDetails user) {
