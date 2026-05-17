@@ -114,6 +114,10 @@ public class ListingService {
     @Transactional(readOnly = true)
     public Page<ListingResponse> getPublishedListings(Pageable pageable) {
         log.debug("Getting published listings, page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
+        return findPublishedListings(pageable);
+    }
+
+    private Page<ListingResponse> findPublishedListings(Pageable pageable) {
         return listingRepository.findByStatus(ListingStatus.PUBLISHED, pageable).map(ListingResponse::from);
     }
 
@@ -172,9 +176,7 @@ public class ListingService {
                 pageable.getPageSize());
 
         if (keyword == null || keyword.isBlank() || "\"\"".equals(keyword.trim())) {
-            return listingRepository
-                    .findByStatus(ListingStatus.PUBLISHED, pageable)
-                    .map(ListingResponse::from);
+            return findPublishedListings(pageable);
         }
 
         String sanitizedKeyword = keyword.trim().replaceAll("\\s+", " ");

@@ -63,8 +63,8 @@ public class PassportDocumentService {
 
         try (var inputStream = file.getInputStream()) {
             storageService.upload(bucket, storagePath, inputStream, file.getSize(), file.getContentType());
-        } catch (IOException _) {
-            throw new InvalidPassportDocumentException("Failed to read document file");
+        } catch (IOException ex) {
+            throw new InvalidPassportDocumentException("Failed to read document file", ex);
         }
 
         try {
