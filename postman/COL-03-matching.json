@@ -1,0 +1,307 @@
+{
+  "info": {
+    "_postman_id": "col-03-matching",
+    "name": "COL-03 Matching",
+    "description": "Buyer matching workflows: questionnaire upsert, compatibility score for a listing, recommendations, and negative cases (missing questionnaire, invalid request). Set {{listingId}} to a PUBLISHED listing id before running the score request, or run COL-02 first.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (pm.response.code === 401 && pm.environment.get('refreshToken')) {",
+          "    const baseUrl = pm.environment.get('baseUrl');",
+          "    pm.sendRequest({",
+          "        url: baseUrl + '/api/v1/auth/refresh',",
+          "        method: 'POST',",
+          "        header: { 'Content-Type': 'application/json' },",
+          "        body: { mode: 'raw', raw: JSON.stringify({ refreshToken: pm.environment.get('refreshToken') }) }",
+          "    }, function (err, res) {",
+          "        if (!err && res && res.code === 200) {",
+          "            const data = res.json();",
+          "            pm.environment.set('accessToken', data.accessToken);",
+          "            pm.environment.set('refreshToken', data.refreshToken);",
+          "            console.log('Auto-refreshed access token after 401');",
+          "        } else {",
+          "            console.error('Auto-refresh failed:', err || (res ? res.code : 'no response'));",
+          "        }",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Login as buyer",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{buyerEmail}}\",\n    \"password\": \"{{buyerPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const data = pm.response.json();",
+              "pm.environment.set('accessToken', data.accessToken);",
+              "pm.environment.set('refreshToken', data.refreshToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Score without questionnaire (negative, expects 4xx)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"listingId\": \"{{listingId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/match/score",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "match",
+            "score"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 400 or 404 when buyer has no questionnaire yet', function () {",
+              "    pm.expect([400, 404]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Submit buyer questionnaire",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"livingSpace\": \"APARTMENT\",\n    \"livingArea\": 60,\n    \"hasYard\": false,\n    \"hasChildren\": false,\n    \"childrenAgeMin\": null,\n    \"hasAllergies\": false,\n    \"allergyDetails\": null,\n    \"petExperience\": \"EXPERIENCED\",\n    \"activityLevel\": \"MEDIUM\",\n    \"monthlyBudget\": 15000,\n    \"workSchedule\": \"HYBRID\",\n    \"readyForAdaptation\": true,\n    \"preferredSpecies\": \"dog\",\n    \"preferredBreed\": null\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/match/questionnaire",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "match",
+            "questionnaire"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Calculate match score (happy path)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"listingId\": \"{{listingId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/match/score",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "match",
+            "score"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const data = pm.response.json();",
+              "pm.test('Has score, level, factors', () => {",
+              "    pm.expect(data.score).to.be.a('number');",
+              "    pm.expect(data.level).to.be.a('string');",
+              "    pm.expect(data.factors).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Match score with invalid listingId (negative, expects 400)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"listingId\": -1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/match/score",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "match",
+            "score"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recommendations (top 10)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/match/recommendations?page=0&size=10&minScore=40",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "match",
+            "recommendations"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "10"
+            },
+            {
+              "key": "minScore",
+              "value": "40"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const data = pm.response.json();",
+              "pm.test('Has content[], page, totalElements', () => {",
+              "    pm.expect(data.content).to.be.an('array');",
+              "    pm.expect(data.page).to.be.a('number');",
+              "    pm.expect(data.totalElements).to.be.a('number');",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
