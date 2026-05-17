@@ -7,6 +7,4 @@ import org.springframework.context.annotation.Configuration;
 @EnableCaching
 public class CacheConfig {
     public static final String MATCH_SCORES_CACHE = "matchScores";
-
-    private CacheConfig() {}
 }
