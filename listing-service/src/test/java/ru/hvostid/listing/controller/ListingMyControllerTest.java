@@ -87,6 +87,15 @@ class ListingMyControllerTest extends AbstractPostgresContainerTest {
     }
 
     @Test
+    @DisplayName("?my=true together with ?q is rejected as 400")
+    void myWithKeyword_returns400() throws Exception {
+        mockMvc.perform(get(LISTINGS_URL + "?my=true&q=puppy")
+                        .header(USER_ID, OWNER_ID)
+                        .header(USER_ROLES, UserRole.SELLER.value()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("?my=true does not leak listings owned by other users")
     void myDoesNotLeakOthers() throws Exception {
         mockMvc.perform(get(LISTINGS_URL + "?my=true&status=PUBLISHED&page=0&size=20")

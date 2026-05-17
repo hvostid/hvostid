@@ -162,6 +162,14 @@ public class ListingService {
                 (request.comment() != null && !request.comment().isBlank()) ? request.comment() : null;
         listing.setModerationComment(normalizedComment);
 
+        // Unarchiving makes the title visible again under the active-title
+        // unique rule, so re-check for duplicates against the seller's other
+        // non-ARCHIVED listings. The check excludes the current row because
+        // it is still ARCHIVED at this point.
+        if (oldStatus == ListingStatus.ARCHIVED && newStatus != ListingStatus.ARCHIVED) {
+            checkForDuplicateTitle(listing.getSellerId(), listing.getTitle());
+        }
+
         listing.setStatus(newStatus);
         if (newStatus == ListingStatus.SOLD) {
             listing.setSoldAt(Instant.now());
@@ -212,8 +220,12 @@ public class ListingService {
     }
 
     private void checkForDuplicate(ListingRequest request, Long sellerId) {
-        boolean exists = listingRepository.existsBySellerIdAndTitleAndStatusNot(
-                sellerId, normalize(request.title()), ListingStatus.ARCHIVED);
+        checkForDuplicateTitle(sellerId, normalize(request.title()));
+    }
+
+    private void checkForDuplicateTitle(Long sellerId, String title) {
+        boolean exists =
+                listingRepository.existsBySellerIdAndTitleAndStatusNot(sellerId, title, ListingStatus.ARCHIVED);
         if (exists) {
             throw new DuplicateListingException("You already have a listing with this title");
         }

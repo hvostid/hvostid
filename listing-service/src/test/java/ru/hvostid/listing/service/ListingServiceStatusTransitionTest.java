@@ -273,6 +273,23 @@ class ListingServiceStatusTransitionTest {
     }
 
     @Test
+    void shouldRejectUnarchiveWhenAnotherActiveListingHasSameTitle() {
+        listing.setStatus(ListingStatus.ARCHIVED);
+        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.existsBySellerIdAndTitleAndStatusNot(
+                        listing.getSellerId(), listing.getTitle(), ListingStatus.ARCHIVED))
+                .thenReturn(true);
+
+        StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.DRAFT, null);
+
+        assertThatThrownBy(() ->
+                        listingService.updateStatus(LISTING_ID, request, OWNER_ID, Set.of(UserRole.SELLER.value())))
+                .isInstanceOf(ru.hvostid.listing.exception.DuplicateListingException.class)
+                .hasMessageContaining("listing with this title");
+        verify(listingRepository, org.mockito.Mockito.never()).save(any(Listing.class));
+    }
+
+    @Test
     void shouldStampSoldAtWhenTransitioningToSold() {
         listing.setStatus(ListingStatus.PUBLISHED);
         assertThat(listing.getSoldAt()).isNull();

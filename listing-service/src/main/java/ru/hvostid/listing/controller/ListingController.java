@@ -180,6 +180,9 @@ public class ListingController {
             if (user == null) {
                 throw new UnauthorizedException("Authentication is required for 'my=true'");
             }
+            if (keyword != null && !keyword.isBlank()) {
+                throw new IllegalArgumentException("Parameter 'q' is not supported together with 'my=true'");
+            }
             long userId = GatewayPreAuthentication.currentUserId(user);
             return ResponseEntity.ok(listingService.getMyListings(userId, status, pageable));
         }
