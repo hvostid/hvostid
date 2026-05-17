@@ -119,30 +119,18 @@ public class MatchScoreService {
 
     /**
      * Scores a single listing snapshot against a pre-loaded questionnaire without
-     * fetching the listing again. Used by recommendations where the candidate set
-     * is already in memory; the {@code degradedReason} is best-effort and is not
-     * exposed in the recommendations payload.
+     * fetching the listing again. Returns the raw {@link CompatibilityResult} since
+     * recommendations only need the score and level — summary / tips / adaptation
+     * plan are produced lazily per match-score request, not per recommendation.
      */
-    MatchScoreResponse scoreSnapshot(BuyerQuestionnaire questionnaire, ListingSnapshot listing, String requestId) {
-        DegradedReason degradedReason = null;
+    CompatibilityResult scoreSnapshot(BuyerQuestionnaire questionnaire, ListingSnapshot listing, String requestId) {
         Optional<PassportSnapshot> passport = Optional.empty();
         Long passportId = parsePassportId(listing.passportId());
-        if (passportId == null) {
-            degradedReason = DegradedReason.PASSPORT_ID_UNPARSEABLE;
-        } else {
+        if (passportId != null) {
             passport = passportClient.getPassport(passportId, requestId);
-            if (passport.isEmpty()) {
-                degradedReason = DegradedReason.PASSPORT_UNAVAILABLE;
-            }
         }
-
         PetContext petContext = PetContext.from(listing, passport);
-        if (petContext.speciesUnknown()) {
-            degradedReason = pickDegradedReason(degradedReason, DegradedReason.SPECIES_UNKNOWN);
-        }
-
-        CompatibilityResult result = calculator.calculate(questionnaire, petContext);
-        return MatchScoreResponse.from(result, degradedReason != null, degradedReason);
+        return calculator.calculate(questionnaire, petContext);
     }
 
     private static DegradedReason pickDegradedReason(DegradedReason current, DegradedReason next) {

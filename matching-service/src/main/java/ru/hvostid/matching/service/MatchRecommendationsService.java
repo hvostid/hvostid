@@ -14,7 +14,8 @@ import org.springframework.stereotype.Service;
 import ru.hvostid.matching.client.ListingServiceClient;
 import ru.hvostid.matching.client.ListingSummary;
 import ru.hvostid.matching.config.CacheConfig;
-import ru.hvostid.matching.dto.MatchScoreResponse;
+import ru.hvostid.matching.domain.CompatibilityLevel;
+import ru.hvostid.matching.domain.CompatibilityResult;
 import ru.hvostid.matching.dto.RecommendationItem;
 import ru.hvostid.matching.dto.RecommendationsResponse;
 import ru.hvostid.matching.entity.BuyerQuestionnaire;
@@ -47,8 +48,7 @@ public class MatchRecommendationsService {
 
         List<RecommendationItem> filtered = sorted.stream()
                 .filter(item -> item.score() >= minScore)
-                .map(item -> new RecommendationItem(
-                        item.listing(), item.score(), item.response().level()))
+                .map(item -> new RecommendationItem(item.listing(), item.score(), item.level()))
                 .toList();
 
         int totalElements = filtered.size();
@@ -105,9 +105,9 @@ public class MatchRecommendationsService {
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             List<Future<ScoredListing>> futures = candidates.stream()
                     .map(listing -> executor.submit(() -> {
-                        MatchScoreResponse response =
+                        CompatibilityResult result =
                                 matchScoreService.scoreSnapshot(questionnaire, listing.toSnapshot(), requestId);
-                        return new ScoredListing(listing, response.score(), response);
+                        return new ScoredListing(listing, result.score(), result.level());
                     }))
                     .toList();
             List<ScoredListing> scored = new ArrayList<>(futures.size());
@@ -154,5 +154,5 @@ public class MatchRecommendationsService {
     }
 
     /** Internal record for the cached sorted catalog. */
-    public record ScoredListing(ListingSummary listing, int score, MatchScoreResponse response) {}
+    public record ScoredListing(ListingSummary listing, int score, CompatibilityLevel level) {}
 }
