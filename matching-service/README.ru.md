@@ -9,8 +9,9 @@
 
 - CRUD анкеты покупателя с upsert-семантикой (одна анкета на
   покупателя; повторный submit перезаписывает).
-- Расчёт оценки совместимости между покупателем и объявлением -- читает
-  и объявление (Listing Service), и паспорт питомца (Passport Service).
+- Расчёт оценки совместимости через **RestClient** к Listing Service и
+  Passport Service (internal read). В ответе могут быть `degraded` и
+  `degradedReason` при неполных данных паспорта.
 - Возврат отсортированных рекомендаций покупателю.
 
 ## Эндпоинты
@@ -21,7 +22,7 @@
 | PUT    | `/api/v1/match/questionnaire`          | buyer  | Upsert                           |
 | DELETE | `/api/v1/match/questionnaire`          | buyer  |                                  |
 | GET    | `/api/v1/match/recommendations`        | buyer  | Отсортированные объявления       |
-| GET    | `/api/v1/match/score/{listingId}`      | buyer  | Оценка для одного объявления     |
+| POST   | `/api/v1/match/score`                  | buyer  | Оценка для одного объявления     |
 
 Полная спецификация: http://localhost:8084/swagger-ui.html.
 

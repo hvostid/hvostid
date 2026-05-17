@@ -25,6 +25,20 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(ListingNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleListingNotFound(
+            ListingNotFoundException ex, HttpServletRequest request) {
+        log.debug("Listing not found: {}", ex.getMessage());
+        return error(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ListingUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleListingUnavailable(
+            ListingUnavailableException ex, HttpServletRequest request) {
+        log.warn("Listing service unavailable: {}", ex.getMessage());
+        return error(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(AuthorizationDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAuthorizationDenied(
             AuthorizationDeniedException ex, HttpServletRequest request) {

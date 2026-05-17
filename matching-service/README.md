@@ -8,9 +8,10 @@ Owns the buyer questionnaire and the owner-pet compatibility score.
 
 - Buyer questionnaire CRUD with upsert semantics (one questionnaire
   per buyer; subsequent submissions overwrite).
-- Compute a compatibility score between a buyer and a listing by
-  reading both the listing (Listing Service) and the pet's passport
-  (Passport Service).
+- Compute a compatibility score between a buyer and a listing via
+  **RestClient** calls to Listing Service and Passport Service (internal
+  read). Response may include `degraded` and `degradedReason` when passport
+  data is partial.
 - Surface ranked recommendations to the buyer.
 
 ## Endpoints
@@ -21,7 +22,7 @@ Owns the buyer questionnaire and the owner-pet compatibility score.
 | PUT    | `/api/v1/match/questionnaire`          | buyer  | Upsert                         |
 | DELETE | `/api/v1/match/questionnaire`          | buyer  |                                |
 | GET    | `/api/v1/match/recommendations`        | buyer  | Ranked listings                |
-| GET    | `/api/v1/match/score/{listingId}`      | buyer  | Score for a single listing     |
+| POST   | `/api/v1/match/score`                  | buyer  | Score for a single listing     |
 
 Full spec at http://localhost:8084/swagger-ui.html.
 

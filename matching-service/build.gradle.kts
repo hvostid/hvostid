@@ -10,6 +10,10 @@ dependencies {
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.spring.boot.starter.security)
+    implementation(libs.spring.boot.starter.cache)
+    implementation(libs.spring.boot.starter.aspectj)
+    implementation(libs.resilience4j.spring.boot3)
+    implementation(libs.caffeine)
     implementation(libs.spring.doc.openapi.webmvc)
     implementation(project(":common"))
 
