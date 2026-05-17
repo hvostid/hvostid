@@ -249,15 +249,6 @@ class ListingSearchIntegrationTest extends AbstractPostgresContainerTest {
     @Test
     @DisplayName("Search does not expose unpublished listings")
     void search_onlyReturnsPublishedListings() {
-        ListingRequest request = new ListingRequest(
-                "Секретное объявление",
-                "Не должно быть в поиске",
-                "CAT",
-                "Unknown",
-                1,
-                1000,
-                "Moscow",
-                "passport-draft");
 
         Page<ListingResponse> result = listingService.searchListings("секретное", PageRequest.of(0, 10));
 
