@@ -113,14 +113,33 @@ class ListingControllerTest extends AbstractPostgresContainerTest {
         void setUp() {
             // 2 published
             for (int i = 0; i < 2; i++) {
-                Listing l =
-                        new Listing(testSellerId, "Pub " + i, "Desc", "dog", "Labrador", 3, 10000, "Moscow", "p-" + i);
+                Listing l = Listing.builder()
+                        .sellerId(testSellerId)
+                        .title("Pub " + i)
+                        .description("Desc")
+                        .species("dog")
+                        .breed("Labrador")
+                        .age(3)
+                        .price(10000)
+                        .city("Moscow")
+                        .passportId("p-" + i)
+                        .build();
                 l.setStatus(ListingStatus.PUBLISHED);
                 listingRepository.save(l);
             }
 
             // 1 draft
-            Listing draft = new Listing(testSellerId, "Draft", "Desc", "dog", "Labrador", 3, 10000, "Moscow", "p-x");
+            Listing draft = Listing.builder()
+                    .sellerId(testSellerId)
+                    .title("Draft")
+                    .description("Desc")
+                    .species("dog")
+                    .breed("Labrador")
+                    .age(3)
+                    .price(10000)
+                    .city("Moscow")
+                    .passportId("p-x")
+                    .build();
             draft.setStatus(ListingStatus.DRAFT);
             listingRepository.save(draft);
         }
@@ -154,8 +173,17 @@ class ListingControllerTest extends AbstractPostgresContainerTest {
         @BeforeEach
         void setUp() {
             // Create a listing in the database before each test.
-            Listing listing = new Listing(
-                    testSellerId, "Test Puppy", "Description", "dog", "Husky", 6, 20000, "Moscow", "passport-1");
+            Listing listing = Listing.builder()
+                    .sellerId(testSellerId)
+                    .title("Test Puppy")
+                    .description("Description")
+                    .species("dog")
+                    .breed("Husky")
+                    .age(6)
+                    .price(20000)
+                    .city("Moscow")
+                    .passportId("passport-1")
+                    .build();
             listing.setStatus(ListingStatus.PUBLISHED);
             createdListingId = listingRepository.save(listing).getId();
         }
@@ -173,8 +201,17 @@ class ListingControllerTest extends AbstractPostgresContainerTest {
         @DisplayName("draft listing - accessible only by owner")
         void getListing_draftAndOwner_returns200() throws Exception {
             // Draft listing.
-            Listing draftListing = new Listing(
-                    testSellerId, "Draft Puppy", "Description", "dog", "Husky", 6, 20000, "Moscow", "passport-1");
+            Listing draftListing = Listing.builder()
+                    .sellerId(testSellerId)
+                    .title("Draft Puppy")
+                    .description("Description")
+                    .species("dog")
+                    .breed("Husky")
+                    .age(6)
+                    .price(20000)
+                    .city("Moscow")
+                    .passportId("passport-1")
+                    .build();
             draftListing.setStatus(ListingStatus.DRAFT);
             Long draftId = listingRepository.save(draftListing).getId();
 
@@ -187,8 +224,17 @@ class ListingControllerTest extends AbstractPostgresContainerTest {
         @DisplayName("draft listing - not accessible by other user")
         void getListing_draftAndNotOwner_returns403() throws Exception {
             // Draft listing.
-            Listing draftListing = new Listing(
-                    testSellerId, "Draft Puppy", "Description", "dog", "Husky", 6, 20000, "Moscow", "passport-1");
+            Listing draftListing = Listing.builder()
+                    .sellerId(testSellerId)
+                    .title("Draft Puppy")
+                    .description("Description")
+                    .species("dog")
+                    .breed("Husky")
+                    .age(6)
+                    .price(20000)
+                    .city("Moscow")
+                    .passportId("passport-1")
+                    .build();
             draftListing.setStatus(ListingStatus.DRAFT);
             Long draftId = listingRepository.save(draftListing).getId();
 

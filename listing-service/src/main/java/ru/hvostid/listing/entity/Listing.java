@@ -53,26 +53,82 @@ public class Listing {
 
     protected Listing() {}
 
-    public Listing(
-            Long sellerId,
-            String title,
-            String description,
-            String species,
-            String breed,
-            Integer age,
-            Integer price,
-            String city,
-            String passportId) {
-        this.sellerId = sellerId;
-        this.title = title;
-        this.description = description;
-        this.species = species;
-        this.breed = breed;
-        this.age = age;
-        this.price = price;
-        this.city = city;
-        this.status = ListingStatus.DRAFT;
-        this.passportId = passportId;
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static final class Builder {
+        private Long sellerId;
+        private String title;
+        private String description;
+        private String species;
+        private String breed;
+        private Integer age;
+        private Integer price;
+        private String city;
+        private String passportId;
+
+        private Builder() {}
+
+        public Builder sellerId(Long sellerId) {
+            this.sellerId = sellerId;
+            return this;
+        }
+
+        public Builder title(String title) {
+            this.title = title;
+            return this;
+        }
+
+        public Builder description(String description) {
+            this.description = description;
+            return this;
+        }
+
+        public Builder species(String species) {
+            this.species = species;
+            return this;
+        }
+
+        public Builder breed(String breed) {
+            this.breed = breed;
+            return this;
+        }
+
+        public Builder age(Integer age) {
+            this.age = age;
+            return this;
+        }
+
+        public Builder price(Integer price) {
+            this.price = price;
+            return this;
+        }
+
+        public Builder city(String city) {
+            this.city = city;
+            return this;
+        }
+
+        public Builder passportId(String passportId) {
+            this.passportId = passportId;
+            return this;
+        }
+
+        public Listing build() {
+            Listing listing = new Listing();
+            listing.sellerId = this.sellerId;
+            listing.title = this.title;
+            listing.description = this.description;
+            listing.species = this.species;
+            listing.breed = this.breed;
+            listing.age = this.age;
+            listing.price = this.price;
+            listing.city = this.city;
+            listing.status = ListingStatus.DRAFT;
+            listing.passportId = this.passportId;
+            return listing;
+        }
     }
 
     public Long getId() {

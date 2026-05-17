@@ -15,8 +15,7 @@ import ru.hvostid.common.security.GatewaySecurityDefaults;
 @EnableMethodSecurity
 public class SecurityConfig {
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager)
-            throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager) {
         return GatewaySecurityDefaults.applyTo(http, authenticationManager)
                 .authorizeHttpRequests(auth -> auth.requestMatchers(GatewaySecurityDefaults.alwaysPublic())
                         .permitAll()

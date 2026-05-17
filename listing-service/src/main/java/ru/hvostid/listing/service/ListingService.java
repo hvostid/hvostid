@@ -22,6 +22,7 @@ import ru.hvostid.listing.repository.ListingStatusHistoryRepository;
 @Service
 public class ListingService {
     private static final Logger log = LoggerFactory.getLogger(ListingService.class);
+    private static final String LISTING_NOT_FOUND_MESSAGE = "Listing not found with id: ";
 
     private final ListingRepository listingRepository;
     private final ListingStatusHistoryRepository historyRepository;
@@ -37,16 +38,17 @@ public class ListingService {
 
         checkForDuplicate(request, sellerId);
 
-        Listing listing = new Listing(
-                sellerId,
-                normalize(request.title()),
-                normalize(request.description()),
-                normalize(request.species()),
-                normalize(request.breed()),
-                request.age(),
-                request.price(),
-                normalize(request.city()),
-                normalize(request.passportId()));
+        Listing listing = Listing.builder()
+                .sellerId(sellerId)
+                .title(normalize(request.title()))
+                .description(normalize(request.description()))
+                .species(normalize(request.species()))
+                .breed(normalize(request.breed()))
+                .age(request.age())
+                .price(request.price())
+                .city(normalize(request.city()))
+                .passportId(normalize(request.passportId()))
+                .build();
 
         // Persist the listing entity.
         Listing saved = listingRepository.save(listing);
@@ -62,7 +64,7 @@ public class ListingService {
 
         Listing listing = listingRepository
                 .findById(id)
-                .orElseThrow(() -> new ListingNotFoundException("Listing not found with id: " + id));
+                .orElseThrow(() -> new ListingNotFoundException(LISTING_NOT_FOUND_MESSAGE + id));
 
         boolean isOwner = listing.getSellerId().equals(userId);
         boolean isPublished = listing.getStatus() == ListingStatus.PUBLISHED;
@@ -81,7 +83,7 @@ public class ListingService {
 
         Listing listing = listingRepository
                 .findById(id)
-                .orElseThrow(() -> new ListingNotFoundException("Listing not found with id: " + id));
+                .orElseThrow(() -> new ListingNotFoundException(LISTING_NOT_FOUND_MESSAGE + id));
 
         if (!listing.getSellerId().equals(userId)) {
             log.warn("Update denied: not owner listingId={} userId={}", id, userId);
@@ -112,6 +114,10 @@ public class ListingService {
     @Transactional(readOnly = true)
     public Page<ListingResponse> getPublishedListings(Pageable pageable) {
         log.debug("Getting published listings, page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
+        return findPublishedListings(pageable);
+    }
+
+    private Page<ListingResponse> findPublishedListings(Pageable pageable) {
         return listingRepository.findByStatus(ListingStatus.PUBLISHED, pageable).map(ListingResponse::from);
     }
 
@@ -121,7 +127,7 @@ public class ListingService {
 
         Listing listing = listingRepository
                 .findById(id)
-                .orElseThrow(() -> new ListingNotFoundException("Listing not found with id: " + id));
+                .orElseThrow(() -> new ListingNotFoundException(LISTING_NOT_FOUND_MESSAGE + id));
 
         boolean isOwner = listing.getSellerId().equals(userId);
         ListingStatus oldStatus = listing.getStatus();
@@ -170,7 +176,7 @@ public class ListingService {
                 pageable.getPageSize());
 
         if (keyword == null || keyword.isBlank() || "\"\"".equals(keyword.trim())) {
-            return getPublishedListings(pageable);
+            return findPublishedListings(pageable);
         }
 
         String sanitizedKeyword = keyword.trim().replaceAll("\\s+", " ");

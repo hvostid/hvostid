@@ -27,8 +27,7 @@ import ru.hvostid.matching.service.MatchScoreService;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@AbstractPostgresContainerTest
-class MatchScoreControllerTest {
+class MatchScoreControllerTest extends AbstractPostgresContainerTest {
     private static final String SCORE_URL = "/api/v1/match/score";
 
     @Autowired
