@@ -5,12 +5,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.hvostid.common.security.UserRole;
 import ru.hvostid.passport.dto.CreatePassportRequest;
 import ru.hvostid.passport.dto.PassportResponse;
 import ru.hvostid.passport.dto.UpdatePassportRequest;
 import ru.hvostid.passport.entity.PetPassport;
-import ru.hvostid.passport.exception.PassportAccessDeniedException;
 import ru.hvostid.passport.exception.PassportNotFoundException;
 import ru.hvostid.passport.repository.PetPassportRepository;
 
@@ -19,9 +17,11 @@ public class PassportService {
     private static final Logger log = LoggerFactory.getLogger(PassportService.class);
 
     private final PetPassportRepository passportRepository;
+    private final PassportAccessService accessService;
 
-    public PassportService(PetPassportRepository passportRepository) {
+    public PassportService(PetPassportRepository passportRepository, PassportAccessService accessService) {
         this.passportRepository = passportRepository;
+        this.accessService = accessService;
     }
 
     @Transactional
@@ -49,10 +49,7 @@ public class PassportService {
     public PassportResponse getPassport(Long passportId, Long userId, Set<String> userRoles) {
         log.debug("Getting passport id={} userId={} roles={}", passportId, userId, userRoles);
         PetPassport passport = getPassportWithVaccinations(passportId);
-        if (!canViewPassport(passport, userId, userRoles)) {
-            log.warn("Passport view denied id={} ownerId={} userId={}", passportId, passport.getSellerId(), userId);
-            throw new PassportAccessDeniedException("You don't have permission to view this passport");
-        }
+        accessService.requireCanView(passport, userId, userRoles);
         return PassportResponse.from(passport);
     }
 
@@ -60,10 +57,7 @@ public class PassportService {
     public PassportResponse updatePassport(Long passportId, UpdatePassportRequest request, Long sellerId) {
         log.debug("Updating passport id={} sellerId={}", passportId, sellerId);
         PetPassport passport = getPassportWithVaccinations(passportId);
-        if (!passport.getSellerId().equals(sellerId)) {
-            log.warn("Passport update denied id={} ownerId={} userId={}", passportId, passport.getSellerId(), sellerId);
-            throw new PassportAccessDeniedException("You don't have permission to edit this passport");
-        }
+        accessService.requireOwner(passport, sellerId, "edit");
 
         if (request.species() != null) passport.setSpecies(normalize(request.species()));
         if (request.breed() != null) passport.setBreed(normalize(request.breed()));
@@ -85,12 +79,6 @@ public class PassportService {
         return passportRepository
                 .findWithVaccinationsById(passportId)
                 .orElseThrow(() -> new PassportNotFoundException("Passport not found with id: " + passportId));
-    }
-
-    private boolean canViewPassport(PetPassport passport, Long userId, Set<String> userRoles) {
-        return passport.getSellerId().equals(userId)
-                || userRoles.contains(UserRole.ADMIN.value())
-                || userRoles.contains(UserRole.MODERATOR.value());
     }
 
     private String normalize(String value) {

@@ -25,6 +25,17 @@ Spec is served at http://localhost:8083/swagger-ui.html.
   available to the owner, `MODERATOR`, and `ADMIN`.
 - `PUT /api/v1/passports/{petId}` -- partially update a passport,
   available only to its owner with the `SELLER` role.
+- `POST /api/v1/passports/{petId}/docs` -- upload a photo or document,
+  available only to the owner with the `SELLER` role.
+- `GET /api/v1/passports/{petId}/docs` -- list document metadata,
+  available to the owner, `MODERATOR`, and `ADMIN`.
+- `GET /api/v1/passports/{petId}/docs/{docId}` -- get a temporary
+  download URL, returned as `302 Found`.
+- `DELETE /api/v1/passports/{petId}/docs/{docId}` -- delete a document,
+  available only to the owner with the `SELLER` role.
+
+Documents are accepted as `jpg`, `jpeg`, `png`, or `pdf`. Maximum file
+size is 10 MB.
 
 ## Environment variables
 

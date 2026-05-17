@@ -2,7 +2,6 @@ package ru.hvostid.passport.storage;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class PassportObjectNameFactoryTest {
@@ -10,8 +9,8 @@ class PassportObjectNameFactoryTest {
 
     @Test
     void createBuildsPassportScopedObjectNameWithLowercaseExtension() {
-        UUID sellerId = UUID.fromString("00000000-0000-0000-0000-000000000001");
-        UUID passportId = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        long sellerId = 1L;
+        long passportId = 2L;
 
         String objectName = factory.create(sellerId, passportId, "Vet Certificate.PDF");
 
@@ -23,8 +22,8 @@ class PassportObjectNameFactoryTest {
 
     @Test
     void createOmitsExtensionWhenFilenameHasNoExtension() {
-        UUID sellerId = UUID.fromString("00000000-0000-0000-0000-000000000001");
-        UUID passportId = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        long sellerId = 1L;
+        long passportId = 2L;
 
         String objectName = factory.create(sellerId, passportId, "document");
 
