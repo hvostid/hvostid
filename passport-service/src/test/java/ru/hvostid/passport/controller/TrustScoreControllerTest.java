@@ -1,12 +1,17 @@
 package ru.hvostid.passport.controller;
 
 import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
 import static ru.hvostid.common.http.SecurityHeaders.USER_ROLES;
+import static ru.hvostid.common.security.UserRole.ADMIN;
 import static ru.hvostid.common.security.UserRole.BUYER;
+import static ru.hvostid.common.security.UserRole.SELLER;
 
 import java.time.LocalDate;
 import org.junit.jupiter.api.AfterEach;
@@ -16,11 +21,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.hvostid.passport.AbstractPassportIntegrationTest;
+import ru.hvostid.passport.client.ListingServiceClient;
 import ru.hvostid.passport.entity.Gender;
 import ru.hvostid.passport.entity.PetPassport;
 import ru.hvostid.passport.entity.Vaccination;
+import ru.hvostid.passport.exception.ListingServiceUnavailableException;
 import ru.hvostid.passport.repository.PetPassportRepository;
 import ru.hvostid.passport.service.TrustScoreService;
 
@@ -41,6 +49,9 @@ class TrustScoreControllerTest extends AbstractPassportIntegrationTest {
     @Autowired
     private TrustScoreService trustScoreService;
 
+    @MockitoBean
+    private ListingServiceClient listingServiceClient;
+
     @BeforeEach
     void cleanBeforeTest() {
         jdbcTemplate.execute("TRUNCATE TABLE passport_documents, vaccinations, pet_passports RESTART IDENTITY CASCADE");
@@ -52,12 +63,12 @@ class TrustScoreControllerTest extends AbstractPassportIntegrationTest {
     }
 
     @Test
-    void minimalPassportReturnsZeroScore() throws Exception {
+    void ownerSeesMinimalPassportScoreWithoutListingCheck() throws Exception {
         Long passportId = persistPassport(false, false);
 
         mockMvc.perform(get(PASSPORTS_URL + "/{id}/trust", passportId)
-                        .header(USER_ID, 200L)
-                        .header(USER_ROLES, BUYER.value()))
+                        .header(USER_ID, 10L)
+                        .header(USER_ROLES, SELLER.value()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.score", is(0)))
                 .andExpect(jsonPath("$.breakdown.profileComplete", is(0)))
@@ -66,18 +77,65 @@ class TrustScoreControllerTest extends AbstractPassportIntegrationTest {
     }
 
     @Test
-    void fullProfileWithModerationAndVaccinationReturnsExpectedScore() throws Exception {
+    void ownerSeesFullScore() throws Exception {
         Long passportId = persistPassport(true, true);
 
         // 20 (profile complete) + 10 (vaccinations dated) + 5 (moderated) = 35
         mockMvc.perform(get(PASSPORTS_URL + "/{id}/trust", passportId)
-                        .header(USER_ID, 200L)
-                        .header(USER_ROLES, BUYER.value()))
+                        .header(USER_ID, 10L)
+                        .header(USER_ROLES, SELLER.value()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.score", is(35)))
                 .andExpect(jsonPath("$.breakdown.profileComplete", is(20)))
                 .andExpect(jsonPath("$.breakdown.vaccinationsDated", is(10)))
                 .andExpect(jsonPath("$.breakdown.moderated", is(5)));
+    }
+
+    @Test
+    void buyerSeesScoreWhenListingIsPublished() throws Exception {
+        Long passportId = persistPassport(true, true);
+        when(listingServiceClient.hasPublishedListingForPassport(eq(passportId), any()))
+                .thenReturn(true);
+
+        mockMvc.perform(get(PASSPORTS_URL + "/{id}/trust", passportId)
+                        .header(USER_ID, 200L)
+                        .header(USER_ROLES, BUYER.value()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.score", is(35)));
+    }
+
+    @Test
+    void buyerGets404WhenPassportIsNotLinkedToAPublishedListing() throws Exception {
+        Long passportId = persistPassport(true, true);
+        when(listingServiceClient.hasPublishedListingForPassport(eq(passportId), any()))
+                .thenReturn(false);
+
+        mockMvc.perform(get(PASSPORTS_URL + "/{id}/trust", passportId)
+                        .header(USER_ID, 200L)
+                        .header(USER_ROLES, BUYER.value()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void moderatorSeesScoreWithoutListingCheck() throws Exception {
+        Long passportId = persistPassport(true, true);
+
+        mockMvc.perform(get(PASSPORTS_URL + "/{id}/trust", passportId)
+                        .header(USER_ID, 500L)
+                        .header(USER_ROLES, ADMIN.value()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void listingServiceUnavailableYieldsServiceUnavailable() throws Exception {
+        Long passportId = persistPassport(true, true);
+        when(listingServiceClient.hasPublishedListingForPassport(eq(passportId), any()))
+                .thenThrow(new ListingServiceUnavailableException("upstream down"));
+
+        mockMvc.perform(get(PASSPORTS_URL + "/{id}/trust", passportId)
+                        .header(USER_ID, 200L)
+                        .header(USER_ROLES, BUYER.value()))
+                .andExpect(status().isServiceUnavailable());
     }
 
     @Test

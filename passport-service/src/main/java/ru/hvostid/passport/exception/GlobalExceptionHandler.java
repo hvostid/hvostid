@@ -29,6 +29,13 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(ListingServiceUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleListingServiceUnavailable(
+            ListingServiceUnavailableException ex, HttpServletRequest request) {
+        log.warn("Listing service unavailable: {}", ex.getMessage());
+        return error(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(PassportDocumentNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleDocumentNotFound(
             PassportDocumentNotFoundException ex, HttpServletRequest request) {

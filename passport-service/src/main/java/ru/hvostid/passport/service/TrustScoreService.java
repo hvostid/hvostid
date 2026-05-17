@@ -1,10 +1,13 @@
 package ru.hvostid.passport.service;
 
 import java.util.List;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.hvostid.common.security.UserRole;
+import ru.hvostid.passport.client.ListingServiceClient;
 import ru.hvostid.passport.dto.TrustScoreBreakdown;
 import ru.hvostid.passport.dto.TrustScoreResponse;
 import ru.hvostid.passport.entity.PassportDocument;
@@ -20,26 +23,60 @@ public class TrustScoreService {
     private final PetPassportRepository passportRepository;
     private final PassportDocumentRepository documentRepository;
     private final SellerSignalsProvider sellerSignalsProvider;
+    private final ListingServiceClient listingServiceClient;
     private final TrustScoreCalculator calculator;
 
     public TrustScoreService(
             PetPassportRepository passportRepository,
             PassportDocumentRepository documentRepository,
             SellerSignalsProvider sellerSignalsProvider,
+            ListingServiceClient listingServiceClient,
             TrustScoreCalculator calculator) {
         this.passportRepository = passportRepository;
         this.documentRepository = documentRepository;
         this.sellerSignalsProvider = sellerSignalsProvider;
+        this.listingServiceClient = listingServiceClient;
         this.calculator = calculator;
     }
 
+    /**
+     * Returns the trust score for a passport. Access is granted when the caller is
+     * the owner or has MODERATOR/ADMIN role; otherwise the passport must be referenced
+     * by at least one PUBLISHED listing so we do not leak passport existence to anonymous
+     * id enumeration. The PUBLISHED check is delegated to listing-service.
+     *
+     * <p>Returns 404 in both "not found" and "not viewable" cases to avoid disclosing
+     * which of the two applies.
+     */
     @Transactional(readOnly = true)
-    public TrustScoreResponse getTrustScore(Long passportId) {
+    public TrustScoreResponse getTrustScore(Long passportId, Long userId, Set<String> userRoles, String requestId) {
         PetPassport passport = passportRepository
                 .findWithVaccinationsById(passportId)
                 .orElseThrow(() -> new PassportNotFoundException("Passport not found with id: " + passportId));
+
+        if (!canReadTrustScore(passport, userId, userRoles, requestId)) {
+            log.warn(
+                    "Trust score access denied for passportId={} userId={} (no PUBLISHED listing reference)",
+                    passportId,
+                    userId);
+            // Same response shape as a missing passport so anonymous probers
+            // cannot tell unpublished passports apart from non-existent ones.
+            throw new PassportNotFoundException("Passport not found with id: " + passportId);
+        }
+
         TrustScoreBreakdown breakdown = computeBreakdown(passport);
         return new TrustScoreResponse(breakdown.total(), breakdown);
+    }
+
+    private boolean canReadTrustScore(PetPassport passport, Long userId, Set<String> userRoles, String requestId) {
+        if (userId != null && userId.equals(passport.getSellerId())) {
+            return true;
+        }
+        if (userRoles != null
+                && (userRoles.contains(UserRole.ADMIN.value()) || userRoles.contains(UserRole.MODERATOR.value()))) {
+            return true;
+        }
+        return listingServiceClient.hasPublishedListingForPassport(passport.getId(), requestId);
     }
 
     /**
