@@ -110,7 +110,7 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
                             .param("type", "PHOTO")
                             .header(USER_ID, 10L)
                             .header(USER_ROLES, SELLER.value()))
-                    .andExpect(status().isPayloadTooLarge())
+                    .andExpect(status().isContentTooLarge())
                     .andExpect(jsonPath("$.status", is(413)));
         }
 

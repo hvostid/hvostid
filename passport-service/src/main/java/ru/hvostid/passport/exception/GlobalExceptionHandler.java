@@ -86,7 +86,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({PassportDocumentTooLargeException.class, MaxUploadSizeExceededException.class})
     public ResponseEntity<ErrorResponse> handleDocumentTooLarge(Exception ex, HttpServletRequest request) {
         log.debug("Passport document too large: {}", ex.getMessage());
-        return error(HttpStatus.PAYLOAD_TOO_LARGE, "Document file must not exceed 10 MB", request);
+        return error(HttpStatus.CONTENT_TOO_LARGE, "Document file must not exceed 10 MB", request);
     }
 
     @ExceptionHandler(UnsupportedPassportDocumentException.class)

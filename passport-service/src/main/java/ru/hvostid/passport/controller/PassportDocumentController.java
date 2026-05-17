@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.net.URI;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -133,7 +134,7 @@ public class PassportDocumentController {
     private Set<String> currentRoles(UserDetails user) {
         return user.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .filter(auth -> auth != null)
+                .filter(Objects::nonNull)
                 .map(auth -> auth.startsWith("ROLE_") ? auth.substring(5) : auth)
                 .collect(Collectors.toSet());
     }
