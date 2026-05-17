@@ -44,7 +44,7 @@ class MinioStorageServiceTest {
     }
 
     @Test
-    void uploadDownloadPresignAndDeleteObject() throws Exception {
+    void testCompleteObjectLifecycle() throws Exception {
         storageService.ensureBucketExists(BUCKET);
         String objectName = "seller-id/passport-id/document.txt";
         byte[] content = "passport document".getBytes(StandardCharsets.UTF_8);
