@@ -50,17 +50,17 @@ public class ListingServiceClient {
                     ex.getStatusCode().value(),
                     requestId);
             throw new ListingUnavailableException(
-                    "Listing service error: " + ex.getStatusCode().value());
+                    "Listing service error: " + ex.getStatusCode().value(), ex);
         } catch (RestClientException ex) {
             log.warn("Listing service unavailable for id={} requestId={}", listingId, requestId, ex);
-            throw new ListingUnavailableException("Listing service unavailable");
+            throw new ListingUnavailableException("Listing service unavailable", ex);
         }
     }
 
     @SuppressWarnings("unused")
     private ListingSnapshot getListingFallback(long listingId, long userId, String requestId, Throwable cause) {
         log.warn("Listing service circuit open or call failed for id={} requestId={}", listingId, requestId, cause);
-        throw new ListingUnavailableException("Listing service unavailable");
+        throw new ListingUnavailableException("Listing service unavailable", cause);
     }
 
     /**
@@ -97,10 +97,10 @@ public class ListingServiceClient {
                     ex.getStatusCode().value(),
                     requestId);
             throw new ListingUnavailableException(
-                    "Listing service error: " + ex.getStatusCode().value());
+                    "Listing service error: " + ex.getStatusCode().value(), ex);
         } catch (RestClientException ex) {
             log.warn("Listing service unavailable for catalog page={} requestId={}", page, requestId, ex);
-            throw new ListingUnavailableException("Listing service unavailable");
+            throw new ListingUnavailableException("Listing service unavailable", ex);
         }
     }
 
@@ -108,7 +108,7 @@ public class ListingServiceClient {
     private PublishedListingsPage getPublishedListingsFallback(int page, int size, String requestId, Throwable cause) {
         log.warn(
                 "Listing service circuit open or call failed for catalog page={} requestId={}", page, requestId, cause);
-        throw new ListingUnavailableException("Listing service unavailable");
+        throw new ListingUnavailableException("Listing service unavailable", cause);
     }
 
     private record ListingApiResponse(Long id, String species, String breed, Integer age, String passportId) {}

@@ -3,6 +3,10 @@ package ru.hvostid.matching.service;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
@@ -80,14 +84,53 @@ public class MatchRecommendationsService {
                                 + "Submit one via POST /api/v1/match/questionnaire."));
 
         List<ListingSummary> candidates = fetchCandidates(requestId);
-        List<ScoredListing> scored = new ArrayList<>(candidates.size());
-        for (ListingSummary listing : candidates) {
-            MatchScoreResponse response =
-                    matchScoreService.scoreSnapshot(questionnaire, listing.toSnapshot(), requestId);
-            scored.add(new ScoredListing(listing, response.score(), response));
-        }
+        List<ScoredListing> scored = scoreInParallel(candidates, questionnaire, requestId);
         scored.sort(Comparator.comparingInt(ScoredListing::score).reversed());
         return List.copyOf(scored);
+    }
+
+    /**
+     * Scores candidates concurrently on virtual threads. Each call into
+     * {@link MatchScoreService#scoreSnapshot} fans out a synchronous HTTP request
+     * to passport-service; running them sequentially is an N+1 wait, which on a
+     * 200-listing catalog with ~100ms per call would block the recommendations
+     * endpoint for tens of seconds. Virtual threads make this fan-out essentially
+     * free since the underlying HTTP calls are blocking I/O.
+     */
+    private List<ScoredListing> scoreInParallel(
+            List<ListingSummary> candidates, BuyerQuestionnaire questionnaire, String requestId) {
+        if (candidates.isEmpty()) {
+            return new ArrayList<>();
+        }
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<Future<ScoredListing>> futures = candidates.stream()
+                    .map(listing -> executor.submit(() -> {
+                        MatchScoreResponse response =
+                                matchScoreService.scoreSnapshot(questionnaire, listing.toSnapshot(), requestId);
+                        return new ScoredListing(listing, response.score(), response);
+                    }))
+                    .toList();
+            List<ScoredListing> scored = new ArrayList<>(futures.size());
+            for (Future<ScoredListing> future : futures) {
+                scored.add(awaitScore(future));
+            }
+            return scored;
+        }
+    }
+
+    private static ScoredListing awaitScore(Future<ScoredListing> future) {
+        try {
+            return future.get();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while scoring listing", ex);
+        } catch (ExecutionException ex) {
+            Throwable cause = ex.getCause();
+            if (cause instanceof RuntimeException re) {
+                throw re;
+            }
+            throw new IllegalStateException("Failed to score listing", cause);
+        }
     }
 
     private List<ListingSummary> fetchCandidates(String requestId) {
