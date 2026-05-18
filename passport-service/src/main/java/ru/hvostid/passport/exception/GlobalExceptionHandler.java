@@ -22,9 +22,9 @@ import ru.hvostid.common.exception.ValidationException;
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    private static final String UPLOAD_TYPE = "https://hvostid.example/errors/upload-too-large";
-    private static final String UNSUPPORTED_TYPE = "https://hvostid.example/errors/unsupported-media-type";
-    private static final String UPSTREAM_TYPE = "https://hvostid.example/errors/upstream-unavailable";
+    private static final String UPLOAD_TYPE = "urn:problem-type:upload-too-large";
+    private static final String UNSUPPORTED_TYPE = "urn:problem-type:unsupported-media-type";
+    private static final String UPSTREAM_TYPE = "urn:problem-type:upstream-unavailable";
 
     @ExceptionHandler(PassportNotFoundException.class)
     public ResponseEntity<ProblemDetails> handleNotFound(PassportNotFoundException ex, HttpServletRequest request) {

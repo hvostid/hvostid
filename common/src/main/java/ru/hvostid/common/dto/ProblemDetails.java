@@ -15,7 +15,7 @@ import java.util.List;
 @Schema(description = "RFC 7807 problem detail body returned by every service for non-2xx responses")
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ProblemDetails(
-        @Schema(description = "URI identifying the problem type", example = "https://hvostid.example/errors/not-found")
+        @Schema(description = "URI identifying the problem type", example = "urn:problem-type:not-found")
         String type,
 
         @Schema(description = "Short, human-readable summary of the problem type", example = "Listing not found")

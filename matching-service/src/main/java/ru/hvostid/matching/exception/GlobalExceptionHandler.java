@@ -20,7 +20,7 @@ import ru.hvostid.common.exception.ValidationException;
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    private static final String UPSTREAM_TYPE = "https://hvostid.example/errors/upstream-unavailable";
+    private static final String UPSTREAM_TYPE = "urn:problem-type:upstream-unavailable";
 
     @ExceptionHandler(QuestionnaireNotFoundException.class)
     public ResponseEntity<ProblemDetails> handleNotFound(

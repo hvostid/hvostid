@@ -16,7 +16,7 @@ import ru.hvostid.common.web.RequestIdMdcFilter;
  * so that every error body shares the same fields, content-type, and traceId source.
  */
 public final class ProblemDetailsFactory {
-    public static final String INTERNAL_TYPE = "https://hvostid.example/errors/internal";
+    public static final String INTERNAL_TYPE = "urn:problem-type:internal";
 
     private ProblemDetailsFactory() {}
 

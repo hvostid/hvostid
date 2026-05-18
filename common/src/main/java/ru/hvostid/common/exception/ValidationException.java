@@ -8,7 +8,7 @@ import org.springframework.http.HttpStatus;
  * Maps to 400.
  */
 public class ValidationException extends BusinessException {
-    public static final String TYPE = "https://hvostid.example/errors/validation";
+    public static final String TYPE = "urn:problem-type:validation";
 
     public ValidationException(String detail) {
         super(HttpStatus.BAD_REQUEST, TYPE, "Validation failed", detail);
