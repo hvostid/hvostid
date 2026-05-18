@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="800" height="600" viewBox="0 0 800 600">
+<desc>Created with SVGMaker Editor 3.0.0</desc>
+<defs>
+</defs>
+<rect transform="translate(0,0)" style="stroke-width: 0; fill: rgb(0,0,0); visibility: hidden" x="0" y="0" width="100" height="100"/>
+<path transform="translate(0,0)" style="stroke-linecap: round; fill: rgb(57,73,171)" stroke-linecap="round" d="M380.8618 24.8102C287.2774 24.8102 193.6932 62.2439 193.6932 62.2439L193.6932 336.7578C193.6932 461.5369 380.8618 570.7186 380.8618 570.7186 380.8618 570.7186 568.0303 461.5369 568.0303 336.7578L568.0303 62.2439C568.0303 62.2439 474.446 24.8102 380.8618 24.8102Z"/>
+<path transform="translate(0,0)" style="stroke-linecap: round; fill: rgb(146,214,190)" stroke-linecap="round" d="M380.8617 56.0049C299.7554 56.0049 221.7684 87.1997 221.7684 87.1997L221.7684 327.3994C221.7684 436.5811 380.8617 536.4043 380.8617 536.4043 380.8617 536.4043 539.9551 436.5811 539.9551 327.3994L539.9551 87.1997C539.9551 87.1997 461.9681 56.0049 380.8617 56.0049Z"/>
+<ellipse transform="translate(0,0)" style="stroke-width: 0; fill: rgb(225,245,238)" cx="378.9843" cy="384.8563" rx="66.572" ry="51.3558" vector-effect="non-scaling-stroke"/>
+<g transform="matrix(1.66715 -0.41565 0.43212 1.73309 338.54163 280.37032)">
+<ellipse transform="translate(0,0)" style="stroke-width: 0; fill: rgb(225,245,238)" cx="0" cy="0" rx="20" ry="24" vector-effect="non-scaling-stroke"/>
+</g>
+<g transform="matrix(1.36403 -0.4432 0.4628 1.42429 287.20641 344.04862)">
+<ellipse transform="translate(0,0)" style="stroke-width: 0; fill: rgb(225,245,238)" cx="0" cy="0" rx="18" ry="22" vector-effect="non-scaling-stroke"/>
+</g>
+<path transform="translate(0,0)" style="stroke-width: 0; stroke-dasharray: 1 10; stroke-linecap: round; fill: rgb(57,73,171)" vector-effect="non-scaling-stroke" stroke-linecap="round" d="M386.5125 563.3541C386.5125 563.3541 433.0356 516.0242 482.9474 531.6217 532.8591 547.2192 584.3928 555.6171 609.3487 505.7059 634.3046 455.7942 598.1094 389.6234 580.4771 390.2946 562.8449 390.9664 603.7814 427.316 577.6066 481.1531 551.4318 534.9903 498.8136 513.4423 461.3801 500.9641 423.946 488.4865 402.11 522.8007 386.5125 563.3541Z"/>
+<g transform="matrix(1.66715 0.41565 -0.43212 1.73309 417.06528 278.86971)">
+<ellipse transform="translate(0,0)" style="stroke-width: 0; fill: rgb(225,245,238)" cx="0" cy="0" rx="20" ry="24" vector-effect="non-scaling-stroke"/>
+</g>
+<g transform="matrix(1.36403 0.4432 -0.4628 1.42429 468.79823 342.52101)">
+<ellipse transform="translate(0,0)" style="stroke-width: 0; fill: rgb(225,245,238)" cx="0" cy="0" rx="18" ry="22" vector-effect="non-scaling-stroke"/>
+</g>
+</svg>

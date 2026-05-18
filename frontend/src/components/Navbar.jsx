@@ -13,10 +13,11 @@ export default function Navbar() {
     return (
         <nav className="bg-white shadow-sm border-b border-gray-200">
             <div className="max-w-7xl mx-auto px-4">
-                <div className="flex items-center justify-between h-14">
+                <div className="flex items-center justify-between h-18">
                     <div className="flex items-center gap-6">
-                        <Link to="/" className="text-lg font-bold text-indigo-600">
-                            HvostID
+                        <Link to="/" className="flex items-center gap-2">
+                            <img src="/icon.svg" alt="HvostID logo" className="h-22 w-22" />
+                            <span className="text-lg font-bold text-indigo-600">HvostID</span>
                         </Link>
                         <Link to="/" className="text-sm text-gray-600 hover:text-gray-900">
                             Catalog
