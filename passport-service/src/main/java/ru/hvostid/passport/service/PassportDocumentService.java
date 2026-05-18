@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import ru.hvostid.passport.client.ListingServiceClient;
 import ru.hvostid.passport.config.MinioProperties;
 import ru.hvostid.passport.dto.PassportDocumentResponse;
 import ru.hvostid.passport.entity.PassportDocument;
@@ -17,6 +18,7 @@ import ru.hvostid.passport.entity.PassportDocumentType;
 import ru.hvostid.passport.entity.PetPassport;
 import ru.hvostid.passport.exception.InvalidPassportDocumentException;
 import ru.hvostid.passport.exception.PassportDocumentNotFoundException;
+import ru.hvostid.passport.exception.PassportNotFoundException;
 import ru.hvostid.passport.repository.PassportDocumentRepository;
 import ru.hvostid.passport.storage.MinioStorageService;
 import ru.hvostid.passport.storage.PassportObjectNameFactory;
@@ -33,6 +35,7 @@ public class PassportDocumentService {
     private final MinioStorageService storageService;
     private final MinioProperties minioProperties;
     private final TrustScoreService trustScoreService;
+    private final ListingServiceClient listingServiceClient;
 
     public PassportDocumentService(
             PassportAccessService accessService,
@@ -41,7 +44,8 @@ public class PassportDocumentService {
             PassportObjectNameFactory objectNameFactory,
             MinioStorageService storageService,
             MinioProperties minioProperties,
-            TrustScoreService trustScoreService) {
+            TrustScoreService trustScoreService,
+            ListingServiceClient listingServiceClient) {
         this.accessService = accessService;
         this.documentRepository = documentRepository;
         this.validator = validator;
@@ -49,6 +53,7 @@ public class PassportDocumentService {
         this.storageService = storageService;
         this.minioProperties = minioProperties;
         this.trustScoreService = trustScoreService;
+        this.listingServiceClient = listingServiceClient;
     }
 
     @Transactional
@@ -83,20 +88,75 @@ public class PassportDocumentService {
         }
     }
 
-    @Transactional(readOnly = true)
-    public List<PassportDocumentResponse> listDocuments(Long passportId, Long userId, Set<String> userRoles) {
+    /**
+     * Lists documents attached to a passport.
+     *
+     * <p>Privileged callers (owner / MODERATOR / ADMIN) see every document.
+     * Other authenticated callers see only PHOTO entries, and only when the
+     * passport is referenced by at least one PUBLISHED listing -- the same
+     * existence-hiding rule trust-score uses. Mismatches throw 404 rather
+     * than 403 so anonymous probers cannot enumerate passport ids.
+     *
+     * <p>Every entry returned carries a short-TTL presigned MinIO URL so the
+     * caller can use it directly (e.g. as an {@code <img src>}) without an
+     * extra round-trip through this service.
+     *
+     * <p>Intentionally not annotated with {@code @Transactional}: the
+     * buyer-path access check makes a synchronous HTTP call to
+     * listing-service, which would otherwise hold a Hikari connection for
+     * the full round-trip. Each repository call below opens its own short
+     * transaction via Spring Data JPA defaults.
+     */
+    public List<PassportDocumentResponse> listDocuments(
+            Long passportId, Long userId, Set<String> userRoles, String requestId) {
         PetPassport passport = accessService.getExistingPassport(passportId);
-        accessService.requireCanView(passport, userId, userRoles);
+        boolean privileged = accessService.isPrivilegedViewer(passport, userId, userRoles);
+        if (!privileged && !listingServiceClient.hasPublishedListingForPassport(passportId, requestId)) {
+            log.warn(
+                    "Document list denied passportId={} userId={} (no PUBLISHED listing reference)",
+                    passportId,
+                    userId);
+            throw new PassportNotFoundException("Passport not found with id: " + passportId);
+        }
+
         return documentRepository.findByPassportIdOrderByUploadedAtDesc(passportId).stream()
-                .map(PassportDocumentResponse::from)
+                .filter(doc -> privileged || doc.getType() == PassportDocumentType.PHOTO)
+                .map(doc -> PassportDocumentResponse.from(doc, presignedUrlFor(doc)))
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public String getDownloadUrl(Long passportId, Long documentId, Long userId, Set<String> userRoles) {
+    /**
+     * Returns a presigned MinIO URL for a single document.
+     *
+     * <p>Owner / MODERATOR / ADMIN can download any document type. Other
+     * authenticated callers can download a PHOTO document attached to a
+     * passport that is referenced by at least one PUBLISHED listing; every
+     * other combination throws 404 (hide existence; see
+     * {@link #listDocuments}).
+     *
+     * <p>Not annotated with {@code @Transactional} for the same reason as
+     * {@link #listDocuments}.
+     */
+    public String getDownloadUrl(
+            Long passportId, Long documentId, Long userId, Set<String> userRoles, String requestId) {
         PetPassport passport = accessService.getExistingPassport(passportId);
-        accessService.requireCanView(passport, userId, userRoles);
         PassportDocument document = getDocument(passportId, documentId);
+        if (!accessService.isPrivilegedViewer(passport, userId, userRoles)) {
+            if (document.getType() != PassportDocumentType.PHOTO
+                    || !listingServiceClient.hasPublishedListingForPassport(passportId, requestId)) {
+                log.warn(
+                        "Document download denied passportId={} documentId={} type={} userId={}",
+                        passportId,
+                        documentId,
+                        document.getType(),
+                        userId);
+                throw new PassportDocumentNotFoundException("Passport document not found with id: " + documentId);
+            }
+        }
+        return presignedUrlFor(document);
+    }
+
+    private String presignedUrlFor(PassportDocument document) {
         return storageService.getPresignedUrl(
                 bucketFor(document.getType()), document.getStoragePath(), DOWNLOAD_URL_EXPIRY);
     }

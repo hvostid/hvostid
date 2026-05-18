@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.List;
 import java.util.Objects;
@@ -23,6 +24,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import ru.hvostid.common.dto.ErrorResponse;
+import ru.hvostid.common.http.SecurityHeaders;
 import ru.hvostid.common.security.GatewayPreAuthentication;
 import ru.hvostid.passport.dto.PassportDocumentResponse;
 import ru.hvostid.passport.entity.PassportDocumentType;
@@ -67,49 +69,60 @@ public class PassportDocumentController {
 
     @Operation(
             summary = "List passport documents",
-            description = "Returns document metadata for the owner, moderators, and admins.")
+            description =
+                    "Owners, moderators, and admins receive every document type with a short-TTL presigned MinIO downloadUrl. Other authenticated callers receive only PHOTO documents (also with a downloadUrl), and only when the passport is referenced by at least one PUBLISHED listing; otherwise the endpoint returns 404 to prevent passport-id enumeration.")
     @ApiResponse(
             responseCode = "200",
             description = "Document list",
             content = @Content(schema = @Schema(implementation = PassportDocumentResponse.class)))
     @ApiResponse(responseCode = "401", description = "Missing or invalid authenticated user", content = @Content)
     @ApiResponse(
-            responseCode = "403",
-            description = "User is not allowed to view passport documents",
-            content = @Content)
-    @ApiResponse(responseCode = "404", description = "Passport not found", content = @Content)
+            responseCode = "404",
+            description = "Passport not found or not viewable by the caller",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(
+            responseCode = "503",
+            description = "Listing service unavailable",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @GetMapping
     public ResponseEntity<List<PassportDocumentResponse>> listDocuments(
             @Parameter(description = "Pet passport ID", required = true, example = "1") @PathVariable Long passportId,
-            @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
+            @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user,
+            HttpServletRequest httpRequest) {
         long userId = GatewayPreAuthentication.currentUserId(user);
         Set<String> roles = currentRoles(user);
+        String requestId = httpRequest.getHeader(SecurityHeaders.REQUEST_ID);
         log.debug("GET /api/v1/passports/{}/docs, userId={}, roles={}", passportId, userId, roles);
 
-        return ResponseEntity.ok(documentService.listDocuments(passportId, userId, roles));
+        return ResponseEntity.ok(documentService.listDocuments(passportId, userId, roles, requestId));
     }
 
-    @Operation(summary = "Download a passport document", description = "Redirects to a temporary MinIO presigned URL.")
+    @Operation(
+            summary = "Download a passport document",
+            description =
+                    "Redirects to a short-TTL MinIO presigned URL. Owners, moderators, and admins can download any document; other authenticated callers can only download PHOTO documents on a passport referenced by at least one PUBLISHED listing.")
     @ApiResponse(responseCode = "302", description = "Redirect to presigned URL", content = @Content)
     @ApiResponse(responseCode = "401", description = "Missing or invalid authenticated user", content = @Content)
     @ApiResponse(
-            responseCode = "403",
-            description = "User is not allowed to view passport documents",
-            content = @Content)
-    @ApiResponse(
             responseCode = "404",
-            description = "Passport or document not found",
+            description = "Passport or document not found, or not viewable by the caller",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(
+            responseCode = "503",
+            description = "Listing service unavailable",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @GetMapping("/{docId}")
     public ResponseEntity<Void> downloadDocument(
             @Parameter(description = "Pet passport ID", required = true, example = "1") @PathVariable Long passportId,
             @Parameter(description = "Passport document ID", required = true, example = "1") @PathVariable Long docId,
-            @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
+            @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user,
+            HttpServletRequest httpRequest) {
         long userId = GatewayPreAuthentication.currentUserId(user);
         Set<String> roles = currentRoles(user);
+        String requestId = httpRequest.getHeader(SecurityHeaders.REQUEST_ID);
         log.debug("GET /api/v1/passports/{}/docs/{}, userId={}, roles={}", passportId, docId, userId, roles);
 
-        String url = documentService.getDownloadUrl(passportId, docId, userId, roles);
+        String url = documentService.getDownloadUrl(passportId, docId, userId, roles, requestId);
         return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(url)).build();
     }
 
