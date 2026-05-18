@@ -79,7 +79,7 @@ public class ListingServiceClient {
                             .build())
                     .headers(h -> h.addAll(headers))
                     .retrieve()
-                    .body(new ParameterizedTypeReference<ListingPageResponse>() {});
+                    .body(new ParameterizedTypeReference<>() {});
             if (response == null) {
                 throw new ListingUnavailableException("Listing service returned empty body for catalog page " + page);
             }

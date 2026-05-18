@@ -18,7 +18,7 @@ public final class ListingSpecifications {
      * All text filters are case-insensitive.
      */
     public static Specification<Listing> withFilters(@Nullable ListingFilterRequest filters) {
-        return (root, query, cb) -> {
+        return (root, _, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
             // Only published listings are visible to public search

@@ -9,7 +9,6 @@ import ru.hvostid.matching.entity.*;
 
 @Component
 public class CompatibilityScoreCalculator {
-
     private static final int ALLERGY_CAP_MAX_TOTAL = 35;
     private static final int LEVEL_GREAT_MIN = 80;
     private static final int LEVEL_GOOD_MIN = 60;
@@ -77,7 +76,7 @@ public class CompatibilityScoreCalculator {
                                 ? "Large pets need more space than a typical apartment provides"
                                 : "Living space fits a large pet";
                 };
-        return FactorScore.of(CompatibilityFactor.LIVING_SPACE, clamp(score, max), comment);
+        return FactorScore.of(CompatibilityFactor.LIVING_SPACE, Math.clamp(score, 0, max), comment);
     }
 
     private FactorScore scoreChildren(BuyerQuestionnaire q, PetContext pet) {
@@ -115,7 +114,7 @@ public class CompatibilityScoreCalculator {
             score = 10;
             comment = "Neutral temperament - supervise interactions with children";
         }
-        return FactorScore.of(CompatibilityFactor.CHILDREN, clamp(score, max), comment);
+        return FactorScore.of(CompatibilityFactor.CHILDREN, Math.clamp(score, 0, max), comment);
     }
 
     private FactorScore scoreAllergies(BuyerQuestionnaire q, PetContext pet) {
@@ -158,7 +157,7 @@ public class CompatibilityScoreCalculator {
         String comment = gap >= 2
                 ? "Beginner owner, this breed requires experienced handling"
                 : gap == 1 ? "Some experience recommended for this breed" : "Owner experience matches breed care needs";
-        return FactorScore.of(CompatibilityFactor.EXPERIENCE, clamp(score, max), comment);
+        return FactorScore.of(CompatibilityFactor.EXPERIENCE, Math.clamp(score, 0, max), comment);
     }
 
     private FactorScore scoreYard(BuyerQuestionnaire q, PetContext pet) {
@@ -190,7 +189,7 @@ public class CompatibilityScoreCalculator {
                 : diff == 1
                         ? "Slight mismatch between owner activity and breed needs"
                         : "Significant activity level mismatch";
-        return FactorScore.of(CompatibilityFactor.ACTIVITY, clamp(score, max), comment);
+        return FactorScore.of(CompatibilityFactor.ACTIVITY, Math.clamp(score, 0, max), comment);
     }
 
     private FactorScore scoreBudget(BuyerQuestionnaire q, PetContext pet) {
@@ -213,7 +212,7 @@ public class CompatibilityScoreCalculator {
             score = 2;
             comment = "Budget may be insufficient for ongoing care of this breed";
         }
-        return FactorScore.of(CompatibilityFactor.BUDGET, clamp(score, max), comment);
+        return FactorScore.of(CompatibilityFactor.BUDGET, Math.clamp(score, 0, max), comment);
     }
 
     private FactorScore scoreWorkSchedule(BuyerQuestionnaire q, PetContext pet) {
@@ -234,7 +233,7 @@ public class CompatibilityScoreCalculator {
                                 ? "Breed needs attention; office schedule may be challenging"
                                 : "Office schedule is acceptable for this breed's attention needs";
                 };
-        return FactorScore.of(CompatibilityFactor.WORK_SCHEDULE, clamp(score, max), comment);
+        return FactorScore.of(CompatibilityFactor.WORK_SCHEDULE, Math.clamp(score, 0, max), comment);
     }
 
     static int workScheduleScore(int attentionNeeds, WorkSchedule schedule) {
@@ -304,9 +303,5 @@ public class CompatibilityScoreCalculator {
             }
         }
         return false;
-    }
-
-    private static int clamp(int score, int max) {
-        return Math.max(0, Math.min(score, max));
     }
 }

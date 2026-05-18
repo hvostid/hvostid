@@ -21,6 +21,7 @@ import ru.hvostid.matching.client.ListingSnapshot;
 import ru.hvostid.matching.client.ListingSummary;
 import ru.hvostid.matching.domain.CompatibilityLevel;
 import ru.hvostid.matching.domain.CompatibilityResult;
+import ru.hvostid.matching.dto.RecommendationItem;
 import ru.hvostid.matching.dto.RecommendationsResponse;
 import ru.hvostid.matching.entity.BuyerQuestionnaire;
 import ru.hvostid.matching.exception.QuestionnaireRequiredException;
@@ -80,9 +81,9 @@ class MatchRecommendationsServiceTest {
         RecommendationsResponse firstPage = service.getRecommendations(1L, 0, 0, 3, "req-1");
         RecommendationsResponse secondPage = service.getRecommendations(1L, 0, 1, 3, "req-1");
 
-        assertThat(firstPage.content().stream().map(item -> item.score()).toList())
+        assertThat(firstPage.content().stream().map(RecommendationItem::score).toList())
                 .containsExactly(95, 90, 85);
-        assertThat(secondPage.content().stream().map(item -> item.score()).toList())
+        assertThat(secondPage.content().stream().map(RecommendationItem::score).toList())
                 .containsExactly(80, 75, 70);
         assertThat(firstPage.totalElements()).isEqualTo(7);
         assertThat(firstPage.totalPages()).isEqualTo(3);
@@ -98,7 +99,8 @@ class MatchRecommendationsServiceTest {
 
         RecommendationsResponse result = service.getRecommendations(1L, 40, 0, 10, "req-1");
 
-        assertThat(result.content().stream().map(item -> item.score()).toList()).containsExactly(41, 40);
+        assertThat(result.content().stream().map(RecommendationItem::score).toList())
+                .containsExactly(41, 40);
     }
 
     @Test
