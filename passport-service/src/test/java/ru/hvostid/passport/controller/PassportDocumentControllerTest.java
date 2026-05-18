@@ -4,6 +4,9 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -14,10 +17,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
 import static ru.hvostid.common.http.SecurityHeaders.USER_ROLES;
 import static ru.hvostid.common.security.UserRole.ADMIN;
+import static ru.hvostid.common.security.UserRole.BUYER;
 import static ru.hvostid.common.security.UserRole.MODERATOR;
 import static ru.hvostid.common.security.UserRole.SELLER;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -28,8 +33,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.hvostid.passport.AbstractPassportIntegrationTest;
+import ru.hvostid.passport.client.ListingServiceClient;
+import ru.hvostid.passport.exception.ListingServiceUnavailableException;
 import ru.hvostid.passport.service.PassportDocumentValidator;
 
 @SpringBootTest
@@ -43,6 +51,16 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @MockitoBean
+    private ListingServiceClient listingServiceClient;
+
+    @BeforeEach
+    void resetListingClient() {
+        // Default to "no PUBLISHED listing" so non-privileged callers in legacy
+        // tests get the same 404 they used to get as 403 before this change.
+        when(listingServiceClient.hasPublishedListingForPassport(any(), any())).thenReturn(false);
+    }
 
     @AfterEach
     void cleanDatabase() {
@@ -133,7 +151,7 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
     @DisplayName("GET /api/v1/passports/{id}/docs")
     class ListTests {
         @Test
-        @DisplayName("owner lists documents - returns metadata")
+        @DisplayName("owner lists documents - returns metadata with downloadUrl")
         void list_owner_returnsDocuments() throws Exception {
             createPassport();
             uploadPhoto();
@@ -142,7 +160,8 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$", hasSize(1)))
                     .andExpect(jsonPath("$[0].type", is("PHOTO")))
-                    .andExpect(jsonPath("$[0].originalFilename", is("photo.jpg")));
+                    .andExpect(jsonPath("$[0].originalFilename", is("photo.jpg")))
+                    .andExpect(jsonPath("$[0].downloadUrl", containsString("X-Amz-Expires=600")));
         }
 
         @Test
@@ -153,15 +172,55 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
 
             mockMvc.perform(get(DOCS_URL).header(USER_ID, 20L).header(USER_ROLES, MODERATOR.value()))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$", hasSize(1)));
+                    .andExpect(jsonPath("$", hasSize(1)))
+                    .andExpect(jsonPath("$[0].downloadUrl", notNullValue()));
         }
 
         @Test
-        @DisplayName("different user cannot list documents - returns 403")
-        void list_differentUser_returns403() throws Exception {
+        @DisplayName("buyer on PUBLISHED listing sees only PHOTOs - returns 200")
+        void list_buyerPublishedListing_returnsOnlyPhotos() throws Exception {
+            createPassport();
+            uploadPhoto();
+            uploadVetRecord();
+            when(listingServiceClient.hasPublishedListingForPassport(eq(1L), any()))
+                    .thenReturn(true);
+
+            mockMvc.perform(get(DOCS_URL).header(USER_ID, 99L).header(USER_ROLES, BUYER.value()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$", hasSize(1)))
+                    .andExpect(jsonPath("$[0].type", is("PHOTO")))
+                    .andExpect(jsonPath("$[0].downloadUrl", notNullValue()));
+        }
+
+        @Test
+        @DisplayName("buyer without PUBLISHED listing - returns 404")
+        void list_buyerDraftListing_returns404() throws Exception {
+            createPassport();
+            uploadPhoto();
+            // default mock: hasPublishedListingForPassport returns false
+
+            mockMvc.perform(get(DOCS_URL).header(USER_ID, 99L).header(USER_ROLES, BUYER.value()))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("roleless caller without PUBLISHED listing - returns 404")
+        void list_rolelessCaller_returns404() throws Exception {
             createPassport();
 
-            mockMvc.perform(get(DOCS_URL).header(USER_ID, 20L)).andExpect(status().isForbidden());
+            mockMvc.perform(get(DOCS_URL).header(USER_ID, 20L)).andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("listing-service unavailable - returns 503")
+        void list_listingServiceUnavailable_returns503() throws Exception {
+            createPassport();
+            uploadPhoto();
+            when(listingServiceClient.hasPublishedListingForPassport(any(), any()))
+                    .thenThrow(new ListingServiceUnavailableException("upstream down"));
+
+            mockMvc.perform(get(DOCS_URL).header(USER_ID, 99L).header(USER_ROLES, BUYER.value()))
+                    .andExpect(status().isServiceUnavailable());
         }
     }
 
@@ -188,6 +247,42 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
             mockMvc.perform(get(DOCS_URL + "/1").header(USER_ID, 20L).header(USER_ROLES, ADMIN.value()))
                     .andExpect(status().isFound())
                     .andExpect(header().string(HttpHeaders.LOCATION, containsString("X-Amz-Expires=600")));
+        }
+
+        @Test
+        @DisplayName("buyer on PUBLISHED listing downloads PHOTO - returns 302")
+        void download_buyerPublishedListingPhoto_returns302() throws Exception {
+            createPassport();
+            uploadPhoto();
+            when(listingServiceClient.hasPublishedListingForPassport(eq(1L), any()))
+                    .thenReturn(true);
+
+            mockMvc.perform(get(DOCS_URL + "/1").header(USER_ID, 99L).header(USER_ROLES, BUYER.value()))
+                    .andExpect(status().isFound())
+                    .andExpect(header().string(HttpHeaders.LOCATION, containsString("X-Amz-Expires=600")));
+        }
+
+        @Test
+        @DisplayName("buyer on PUBLISHED listing downloads VET_RECORD - returns 404")
+        void download_buyerPublishedListingVetRecord_returns404() throws Exception {
+            createPassport();
+            uploadVetRecord();
+            when(listingServiceClient.hasPublishedListingForPassport(any(), any()))
+                    .thenReturn(true);
+
+            mockMvc.perform(get(DOCS_URL + "/1").header(USER_ID, 99L).header(USER_ROLES, BUYER.value()))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("buyer without PUBLISHED listing - returns 404")
+        void download_buyerDraftListing_returns404() throws Exception {
+            createPassport();
+            uploadPhoto();
+            // default mock: hasPublishedListingForPassport returns false
+
+            mockMvc.perform(get(DOCS_URL + "/1").header(USER_ID, 99L).header(USER_ROLES, BUYER.value()))
+                    .andExpect(status().isNotFound());
         }
     }
 
@@ -244,6 +339,15 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
         mockMvc.perform(multipart(DOCS_URL)
                         .file(file("photo.jpg", "image/jpeg", "image".getBytes()))
                         .param("type", "PHOTO")
+                        .header(USER_ID, 10L)
+                        .header(USER_ROLES, SELLER.value()))
+                .andExpect(status().isCreated());
+    }
+
+    private void uploadVetRecord() throws Exception {
+        mockMvc.perform(multipart(DOCS_URL)
+                        .file(file("record.pdf", "application/pdf", "pdf".getBytes()))
+                        .param("type", "VET_RECORD")
                         .header(USER_ID, 10L)
                         .header(USER_ROLES, SELLER.value()))
                 .andExpect(status().isCreated());

@@ -109,7 +109,7 @@ export default function App() {
                     <Route
                         path="/moderation"
                         element={
-                            <ProtectedRoute requiredRole="MODERATOR">
+                            <ProtectedRoute requiredRole={['MODERATOR', 'ADMIN']}>
                                 <ModerationQueuePage />
                             </ProtectedRoute>
                         }
@@ -117,7 +117,7 @@ export default function App() {
                     <Route
                         path="/moderation/:id"
                         element={
-                            <ProtectedRoute requiredRole="MODERATOR">
+                            <ProtectedRoute requiredRole={['MODERATOR', 'ADMIN']}>
                                 <ModerationDetailPage />
                             </ProtectedRoute>
                         }
@@ -125,7 +125,7 @@ export default function App() {
                     <Route
                         path="/moderation/flags"
                         element={
-                            <ProtectedRoute requiredRole="MODERATOR">
+                            <ProtectedRoute requiredRole={['MODERATOR', 'ADMIN']}>
                                 <FlagsPage />
                             </ProtectedRoute>
                         }

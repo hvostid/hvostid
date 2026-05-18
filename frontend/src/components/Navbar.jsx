@@ -38,7 +38,7 @@ export default function Navbar() {
                                 My listings
                             </Link>
                         )}
-                        {hasRole('MODERATOR') && (
+                        {(hasRole('MODERATOR') || hasRole('ADMIN')) && (
                             <Link
                                 to="/moderation"
                                 className="text-sm text-gray-600 hover:text-gray-900"

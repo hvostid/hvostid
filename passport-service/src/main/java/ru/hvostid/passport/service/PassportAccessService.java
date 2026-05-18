@@ -41,7 +41,7 @@ public class PassportAccessService {
     }
 
     public void requireCanView(PetPassport passport, Long userId, Set<String> userRoles) {
-        if (!canViewPassport(passport, userId, userRoles)) {
+        if (!isPrivilegedViewer(passport, userId, userRoles)) {
             log.warn(
                     "Passport view denied id={} ownerId={} userId={}",
                     passport.getId(),
@@ -51,7 +51,13 @@ public class PassportAccessService {
         }
     }
 
-    private boolean canViewPassport(PetPassport passport, Long userId, Set<String> userRoles) {
+    /**
+     * True when the caller may view the full passport (and any of its
+     * documents) without depending on whether the passport is referenced by
+     * a PUBLISHED listing. Used by {@link #requireCanView} and by services
+     * that gate buyer access on a listing-service published-listing check.
+     */
+    public boolean isPrivilegedViewer(PetPassport passport, Long userId, Set<String> userRoles) {
         return passport.getSellerId().equals(userId)
                 || userRoles.contains(UserRole.ADMIN.value())
                 || userRoles.contains(UserRole.MODERATOR.value());

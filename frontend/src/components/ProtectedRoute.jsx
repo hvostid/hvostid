@@ -17,15 +17,18 @@ export default function ProtectedRoute({ children, requiredRole }) {
         return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
     }
 
-    if (requiredRole && !hasRole(requiredRole)) {
-        return (
-            <div className="text-center py-12">
-                <h2 className="text-xl font-semibold text-gray-800">Access denied</h2>
-                <p className="text-gray-500 mt-2">
-                    You do not have the required role: {requiredRole}
-                </p>
-            </div>
-        );
+    if (requiredRole) {
+        const allowed = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+        if (!allowed.some((role) => hasRole(role))) {
+            return (
+                <div className="text-center py-12">
+                    <h2 className="text-xl font-semibold text-gray-800">Access denied</h2>
+                    <p className="text-gray-500 mt-2">
+                        You do not have the required role: {allowed.join(' or ')}
+                    </p>
+                </div>
+            );
+        }
     }
 
     return children;
