@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <springProperty scope="context" name="serviceName" source="spring.application.name" defaultValue="api-gateway"/>
+    <include resource="logback-shared.xml"/>
+</configuration>

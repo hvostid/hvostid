@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
 
+import java.util.Comparator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -138,7 +139,7 @@ class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
         Page<ListingResponse> result = listingService.getListingsWithFilters(
                 new ListingFilterRequest(null, null, null, null, null, null, null), pageRequest);
 
-        assertThat(result.getContent()).isSortedAccordingTo((a, b) -> a.price().compareTo(b.price()));
+        assertThat(result.getContent()).isSortedAccordingTo(Comparator.comparing(ListingResponse::price));
     }
 
     @Test
