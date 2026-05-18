@@ -52,7 +52,7 @@ k6 run k6/match-score.js
 Override the target host (e.g. a staging stack):
 
 ```bash
-BASE_URL=https://staging.example ./k6 run k6/search-listings.js
+BASE_URL=https://staging.example k6 run k6/search-listings.js
 ```
 
 Override demo credentials when running against a non-demo dataset:
@@ -60,6 +60,14 @@ Override demo credentials when running against a non-demo dataset:
 ```bash
 EMAIL=loadtest-seller@example PASSWORD='...' PASSPORT_ID=12 \
   k6 run k6/create-listing.js
+```
+
+Override the listing ids used by the match-score scenario (handy when
+the target environment does not have the demo `1..99` range):
+
+```bash
+LISTING_IDS='101,102,103' EMAIL=loadtest-buyer@example PASSWORD='...' \
+  k6 run k6/match-score.js
 ```
 
 ## Tuning thresholds

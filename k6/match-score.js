@@ -16,9 +16,11 @@
 //   k6 run k6/match-score.js
 //
 // Environment overrides:
-//   BASE_URL   base URL of the api-gateway (default http://localhost:8080)
-//   EMAIL      buyer account (default buyer1@demo.hvostid)
-//   PASSWORD   buyer password (default demo1234)
+//   BASE_URL    base URL of the api-gateway (default http://localhost:8080)
+//   EMAIL       buyer account (default buyer1@demo.hvostid)
+//   PASSWORD    buyer password (default demo1234)
+//   LISTING_IDS comma-separated listing ids to exercise (default full demo
+//               seed range 1..99). Each iteration picks one at random.
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
@@ -41,8 +43,14 @@ export const options = {
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const EMAIL = __ENV.EMAIL || 'buyer1@demo.hvostid';
 const PASSWORD = __ENV.PASSWORD || 'demo1234';
-// Demo seed owns ids 1..99 in every service; pick from a sane subset.
-const LISTING_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+// Demo seed owns ids 1..99 in every service; default to the full range so
+// the passport-lookup cache is meaningfully exercised. Override via env
+// when running against a non-demo dataset.
+const DEFAULT_LISTING_IDS = Array.from({ length: 99 }, (_, i) => i + 1).join(',');
+const LISTING_IDS = (__ENV.LISTING_IDS || DEFAULT_LISTING_IDS)
+  .split(',')
+  .map((s) => parseInt(s.trim(), 10))
+  .filter((n) => Number.isInteger(n) && n > 0);
 
 export function setup() {
   const token = login(BASE_URL, EMAIL, PASSWORD);

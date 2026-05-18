@@ -64,6 +64,14 @@ EMAIL=loadtest-seller@example PASSWORD='...' PASSPORT_ID=12 \
   k6 run k6/create-listing.js
 ```
 
+Переопределить список listing id для сценария match-score (полезно,
+когда на целевом стенде нет демо-диапазона `1..99`):
+
+```bash
+LISTING_IDS='101,102,103' EMAIL=loadtest-buyer@example PASSWORD='...' \
+  k6 run k6/match-score.js
+```
+
 ## Тюнинг порогов
 
 Пороги заданы в блоке `options.thresholds` каждого скрипта и помечены
