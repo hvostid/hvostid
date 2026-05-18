@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Shared logging config for every Spring Boot service in the project.
+
+    Each service includes this file from its own `logback-spring.xml` after declaring
+    `serviceName` via `<springProperty>`. The MDC keys `requestId` and `userId` are
+    populated by RequestIdMdcFilter and UserIdMdcFilter in `common`.
+
+    Profiles:
+      - `local`  : human-readable pattern, useful when running services from the IDE.
+      - any other profile (including no profile and `prod`): JSON via LogstashEncoder
+        so ELK / Loki / Grafana can ingest the stream directly.
+
+    Root level is taken from the env var `LOG_LEVEL` (default INFO).
+-->
+<included>
+    <!-- LOG_LEVEL env var controls root level (e.g. LOG_LEVEL=DEBUG ./service). -->
+    <springProperty scope="context" name="LOG_LEVEL" source="log.level" defaultValue="INFO"/>
+
+    <springProfile name="local">
+        <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} %-5level [${serviceName:-app}] [%X{requestId:-}] [user=%X{userId:-anon}] %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+    </springProfile>
+
+    <springProfile name="!local">
+        <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <!-- Do not leak logback context properties (LOG_LEVEL etc.) or tags into the JSON. -->
+                <includeContext>false</includeContext>
+                <includeTags>false</includeTags>
+                <!-- Promote MDC keys to top-level JSON fields; only requestId and userId are listed
+                     so accidental MDC puts elsewhere do not end up in production log output. -->
+                <includeMdc>false</includeMdc>
+                <includeMdcKeyName>requestId</includeMdcKeyName>
+                <includeMdcKeyName>userId</includeMdcKeyName>
+                <customFields>{"service":"${serviceName:-app}"}</customFields>
+                <fieldNames>
+                    <timestamp>timestamp</timestamp>
+                    <message>message</message>
+                    <logger>logger</logger>
+                    <thread>thread</thread>
+                    <levelValue>[ignore]</levelValue>
+                    <version>[ignore]</version>
+                </fieldNames>
+            </encoder>
+        </appender>
+    </springProfile>
+
+    <root level="${LOG_LEVEL}">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</included>

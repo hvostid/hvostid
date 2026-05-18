@@ -25,6 +25,7 @@ postgres-image = "postgres:18-alpine"
 minio-image = "minio/minio:RELEASE.2025-09-07T16-13-09Z"
 resilience4j = "2.2.0"
 caffeine = "3.2.2"
+logstash-logback-encoder = "8.0"
 
 [libraries]
 # Spring Boot starters
@@ -71,6 +72,7 @@ spring-boot-autoconfigure = { module = "org.springframework.boot:spring-boot-aut
 
 # Logging
 slf4j-api = { module = "org.slf4j:slf4j-api" }
+logstash-logback-encoder = { module = "net.logstash.logback:logstash-logback-encoder", version.ref = "logstash-logback-encoder" }
 
 # Bean Validation runtime (tests in `common`)
 hibernate-validator = { module = "org.hibernate.validator:hibernate-validator" }

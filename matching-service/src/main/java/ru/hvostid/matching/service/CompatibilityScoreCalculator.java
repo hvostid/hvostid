@@ -83,7 +83,7 @@ public class CompatibilityScoreCalculator {
     private FactorScore scoreChildren(BuyerQuestionnaire q, PetContext pet) {
         int max = CompatibilityFactor.CHILDREN.maxScore();
         if (!Boolean.TRUE.equals(q.getHasChildren())) {
-            return FactorScore.of(CompatibilityFactor.CHILDREN, max, "No children reported — no child-safety concerns");
+            return FactorScore.of(CompatibilityFactor.CHILDREN, max, "No children reported - no child-safety concerns");
         }
 
         if (!pet.passportAvailable()
@@ -93,7 +93,7 @@ public class CompatibilityScoreCalculator {
             return FactorScore.of(
                     CompatibilityFactor.CHILDREN,
                     neutral,
-                    "Passport temperament unavailable — moderate child compatibility assumed");
+                    "Passport temperament unavailable - moderate child compatibility assumed");
         }
 
         String temp = pet.temperament().toLowerCase(Locale.ROOT);
@@ -113,7 +113,7 @@ public class CompatibilityScoreCalculator {
             comment = "Nervous temperament may need careful introduction to children";
         } else {
             score = 10;
-            comment = "Neutral temperament — supervise interactions with children";
+            comment = "Neutral temperament - supervise interactions with children";
         }
         return FactorScore.of(CompatibilityFactor.CHILDREN, clamp(score, max), comment);
     }
@@ -134,7 +134,7 @@ public class CompatibilityScoreCalculator {
             return FactorScore.critical(
                     CompatibilityFactor.ALLERGIES,
                     2,
-                    "Reported allergies conflict with this species or breed — high risk");
+                    "Reported allergies conflict with this species or breed - high risk");
         }
 
         return FactorScore.of(
@@ -243,7 +243,7 @@ public class CompatibilityScoreCalculator {
     }
 
     private static int clampAttentionIndex(int attentionNeeds) {
-        return Math.max(0, Math.min(2, attentionNeeds - 1));
+        return Math.clamp(attentionNeeds - 1, 0, 2);
     }
 
     private static int workScheduleIndex(WorkSchedule schedule) {

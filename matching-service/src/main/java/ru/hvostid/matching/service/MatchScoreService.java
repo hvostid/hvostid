@@ -120,7 +120,7 @@ public class MatchScoreService {
     /**
      * Scores a single listing snapshot against a pre-loaded questionnaire without
      * fetching the listing again. Returns the raw {@link CompatibilityResult} since
-     * recommendations only need the score and level — summary / tips / adaptation
+     * recommendations only need the score and level - summary / tips / adaptation
      * plan are produced lazily per match-score request, not per recommendation.
      */
     CompatibilityResult scoreSnapshot(BuyerQuestionnaire questionnaire, ListingSnapshot listing, String requestId) {

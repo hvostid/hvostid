@@ -7,10 +7,12 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.context.annotation.Bean;
 import ru.hvostid.common.exception.GlobalErrorHandler;
 import ru.hvostid.common.web.RequestIdMdcFilter;
+import ru.hvostid.common.web.UserIdMdcFilter;
 
 /**
- * Auto-registers the shared RFC 7807 error handler and the {@code X-Request-Id} -> MDC
- * filter for every Spring Boot service that depends on {@code common}. Listed in
+ * Auto-registers the shared RFC 7807 error handler and the MDC-population filters
+ * ({@code X-Request-Id} -> {@code requestId}, {@code X-User-Id} -> {@code userId}) for
+ * every Spring Boot service that depends on {@code common}. Listed in
  * {@code META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports}.
  */
 @AutoConfiguration
@@ -25,6 +27,12 @@ public class HvostidErrorAutoConfiguration {
     @ConditionalOnMissingBean
     public RequestIdMdcFilter requestIdMdcFilter() {
         return new RequestIdMdcFilter();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public UserIdMdcFilter userIdMdcFilter() {
+        return new UserIdMdcFilter();
     }
 
     @Bean
