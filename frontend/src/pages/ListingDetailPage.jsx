@@ -376,17 +376,22 @@ function AuthenticatedImage({ passportId, document }) {
     const [failed, setFailed] = useState(false);
 
     useEffect(() => {
-        let revoked = false;
+        const controller = new AbortController();
         let objectUrl = null;
-        api.get(`/passports/${passportId}/docs/${document.id}`, { responseType: 'blob' })
+        api.get(`/passports/${passportId}/docs/${document.id}`, {
+            responseType: 'blob',
+            signal: controller.signal,
+        })
             .then((res) => {
-                if (revoked) return;
                 objectUrl = URL.createObjectURL(res.data);
                 setUrl(objectUrl);
             })
-            .catch(() => setFailed(true));
+            .catch((err) => {
+                if (err.name === 'CanceledError') return;
+                setFailed(true);
+            });
         return () => {
-            revoked = true;
+            controller.abort();
             if (objectUrl) URL.revokeObjectURL(objectUrl);
         };
     }, [passportId, document.id]);
