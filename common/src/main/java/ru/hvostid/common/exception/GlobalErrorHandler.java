@@ -29,7 +29,7 @@ import ru.hvostid.common.dto.ProblemDetails;
  * {@link ru.hvostid.common.web.RequestIdMdcFilter}.
  */
 @RestControllerAdvice
-@Order
+@Order(Ordered.LOWEST_PRECEDENCE)
 public class GlobalErrorHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalErrorHandler.class);
 
@@ -115,8 +115,13 @@ public class GlobalErrorHandler {
 
     @ExceptionHandler({MethodArgumentTypeMismatchException.class, IllegalArgumentException.class})
     public ResponseEntity<ProblemDetails> handleIllegalArgument(Exception ex, HttpServletRequest request) {
-        log.debug("Illegal argument at {}: {}", request.getRequestURI(), ex.getMessage());
-        return problem(HttpStatus.BAD_REQUEST, ValidationException.TYPE, "Bad request", ex.getMessage(), null, request);
+        String detail = ex.getMessage();
+        if (ex instanceof MethodArgumentTypeMismatchException mismatch) {
+            // Spring's default message embeds Java type names; produce a client-friendly version.
+            detail = String.format("Parameter '%s' has invalid value '%s'", mismatch.getName(), mismatch.getValue());
+        }
+        log.debug("Illegal argument at {}: {}", request.getRequestURI(), detail);
+        return problem(HttpStatus.BAD_REQUEST, ValidationException.TYPE, "Bad request", detail, null, request);
     }
 
     @ExceptionHandler(Exception.class)

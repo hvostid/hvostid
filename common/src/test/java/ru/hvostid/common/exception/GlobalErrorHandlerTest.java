@@ -12,11 +12,13 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import ru.hvostid.common.dto.ProblemDetails;
 import ru.hvostid.common.web.RequestIdMdcFilter;
 
@@ -97,6 +99,25 @@ class GlobalErrorHandlerTest {
         assertThat(body.detail()).isEqualTo("bad input");
         assertThat(body.type()).isEqualTo(ValidationException.TYPE);
     }
+
+    @Test
+    void typeMismatch_returns400_withClientFriendlyDetail() throws Exception {
+        MethodParameter parameter = new MethodParameter(getClass().getDeclaredMethod("dummyHandler", Long.class), 0);
+        MethodArgumentTypeMismatchException ex = new MethodArgumentTypeMismatchException(
+                "abc", Long.class, "id", parameter, new NumberFormatException("For input string: \"abc\""));
+
+        ResponseEntity<ProblemDetails> response = handler.handleIllegalArgument(ex, request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        ProblemDetails body = response.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.detail()).isEqualTo("Parameter 'id' has invalid value 'abc'");
+        // Java class names (java.lang.Long, NumberFormatException) must not leak into the response.
+        assertThat(body.detail()).doesNotContain("Long").doesNotContain("NumberFormatException");
+    }
+
+    @SuppressWarnings("unused")
+    private void dummyHandler(Long id) {}
 
     @Test
     void genericException_returns500_andDoesNotLeakStackTrace() {
