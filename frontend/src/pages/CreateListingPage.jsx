@@ -28,14 +28,14 @@ export default function CreateListingPage() {
 
             if (formData.age && String(formData.age).trim()) {
                 const ageNum = parseInt(formData.age, 10);
-                if (!isNaN(ageNum) && ageNum > 0) {
+                if (!isNaN(ageNum) && ageNum >= 0) {
                     dataToSend.age = ageNum;
                 }
             }
 
             if (formData.price && String(formData.price).trim()) {
                 const priceNum = parseInt(formData.price, 10);
-                if (!isNaN(priceNum) && priceNum > 0) {
+                if (!isNaN(priceNum) && priceNum >= 0) {
                     dataToSend.price = priceNum;
                 }
             }

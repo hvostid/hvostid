@@ -7,13 +7,21 @@ export default function ProfilePage() {
     const { user, hasRole, addRole } = useAuth();
     const [addingRole, setAddingRole] = useState(false);
     const [roleError, setRoleError] = useState('');
+    const [roleSuccess, setRoleSuccess] = useState('');
 
     const handleAddSellerRole = async () => {
         setAddingRole(true);
         setRoleError('');
+        setRoleSuccess('');
+
         try {
             await addRole('SELLER');
-            alert('Теперь вы продавец! Страница обновится.');
+            setRoleSuccess('Поздравляем! Теперь вы продавец. Страница обновится автоматически.');
+
+            // Обновляем страницу через 2 секунды, чтобы пользователь увидел сообщение
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
         } catch (err) {
             console.error('Failed to add SELLER role:', err);
             setRoleError('Не удалось получить роль продавца. Попробуйте позже.');
@@ -76,7 +84,21 @@ export default function ProfilePage() {
                         <p className="text-sm text-gray-600 mb-4">
                             Получите роль продавца, чтобы создавать объявления о продаже питомцев.
                         </p>
-                        {roleError && <div className="mb-4 text-sm text-red-600">{roleError}</div>}
+
+                        {/* Сообщение об успехе */}
+                        {roleSuccess && (
+                            <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md">
+                                {roleSuccess}
+                            </div>
+                        )}
+
+                        {/* Сообщение об ошибке */}
+                        {roleError && (
+                            <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                                {roleError}
+                            </div>
+                        )}
+
                         <button
                             onClick={handleAddSellerRole}
                             disabled={addingRole}

@@ -15,16 +15,52 @@ const STATUS_TABS = [
     { value: 'SOLD', label: 'Проданные' },
 ];
 
+// Расширяем STATUS_ACTIONS с конфигурацией для диалогов
 const STATUS_ACTIONS = {
-    DRAFT: [{ action: 'MODERATION', label: 'Отправить на модерацию', variant: 'primary' }],
+    DRAFT: [
+        {
+            action: 'MODERATION',
+            label: 'Отправить на модерацию',
+            variant: 'primary',
+            confirmTitle: 'Отправить на модерацию',
+            confirmMessage:
+                'После отправки объявление будет проверено модератором. Вы не сможете его редактировать до завершения проверки.',
+        },
+    ],
     MODERATION: [],
     PUBLISHED: [
-        { action: 'ARCHIVED', label: 'Архивировать', variant: 'warning' },
-        { action: 'SOLD', label: 'Пометить как проданное', variant: 'success' },
+        {
+            action: 'ARCHIVED',
+            label: 'Архивировать',
+            variant: 'warning',
+            confirmTitle: 'Архивировать объявление',
+            confirmMessage:
+                'Объявление будет скрыто из каталога. Вы можете восстановить его позже.',
+        },
+        {
+            action: 'SOLD',
+            label: 'Пометить как проданное',
+            variant: 'success',
+            confirmTitle: 'Пометить как проданное',
+            confirmMessage: 'Объявление будет помечено как проданное и скрыто из каталога.',
+        },
     ],
     REJECTED: [
-        { action: 'MODERATION', label: 'Отправить на повторную модерацию', variant: 'primary' },
-        { action: 'DRAFT', label: 'Вернуть в черновики', variant: 'secondary' },
+        {
+            action: 'MODERATION',
+            label: 'Отправить на повторную модерацию',
+            variant: 'primary',
+            confirmTitle: 'Отправить на модерацию',
+            confirmMessage: 'После отправки объявление будет проверено модератором.',
+        },
+        {
+            action: 'DRAFT',
+            label: 'Вернуть в черновики',
+            variant: 'secondary',
+            confirmTitle: 'Вернуть в черновики',
+            confirmMessage:
+                'Объявление будет перемещено в черновики. Вы сможете отредактировать его позже.',
+        },
     ],
     ARCHIVED: [],
     SOLD: [],
@@ -77,42 +113,14 @@ export default function MyListingsPage() {
         }
     };
 
-    const openConfirmDialog = (listingId, newStatus) => {
-        // Определяем заголовок и сообщение прямо при вызове setConfirmDialog
-        if (newStatus === 'MODERATION') {
-            setConfirmDialog({
-                isOpen: true,
-                listingId,
-                newStatus,
-                title: 'Отправить на модерацию',
-                message:
-                    'После отправки объявление будет проверено модератором. Вы не сможете его редактировать до завершения проверки.',
-            });
-        } else if (newStatus === 'ARCHIVED') {
-            setConfirmDialog({
-                isOpen: true,
-                listingId,
-                newStatus,
-                title: 'Архивировать объявление',
-                message: 'Объявление будет скрыто из каталога. Вы можете восстановить его позже.',
-            });
-        } else if (newStatus === 'SOLD') {
-            setConfirmDialog({
-                isOpen: true,
-                listingId,
-                newStatus,
-                title: 'Пометить как проданное',
-                message: 'Объявление будет помечено как проданное и скрыто из каталога.',
-            });
-        } else {
-            setConfirmDialog({
-                isOpen: true,
-                listingId,
-                newStatus,
-                title: 'Изменить статус',
-                message: 'Вы уверены?',
-            });
-        }
+    const openConfirmDialog = (listingId, action) => {
+        setConfirmDialog({
+            isOpen: true,
+            listingId,
+            newStatus: action.action,
+            title: action.confirmTitle,
+            message: action.confirmMessage,
+        });
     };
 
     const handleConfirm = async () => {
@@ -232,7 +240,7 @@ export default function MyListingsPage() {
                                             <button
                                                 key={action.action}
                                                 onClick={() =>
-                                                    openConfirmDialog(listing.id, action.action)
+                                                    openConfirmDialog(listing.id, action)
                                                 }
                                                 disabled={actionLoading === listing.id}
                                                 className={`

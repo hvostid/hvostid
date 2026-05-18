@@ -1,6 +1,20 @@
 // components/ConfirmDialog.jsx
-export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, message }) {
+export default function ConfirmDialog({
+    isOpen,
+    onClose,
+    onConfirm,
+    title,
+    message,
+    confirmLabel = 'Подтвердить',
+    cancelLabel = 'Отмена',
+    confirmVariant = 'danger', // 'danger' (красный) или 'primary' (синий)
+}) {
     if (!isOpen) return null;
+
+    const confirmButtonClass =
+        confirmVariant === 'danger'
+            ? 'px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md'
+            : 'px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md';
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -14,13 +28,10 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, messa
                         onClick={onClose}
                         className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
                     >
-                        Отмена
+                        {cancelLabel}
                     </button>
-                    <button
-                        onClick={onConfirm}
-                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md"
-                    >
-                        Подтвердить
+                    <button onClick={onConfirm} className={confirmButtonClass}>
+                        {confirmLabel}
                     </button>
                 </div>
             </div>

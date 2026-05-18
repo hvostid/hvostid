@@ -1,5 +1,5 @@
 // pages/PassportFormPage.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getListingById } from '../api/listings';
 import {
@@ -22,8 +22,17 @@ const GENDER_OPTIONS = [
 export default function PassportFormPage() {
     const { id: listingId } = useParams();
     const navigate = useNavigate();
+
+    const tempIdCounter = useRef(0);
+    const generateTempId = () => {
+        tempIdCounter.current += 1;
+        return `temp_${Date.now()}_${tempIdCounter.current}`;
+    };
+
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [error, setError] = useState(null);
+    const [successMessage, setSuccessMessage] = useState(null);
     const [passportId, setPassportId] = useState(null);
     const [trustScore, setTrustScore] = useState(null);
     const [formData, setFormData] = useState({
@@ -68,8 +77,9 @@ export default function PassportFormPage() {
                     const trust = await getTrustScore(listing.passportId);
                     setTrustScore(trust);
                 }
-            } catch (error) {
-                console.error('Failed to load passport:', error);
+            } catch (err) {
+                console.error('Failed to load passport:', err);
+                setError('Не удалось загрузить данные паспорта. Пожалуйста, попробуйте позже.');
             } finally {
                 setLoading(false);
             }
@@ -79,6 +89,9 @@ export default function PassportFormPage() {
 
     const handleSave = async () => {
         setSaving(true);
+        setError(null);
+        setSuccessMessage(null);
+
         try {
             const passportData = { ...formData, vaccinations };
             const saved = passportId
@@ -87,10 +100,13 @@ export default function PassportFormPage() {
             setPassportId(saved.id);
             const trust = await getTrustScore(saved.id);
             setTrustScore(trust);
-            alert('Паспорт сохранён');
-        } catch (error) {
-            console.error('Failed to save passport:', error);
-            alert('Ошибка сохранения паспорта');
+            setSuccessMessage('Паспорт успешно сохранён!');
+
+            // Скрываем сообщение через 3 секунды
+            setTimeout(() => setSuccessMessage(null), 3000);
+        } catch (err) {
+            console.error('Failed to save passport:', err);
+            setError('Ошибка при сохранении паспорта. Проверьте все поля и попробуйте снова.');
         } finally {
             setSaving(false);
         }
@@ -98,13 +114,14 @@ export default function PassportFormPage() {
 
     const addVaccination = () => {
         if (!newVaccination.name || !newVaccination.date) {
-            alert('Заполните название и дату прививки');
+            setError('Заполните название и дату прививки');
+            setTimeout(() => setError(null), 3000);
             return;
         }
         setVaccinations([
             ...vaccinations,
             {
-                id: Date.now(),
+                id: generateTempId(),
                 name: newVaccination.name,
                 date: newVaccination.date,
                 nextDate: newVaccination.nextDate || null,
@@ -112,24 +129,34 @@ export default function PassportFormPage() {
             },
         ]);
         setNewVaccination({ name: '', date: '', nextDate: '' });
+        setSuccessMessage('Прививка добавлена');
+        setTimeout(() => setSuccessMessage(null), 2000);
     };
 
     const removeVaccination = (index) => {
         setVaccinations(vaccinations.filter((_, i) => i !== index));
+        setSuccessMessage('Прививка удалена');
+        setTimeout(() => setSuccessMessage(null), 2000);
     };
 
     const handleFileUpload = async (file) => {
         if (!passportId) {
-            alert('Сначала сохраните паспорт');
+            setError('Сначала сохраните паспорт');
+            setTimeout(() => setError(null), 3000);
             return;
         }
         setUploading(true);
+        setError(null);
+
         try {
             const doc = await uploadDocument(passportId, file, 'PHOTO');
             setDocuments([...documents, doc]);
-        } catch (error) {
-            console.error('Failed to upload file:', error);
-            alert('Ошибка загрузки файла');
+            setSuccessMessage('Файл успешно загружен');
+            setTimeout(() => setSuccessMessage(null), 2000);
+        } catch (err) {
+            console.error('Failed to upload file:', err);
+            setError('Ошибка загрузки файла. Попробуйте ещё раз.');
+            setTimeout(() => setError(null), 3000);
         } finally {
             setUploading(false);
         }
@@ -175,6 +202,20 @@ export default function PassportFormPage() {
                     </div>
                 )}
             </div>
+
+            {/* Сообщение об ошибке */}
+            {error && (
+                <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                    {error}
+                </div>
+            )}
+
+            {/* Сообщение об успехе */}
+            {successMessage && (
+                <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md">
+                    {successMessage}
+                </div>
+            )}
 
             <div className="bg-white rounded-lg shadow p-6 space-y-8">
                 {/* Основная информация */}
@@ -456,9 +497,12 @@ export default function PassportFormPage() {
                     try {
                         await deleteDocument(passportId, deleteDialog.docId);
                         setDocuments(documents.filter((d) => d.id !== deleteDialog.docId));
-                    } catch (error) {
-                        console.error('Failed to delete document:', error);
-                        alert('Ошибка при удалении файла');
+                        setSuccessMessage('Файл удалён');
+                        setTimeout(() => setSuccessMessage(null), 2000);
+                    } catch (err) {
+                        console.error('Failed to delete document:', err);
+                        setError('Ошибка при удалении файла');
+                        setTimeout(() => setError(null), 3000);
                     }
                     setDeleteDialog({ isOpen: false, docId: null, docName: '' });
                 }}
