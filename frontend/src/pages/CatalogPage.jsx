@@ -60,9 +60,10 @@ export default function CatalogPage() {
     // every keystroke does not fire a request.
     const [filters, setFilters] = useState(() => readInitialFilters(searchParams));
     const [searchInput, setSearchInput] = useState(filters.q);
-    const [page, setPage] = useState(() =>
-        Math.max(0, parseInt(searchParams.get('page') ?? '0', 10))
-    );
+    const [page, setPage] = useState(() => {
+        const parsed = parseInt(searchParams.get('page') ?? '0', 10);
+        return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+    });
 
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -105,10 +106,20 @@ export default function CatalogPage() {
             .then((res) => setData(res.data))
             .catch((err) => {
                 if (err.name === 'CanceledError') return;
-                setError(err.response?.data?.detail || err.message || 'Failed to load listings');
+                // problem+json `detail` may also arrive as an object/array (e.g. when the
+                // server bundles field errors). Always coerce to a string so React never
+                // tries to render a raw object.
+                const raw = err.response?.data?.detail ?? err.message;
+                const message = typeof raw === 'string' && raw ? raw : 'Failed to load listings';
+                setError(message);
                 setData(null);
             })
-            .finally(() => setLoading(false));
+            .finally(() => {
+                // Skip the flip when the request was aborted by a follow-up filter change:
+                // otherwise the previous request's `finally` clears the loading state while
+                // the new one is still in flight, causing a spinner flicker.
+                if (!controller.signal.aborted) setLoading(false);
+            });
 
         return () => controller.abort();
     }, [filters, page]);
