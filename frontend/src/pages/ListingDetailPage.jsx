@@ -141,7 +141,10 @@ export default function ListingDetailPage() {
 
     const isOwner = isAuthenticated && listing && user?.id === listing.sellerId;
     const isModerator = hasRole('MODERATOR') || hasRole('ADMIN');
-    const canSeeDocs = isOwner || isModerator;
+    // Buyers see photos via the presigned URL embedded in each document
+    // payload; only owners and moderators see the private documents section
+    // (vaccination certs, vet records, ...).
+    const canSeeAllDocs = isOwner || isModerator;
 
     if (listingLoading) {
         return <ListingDetailSkeleton />;
@@ -179,10 +182,9 @@ export default function ListingDetailPage() {
             <article className="space-y-6">
                 <Header listing={listing} isOwner={isOwner} />
                 <PhotoGallery
-                    passportId={listing.passportId}
                     documents={documents}
-                    restricted={documentsRestricted}
-                    canSeeDocs={canSeeDocs}
+                    documentsRestricted={documentsRestricted}
+                    hasPassportId={Boolean(listing.passportId)}
                 />
                 <MainInfo listing={listing} />
                 <PassportBlock
@@ -190,8 +192,8 @@ export default function ListingDetailPage() {
                     restricted={passportRestricted}
                     hasPassportId={Boolean(listing.passportId)}
                 />
-                {canSeeDocs && documents && documents.length > 0 && (
-                    <DocumentsBlock documents={documents} passportId={listing.passportId} />
+                {canSeeAllDocs && documents && documents.length > 0 && (
+                    <DocumentsBlock documents={documents} />
                 )}
             </article>
 
@@ -342,19 +344,27 @@ function PassportBlock({ passport, restricted, hasPassportId }) {
     );
 }
 
-function PhotoGallery({ passportId, documents, restricted, canSeeDocs }) {
-    const photos = useMemo(() => (documents ?? []).filter((d) => d.type === 'PHOTO'), [documents]);
+function PhotoGallery({ documents, documentsRestricted, hasPassportId }) {
+    // The backend includes a presigned MinIO downloadUrl on every document
+    // the caller is allowed to see (PHOTO documents on PUBLISHED listings
+    // are visible to any authenticated viewer; private documents stay
+    // restricted to the owner, MODERATOR, and ADMIN). The URL has its
+    // credentials in the query string, so we hand it straight to <img src>
+    // — no XHR, no blob URLs, browser cache + native lazy-loading apply.
+    //
+    // Backwards-compat: when the backend has not been updated yet, no
+    // document carries a downloadUrl. The filter drops those, so the
+    // gallery degrades to the "No photos uploaded" plate.
+    const photos = useMemo(
+        () => (documents ?? []).filter((d) => d.type === 'PHOTO' && d.downloadUrl),
+        [documents]
+    );
 
-    // The document download endpoint requires an Authorization header that an
-    // <img src> request cannot send. So gallery thumbnails are only loaded for
-    // viewers that can also legitimately fetch the document list (owners and
-    // moderators) — they get blob URLs via authenticated XHR. Buyers see no
-    // gallery section instead of broken thumbnails.
-    if (!canSeeDocs) {
+    if (!hasPassportId) {
         return null;
     }
 
-    if (restricted || photos.length === 0) {
+    if (documentsRestricted || photos.length === 0) {
         return (
             <section className="aspect-[4/3] bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 text-sm">
                 No photos uploaded
@@ -365,36 +375,14 @@ function PhotoGallery({ passportId, documents, restricted, canSeeDocs }) {
     return (
         <section className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {photos.map((photo) => (
-                <AuthenticatedImage key={photo.id} passportId={passportId} document={photo} />
+                <PhotoTile key={photo.id} photo={photo} />
             ))}
         </section>
     );
 }
 
-function AuthenticatedImage({ passportId, document }) {
-    const [url, setUrl] = useState(null);
+function PhotoTile({ photo }) {
     const [failed, setFailed] = useState(false);
-
-    useEffect(() => {
-        const controller = new AbortController();
-        let objectUrl = null;
-        api.get(`/passports/${passportId}/docs/${document.id}`, {
-            responseType: 'blob',
-            signal: controller.signal,
-        })
-            .then((res) => {
-                objectUrl = URL.createObjectURL(res.data);
-                setUrl(objectUrl);
-            })
-            .catch((err) => {
-                if (err.name === 'CanceledError') return;
-                setFailed(true);
-            });
-        return () => {
-            controller.abort();
-            if (objectUrl) URL.revokeObjectURL(objectUrl);
-        };
-    }, [passportId, document.id]);
 
     if (failed) {
         return (
@@ -406,20 +394,18 @@ function AuthenticatedImage({ passportId, document }) {
 
     return (
         <div className="aspect-square bg-gray-100 rounded-md overflow-hidden">
-            {url ? (
-                <img
-                    src={url}
-                    alt={document.originalFilename || 'Pet photo'}
-                    className="w-full h-full object-cover"
-                />
-            ) : (
-                <div className="w-full h-full animate-pulse bg-gray-200" />
-            )}
+            <img
+                src={photo.downloadUrl}
+                alt={photo.originalFilename || 'Pet photo'}
+                loading="lazy"
+                className="w-full h-full object-cover"
+                onError={() => setFailed(true)}
+            />
         </div>
     );
 }
 
-function DocumentsBlock({ documents, passportId }) {
+function DocumentsBlock({ documents }) {
     const otherDocs = documents.filter((d) => d.type !== 'PHOTO');
     if (otherDocs.length === 0) return null;
 
@@ -438,11 +424,7 @@ function DocumentsBlock({ documents, passportId }) {
                             </p>
                             <p className="text-xs text-gray-500">{doc.originalFilename}</p>
                         </div>
-                        <DocumentDownloadButton
-                            passportId={passportId}
-                            documentId={doc.id}
-                            filename={doc.originalFilename}
-                        />
+                        <DocumentDownloadLink doc={doc} />
                     </li>
                 ))}
             </ul>
@@ -450,38 +432,24 @@ function DocumentsBlock({ documents, passportId }) {
     );
 }
 
-function DocumentDownloadButton({ passportId, documentId, filename }) {
-    const [busy, setBusy] = useState(false);
-
-    const handleDownload = async () => {
-        if (busy) return;
-        setBusy(true);
-        try {
-            const res = await api.get(`/passports/${passportId}/docs/${documentId}`, {
-                responseType: 'blob',
-            });
-            const blobUrl = URL.createObjectURL(res.data);
-            const a = window.document.createElement('a');
-            a.href = blobUrl;
-            a.download = filename || `document-${documentId}`;
-            window.document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(blobUrl);
-        } finally {
-            setBusy(false);
-        }
-    };
-
+function DocumentDownloadLink({ doc }) {
+    // The backend now ships a presigned MinIO URL on the document, so a plain
+    // anchor is enough — no blob hop, no race between revokeObjectURL and
+    // the synthetic click. The link opens in a new tab so the original page
+    // is preserved if the browser chooses to navigate rather than download.
+    if (!doc.downloadUrl) {
+        return <span className="text-xs text-gray-400">Unavailable</span>;
+    }
     return (
-        <button
-            type="button"
-            onClick={handleDownload}
-            disabled={busy}
-            className="text-xs text-indigo-600 hover:underline disabled:opacity-50"
+        <a
+            href={doc.downloadUrl}
+            download={doc.originalFilename || `document-${doc.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-indigo-600 hover:underline"
         >
-            {busy ? 'Downloading…' : 'Download'}
-        </button>
+            Download
+        </a>
     );
 }
 
