@@ -14,8 +14,9 @@
     Root level is taken from the env var `LOG_LEVEL` (default INFO).
 -->
 <included>
-    <!-- LOG_LEVEL env var controls root level (e.g. LOG_LEVEL=DEBUG ./service). -->
-    <springProperty scope="context" name="LOG_LEVEL" source="log.level" defaultValue="INFO"/>
+    <!-- LOG_LEVEL env var controls root level (e.g. LOG_LEVEL=DEBUG ./service).
+         Source is the literal env-var name to bypass Spring's relaxed-binding rules. -->
+    <springProperty scope="context" name="LOG_LEVEL" source="LOG_LEVEL" defaultValue="INFO"/>
 
     <springProfile name="local">
         <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
@@ -31,9 +32,6 @@
                 <!-- Do not leak logback context properties (LOG_LEVEL etc.) or tags into the JSON. -->
                 <includeContext>false</includeContext>
                 <includeTags>false</includeTags>
-                <!-- Promote MDC keys to top-level JSON fields; only requestId and userId are listed
-                     so accidental MDC puts elsewhere do not end up in production log output. -->
-                <includeMdc>false</includeMdc>
                 <includeMdcKeyName>requestId</includeMdcKeyName>
                 <includeMdcKeyName>userId</includeMdcKeyName>
                 <customFields>{"service":"${serviceName:-app}"}</customFields>

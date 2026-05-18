@@ -27,17 +27,13 @@ public class UserIdMdcFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String userId = request.getHeader(SecurityHeaders.USER_ID);
-        boolean set = false;
         if (userId != null && !userId.isBlank()) {
             MDC.put(MDC_KEY, userId);
-            set = true;
         }
         try {
             chain.doFilter(request, response);
         } finally {
-            if (set) {
-                MDC.remove(MDC_KEY);
-            }
+            MDC.remove(MDC_KEY);
         }
     }
 }
