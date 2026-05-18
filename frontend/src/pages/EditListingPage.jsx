@@ -85,12 +85,6 @@ export default function EditListingPage() {
                 </div>
             )}
 
-            {error && (
-                <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
-                    {error}
-                </div>
-            )}
-
             <div className="bg-white rounded-lg shadow p-6">
                 <ListingForm
                     initialData={listing}

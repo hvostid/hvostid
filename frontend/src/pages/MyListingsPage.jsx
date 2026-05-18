@@ -15,7 +15,6 @@ const STATUS_TABS = [
     { value: 'SOLD', label: 'Проданные' },
 ];
 
-// Расширяем STATUS_ACTIONS с конфигурацией для диалогов
 const STATUS_ACTIONS = {
     DRAFT: [
         {
@@ -142,10 +141,10 @@ export default function MyListingsPage() {
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Мои объявления</h1>
+                <h1 className="text-xl font-bold text-gray-900">Мои объявления</h1>
                 <Link
                     to="/my-listings/new"
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                    className="bg-indigo-500 text-white px-2 py-1 rounded-md text-sm hover:bg-indigo-700 transition-colors"
                 >
                     + Создать объявление
                 </Link>
@@ -191,19 +190,19 @@ export default function MyListingsPage() {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Название
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Статус
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Цена
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Дата создания
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Действия
                                 </th>
                             </tr>
@@ -211,24 +210,24 @@ export default function MyListingsPage() {
                         <tbody className="bg-white divide-y divide-gray-200">
                             {listings.map((listing) => (
                                 <tr key={listing.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4">
+                                    <td className="px-4 py-2">
                                         <Link
                                             to={`/my-listings/${listing.id}/edit`}
-                                            className="text-indigo-600 hover:text-indigo-800 font-medium"
+                                            className="text-gray-600 hover:text-gray-900 text-sm font-medium"
                                         >
                                             {listing.title}
                                         </Link>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-4 py-2">
                                         <StatusBadge status={listing.status} />
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-900">
+                                    <td className="px-4 py-2 text-xs text-gray-900">
                                         {formatPrice(listing.price)}
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                    <td className="px-4 py-2 text-xs text-gray-500">
                                         {formatDate(listing.createdAt)}
                                     </td>
-                                    <td className="px-6 py-4 text-sm space-x-2">
+                                    <td className="px-4 py-2 text-xs space-x-2">
                                         <Link
                                             to={`/my-listings/${listing.id}/edit`}
                                             className="text-indigo-600 hover:text-indigo-900"
@@ -244,9 +243,9 @@ export default function MyListingsPage() {
                                                 }
                                                 disabled={actionLoading === listing.id}
                                                 className={`
-                          ${action.variant === 'primary' ? 'text-green-600 hover:text-green-900' : ''}
-                          ${action.variant === 'warning' ? 'text-yellow-600 hover:text-yellow-900' : ''}
-                          ${action.variant === 'success' ? 'text-blue-600 hover:text-blue-900' : ''}
+                          ${action.variant === 'primary' ? 'text-blue-600 hover:text-blue-900' : ''}
+                          ${action.variant === 'warning' ? 'text-gray-600 hover:text-gray-900' : ''}
+                          ${action.variant === 'success' ? 'text-gray-600 hover:text-gray-900' : ''}
                           ${action.variant === 'secondary' ? 'text-gray-600 hover:text-gray-900' : ''}
                           hover:underline disabled:opacity-50
                         `}
@@ -260,7 +259,7 @@ export default function MyListingsPage() {
                                         {listing.passportId && (
                                             <Link
                                                 to={`/my-listings/${listing.id}/passport`}
-                                                className="text-purple-600 hover:text-purple-900 hover:underline"
+                                                className="text-indigo-600 hover:text-indigo-900 hover:underline"
                                             >
                                                 Паспорт
                                             </Link>
