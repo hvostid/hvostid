@@ -2,30 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import Pagination from '../components/Pagination';
+import { FLAG_REASON_LABEL } from '../constants/moderation';
+import { extractDetail, formatDateTime } from '../utils/format';
 
 const PAGE_SIZE = 20;
-
-const REASON_LABEL = {
-    FAKE_INFO: 'Fake information',
-    ANIMAL_ABUSE: 'Animal abuse',
-    SCAM: 'Scam',
-    INAPPROPRIATE: 'Inappropriate content',
-    OTHER: 'Other',
-};
-
-function extractDetail(err, fallback) {
-    const raw = err?.response?.data?.detail ?? err?.message;
-    return typeof raw === 'string' && raw ? raw : fallback;
-}
-
-function formatDate(iso) {
-    if (!iso) return '—';
-    try {
-        return new Date(iso).toLocaleString();
-    } catch {
-        return iso;
-    }
-}
 
 export default function FlagsPage() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -155,13 +135,13 @@ export default function FlagsPage() {
                                                 )}
                                             </td>
                                             <td className="px-3 py-2 text-gray-700">
-                                                {REASON_LABEL[flag.reason] || flag.reason}
+                                                {FLAG_REASON_LABEL[flag.reason] || flag.reason}
                                             </td>
                                             <td className="px-3 py-2 text-gray-700">
                                                 #{flag.reporterId}
                                             </td>
                                             <td className="px-3 py-2 text-gray-600">
-                                                {formatDate(flag.createdAt)}
+                                                {formatDateTime(flag.createdAt)}
                                             </td>
                                             <td className="px-3 py-2 text-right space-x-2 whitespace-nowrap">
                                                 <button

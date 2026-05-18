@@ -2,22 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import Pagination from '../components/Pagination';
+import { extractDetail, formatDateTime } from '../utils/format';
 
 const PAGE_SIZE = 20;
-
-function extractDetail(err, fallback) {
-    const raw = err?.response?.data?.detail ?? err?.message;
-    return typeof raw === 'string' && raw ? raw : fallback;
-}
-
-function formatDate(iso) {
-    if (!iso) return '—';
-    try {
-        return new Date(iso).toLocaleString();
-    } catch {
-        return iso;
-    }
-}
 
 export default function ModerationQueuePage() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -121,7 +108,7 @@ export default function ModerationQueuePage() {
                                             #{listing.sellerId}
                                         </td>
                                         <td className="px-3 py-2 text-gray-600">
-                                            {formatDate(listing.updatedAt ?? listing.createdAt)}
+                                            {formatDateTime(listing.updatedAt ?? listing.createdAt)}
                                         </td>
                                         <td className="px-3 py-2 text-right">
                                             <Link

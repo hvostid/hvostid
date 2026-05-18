@@ -1,34 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import api from '../api/client';
-
-const REASON_LABEL = {
-    FAKE_INFO: 'Fake information',
-    ANIMAL_ABUSE: 'Animal abuse',
-    SCAM: 'Scam',
-    INAPPROPRIATE: 'Inappropriate content',
-    OTHER: 'Other',
-};
-
-const FLAG_STATUS_CLASS = {
-    PENDING: 'bg-amber-100 text-amber-800 ring-amber-200',
-    REVIEWED: 'bg-green-100 text-green-800 ring-green-200',
-    DISMISSED: 'bg-gray-100 text-gray-700 ring-gray-200',
-};
-
-function extractDetail(err, fallback) {
-    const raw = err?.response?.data?.detail ?? err?.message;
-    return typeof raw === 'string' && raw ? raw : fallback;
-}
-
-function formatDate(iso) {
-    if (!iso) return '—';
-    try {
-        return new Date(iso).toLocaleString();
-    } catch {
-        return iso;
-    }
-}
+import { FLAG_REASON_LABEL, FLAG_STATUS_CLASS } from '../constants/moderation';
+import { extractDetail, formatDateTime } from '../utils/format';
 
 export default function ModerationDetailPage() {
     const { id } = useParams();
@@ -156,10 +130,10 @@ export default function ModerationDetailPage() {
                                         : null
                                 }
                             />
-                            <InfoRow label="Submitted" value={formatDate(listing.createdAt)} />
+                            <InfoRow label="Submitted" value={formatDateTime(listing.createdAt)} />
                             <InfoRow
                                 label="Last update"
-                                value={formatDate(listing.updatedAt ?? listing.createdAt)}
+                                value={formatDateTime(listing.updatedAt ?? listing.createdAt)}
                             />
                             <InfoRow label="Passport" value={listing.passportId || '—'} />
                         </dl>
@@ -248,10 +222,10 @@ function FlagsSection({ flags }) {
                         <div className="flex items-center justify-between gap-3 flex-wrap">
                             <div>
                                 <p className="font-medium text-gray-900">
-                                    {REASON_LABEL[flag.reason] || flag.reason}
+                                    {FLAG_REASON_LABEL[flag.reason] || flag.reason}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                    Reporter #{flag.reporterId} · {formatDate(flag.createdAt)}
+                                    Reporter #{flag.reporterId} · {formatDateTime(flag.createdAt)}
                                 </p>
                             </div>
                             <span
