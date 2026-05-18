@@ -3,9 +3,7 @@ services:
     # --- Infrastructure ---
 
     postgres:
-        build:
-            context: .
-            dockerfile: docker/postgres/Dockerfile
+        image: postgres:18-alpine
         container_name: hvostid-postgres
         restart: unless-stopped
         mem_limit: 256m
@@ -14,6 +12,7 @@ services:
             POSTGRES_PASSWORD: ${DB_PASSWORD}
         volumes:
             - postgres-data:/var/lib/postgresql
+            - ./docker/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
         healthcheck:
             test: [ "CMD-SHELL", "pg_isready -U ${DB_USER}" ]
             interval: 5s
@@ -66,6 +65,7 @@ services:
         ports:
             - "8080:8080"
         environment:
+            JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"
             SPRING_PROFILES_ACTIVE: prod
             HVOSTID_CORS_ALLOWED_ORIGINS: ${HVOSTID_CORS_ALLOWED_ORIGINS}
             AUTH_SERVICE_HOST: auth-service
@@ -88,6 +88,7 @@ services:
         restart: unless-stopped
         mem_limit: 512m
         environment:
+            JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"
             SERVER_PORT: 8081
             SPRING_PROFILES_ACTIVE: prod
             DB_HOST: postgres
@@ -110,6 +111,7 @@ services:
         restart: unless-stopped
         mem_limit: 512m
         environment:
+            JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"
             SERVER_PORT: 8082
             SPRING_PROFILES_ACTIVE: prod
             DB_HOST: postgres
@@ -133,6 +135,7 @@ services:
         restart: unless-stopped
         mem_limit: 512m
         environment:
+            JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"
             SERVER_PORT: 8083
             SPRING_PROFILES_ACTIVE: prod
             DB_HOST: postgres
@@ -162,6 +165,7 @@ services:
         restart: unless-stopped
         mem_limit: 512m
         environment:
+            JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"
             SERVER_PORT: 8084
             SPRING_PROFILES_ACTIVE: prod
             DB_HOST: postgres

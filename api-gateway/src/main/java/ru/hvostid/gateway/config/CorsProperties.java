@@ -25,14 +25,17 @@ public record CorsProperties(String allowedOrigins) {
 
     /**
      * Parses a comma-separated origins string (as used in {@code HVOSTID_CORS_ALLOWED_ORIGINS}).
+     * Falls back to {@code http://localhost} when the input is blank or contains no non-empty
+     * entries (for example {@code ", ,"}); an empty list would otherwise disable CORS entirely.
      */
     public static List<String> parseOrigins(String raw) {
         if (raw == null || raw.isBlank()) {
             return List.of("http://localhost");
         }
-        return Arrays.stream(raw.split(","))
+        List<String> origins = Arrays.stream(raw.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .toList();
+        return origins.isEmpty() ? List.of("http://localhost") : origins;
     }
 }
