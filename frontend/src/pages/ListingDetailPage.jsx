@@ -345,16 +345,6 @@ function PassportBlock({ passport, restricted, hasPassportId }) {
 }
 
 function PhotoGallery({ documents, documentsRestricted, hasPassportId }) {
-    // The backend includes a presigned MinIO downloadUrl on every document
-    // the caller is allowed to see (PHOTO documents on PUBLISHED listings
-    // are visible to any authenticated viewer; private documents stay
-    // restricted to the owner, MODERATOR, and ADMIN). The URL has its
-    // credentials in the query string, so we hand it straight to <img src>
-    // — no XHR, no blob URLs, browser cache + native lazy-loading apply.
-    //
-    // Backwards-compat: when the backend has not been updated yet, no
-    // document carries a downloadUrl. The filter drops those, so the
-    // gallery degrades to the "No photos uploaded" plate.
     const photos = useMemo(
         () => (documents ?? []).filter((d) => d.type === 'PHOTO' && d.downloadUrl),
         [documents]
