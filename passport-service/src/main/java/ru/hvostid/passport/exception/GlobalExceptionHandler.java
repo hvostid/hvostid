@@ -1,121 +1,94 @@
 package ru.hvostid.passport.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.HashMap;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.security.authorization.AuthorizationDeniedException;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
-import org.springframework.web.multipart.support.MissingServletRequestPartException;
-import ru.hvostid.common.dto.ErrorResponse;
-import ru.hvostid.common.http.SecurityHeaders;
+import ru.hvostid.common.dto.ProblemDetails;
+import ru.hvostid.common.exception.ForbiddenException;
+import ru.hvostid.common.exception.NotFoundException;
+import ru.hvostid.common.exception.ProblemDetailsFactory;
+import ru.hvostid.common.exception.ValidationException;
 
+/**
+ * Passport-service specific exception mappings. Bean Validation, AccessDenied, body
+ * parsing and the generic fallback are handled by {@code common.exception.GlobalErrorHandler}.
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    private static final String UPLOAD_TYPE = "https://hvostid.example/errors/upload-too-large";
+    private static final String UNSUPPORTED_TYPE = "https://hvostid.example/errors/unsupported-media-type";
+    private static final String UPSTREAM_TYPE = "https://hvostid.example/errors/upstream-unavailable";
+
     @ExceptionHandler(PassportNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(PassportNotFoundException ex, HttpServletRequest request) {
+    public ResponseEntity<ProblemDetails> handleNotFound(PassportNotFoundException ex, HttpServletRequest request) {
         log.debug("Passport not found: {}", ex.getMessage());
-        return error(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+        return ProblemDetailsFactory.problem(
+                HttpStatus.NOT_FOUND, NotFoundException.TYPE, "Passport not found", ex.getMessage(), request);
     }
 
     @ExceptionHandler(ListingServiceUnavailableException.class)
-    public ResponseEntity<ErrorResponse> handleListingServiceUnavailable(
+    public ResponseEntity<ProblemDetails> handleListingServiceUnavailable(
             ListingServiceUnavailableException ex, HttpServletRequest request) {
         log.warn("Listing service unavailable: {}", ex.getMessage());
-        return error(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
+        return ProblemDetailsFactory.problem(
+                HttpStatus.SERVICE_UNAVAILABLE, UPSTREAM_TYPE, "Listing service unavailable", ex.getMessage(), request);
     }
 
     @ExceptionHandler(PassportDocumentNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleDocumentNotFound(
+    public ResponseEntity<ProblemDetails> handleDocumentNotFound(
             PassportDocumentNotFoundException ex, HttpServletRequest request) {
         log.debug("Passport document not found: {}", ex.getMessage());
-        return error(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+        return ProblemDetailsFactory.problem(
+                HttpStatus.NOT_FOUND, NotFoundException.TYPE, "Passport document not found", ex.getMessage(), request);
     }
 
-    @ExceptionHandler({PassportAccessDeniedException.class, AuthorizationDeniedException.class})
-    public ResponseEntity<ErrorResponse> handleAccessDenied(Exception ex, HttpServletRequest request) {
+    @ExceptionHandler(PassportAccessDeniedException.class)
+    public ResponseEntity<ProblemDetails> handleAccessDenied(
+            PassportAccessDeniedException ex, HttpServletRequest request) {
         log.warn("Passport access denied: {}", ex.getMessage());
-        return error(HttpStatus.FORBIDDEN, "Access denied", request);
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidation(
-            MethodArgumentNotValidException ex, HttpServletRequest request) {
-        Map<String, String> fieldErrors = new HashMap<>();
-        ex.getBindingResult()
-                .getFieldErrors()
-                .forEach(error -> fieldErrors.put(error.getField(), error.getDefaultMessage()));
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(
-                        HttpStatus.BAD_REQUEST.value(),
-                        HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                        "Validation failed",
-                        request.getRequestURI(),
-                        request.getHeader(SecurityHeaders.REQUEST_ID),
-                        fieldErrors));
-    }
-
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleUnreadable(
-            HttpMessageNotReadableException ex, HttpServletRequest request) {
-        log.debug("Unreadable request body: {}", ex.getMessage());
-        return error(HttpStatus.BAD_REQUEST, "Malformed request body", request);
-    }
-
-    @ExceptionHandler({
-        MissingServletRequestParameterException.class,
-        MissingServletRequestPartException.class,
-        MethodArgumentTypeMismatchException.class
-    })
-    public ResponseEntity<ErrorResponse> handleBadRequest(Exception ex, HttpServletRequest request) {
-        log.debug("Invalid request: {}", ex.getMessage());
-        return error(HttpStatus.BAD_REQUEST, "Invalid request", request);
+        return ProblemDetailsFactory.problem(
+                HttpStatus.FORBIDDEN, ForbiddenException.TYPE, "Access denied", ex.getMessage(), request);
     }
 
     @ExceptionHandler(InvalidPassportDocumentException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidDocument(
+    public ResponseEntity<ProblemDetails> handleInvalidDocument(
             InvalidPassportDocumentException ex, HttpServletRequest request) {
         log.debug("Invalid passport document: {}", ex.getMessage());
-        return error(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+        return ProblemDetailsFactory.problem(
+                HttpStatus.BAD_REQUEST,
+                ValidationException.TYPE,
+                "Invalid passport document",
+                ex.getMessage(),
+                request);
     }
 
     @ExceptionHandler({PassportDocumentTooLargeException.class, MaxUploadSizeExceededException.class})
-    public ResponseEntity<ErrorResponse> handleDocumentTooLarge(Exception ex, HttpServletRequest request) {
+    public ResponseEntity<ProblemDetails> handleDocumentTooLarge(Exception ex, HttpServletRequest request) {
         log.debug("Passport document too large: {}", ex.getMessage());
-        return error(HttpStatus.CONTENT_TOO_LARGE, "Document file must not exceed 10 MB", request);
+        return ProblemDetailsFactory.problem(
+                HttpStatus.CONTENT_TOO_LARGE,
+                UPLOAD_TYPE,
+                "Upload too large",
+                "Document file must not exceed 10 MB",
+                request);
     }
 
     @ExceptionHandler(UnsupportedPassportDocumentException.class)
-    public ResponseEntity<ErrorResponse> handleUnsupportedDocument(
+    public ResponseEntity<ProblemDetails> handleUnsupportedDocument(
             UnsupportedPassportDocumentException ex, HttpServletRequest request) {
         log.debug("Unsupported passport document: {}", ex.getMessage());
-        return error(HttpStatus.UNSUPPORTED_MEDIA_TYPE, ex.getMessage(), request);
-    }
-
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
-        log.error("Unexpected error", ex);
-        return error(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", request);
-    }
-
-    private static ResponseEntity<ErrorResponse> error(HttpStatus status, String message, HttpServletRequest request) {
-        return ResponseEntity.status(status)
-                .body(new ErrorResponse(
-                        status.value(),
-                        status.getReasonPhrase(),
-                        message,
-                        request.getRequestURI(),
-                        request.getHeader(SecurityHeaders.REQUEST_ID)));
+        return ProblemDetailsFactory.problem(
+                HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                UNSUPPORTED_TYPE,
+                "Unsupported document type",
+                ex.getMessage(),
+                request);
     }
 }

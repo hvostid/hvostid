@@ -143,8 +143,8 @@ class QuestionnaireControllerTest extends AbstractPostgresContainerTest {
                             .content(body))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.status", is(400)))
-                    .andExpect(jsonPath("$.message", is("Validation failed")))
-                    .andExpect(jsonPath("$.fieldErrors.livingArea", notNullValue()));
+                    .andExpect(jsonPath("$.title", is("Validation failed")))
+                    .andExpect(jsonPath("$.errors[?(@.field == 'livingArea')].message", notNullValue()));
         }
 
         @Test

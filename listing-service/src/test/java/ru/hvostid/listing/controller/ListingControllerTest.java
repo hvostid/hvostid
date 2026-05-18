@@ -89,7 +89,8 @@ class ListingControllerTest extends AbstractPostgresContainerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.fieldErrors.title").exists());
+                    .andExpect(
+                            jsonPath("$.errors[?(@.field == 'title')].message").exists());
         }
 
         @Test
@@ -298,7 +299,8 @@ class ListingControllerTest extends AbstractPostgresContainerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(invalidUpdate)))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.fieldErrors.title").value("Title must be between 3 and 255 characters"));
+                    .andExpect(jsonPath("$.errors[?(@.field == 'title')].message")
+                            .value("Title must be between 3 and 255 characters"));
         }
 
         @Test
@@ -313,7 +315,8 @@ class ListingControllerTest extends AbstractPostgresContainerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(invalidUpdate)))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.fieldErrors.price").value("Price must be positive"));
+                    .andExpect(
+                            jsonPath("$.errors[?(@.field == 'price')].message").value("Price must be positive"));
         }
     }
 

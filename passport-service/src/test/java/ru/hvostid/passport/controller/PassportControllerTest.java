@@ -97,8 +97,8 @@ class PassportControllerTest extends AbstractPassportIntegrationTest {
                             .content(body))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.status", is(400)))
-                    .andExpect(jsonPath("$.message", is("Validation failed")))
-                    .andExpect(jsonPath("$.fieldErrors.species", notNullValue()));
+                    .andExpect(jsonPath("$.title", is("Validation failed")))
+                    .andExpect(jsonPath("$.errors[?(@.field == 'species')].message", notNullValue()));
         }
 
         @Test

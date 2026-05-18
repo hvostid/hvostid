@@ -126,7 +126,7 @@ class ListingFlagControllerTest extends AbstractPostgresContainerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.fieldErrors.reason").exists());
+                .andExpect(jsonPath("$.errors[?(@.field == 'reason')].message").exists());
     }
 
     @Test
