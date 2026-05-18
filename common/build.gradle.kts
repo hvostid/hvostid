@@ -21,6 +21,12 @@ dependencies {
     compileOnly(libs.swagger.annotations)
     compileOnly(libs.swagger.models)
 
+    compileOnly(libs.spring.web)
+    compileOnly(libs.spring.webmvc)
+    compileOnly(libs.spring.context)
+    compileOnly(libs.spring.boot.autoconfigure)
+    compileOnly(libs.slf4j.api)
+
     testFixturesApi(libs.spring.boot.starter.test)
     testFixturesApi(libs.spring.boot.testcontainers)
     testFixturesApi(libs.testcontainers.junit)
@@ -28,5 +34,13 @@ dependencies {
     testFixturesRuntimeOnly(libs.postgresql)
 
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.spring.web)
+    testImplementation(libs.spring.webmvc)
+    testImplementation(libs.spring.test)
+    testImplementation(libs.spring.security.core)
+    testImplementation(libs.jakarta.servlet.api)
+    testImplementation(libs.hibernate.validator)
+    testRuntimeOnly(libs.tomcat.embed.el)
     testRuntimeOnly(libs.junit.platform.launcher)
 }

@@ -62,6 +62,20 @@ spring-security-config = { module = "org.springframework.security:spring-securit
 spring-security-web = { module = "org.springframework.security:spring-security-web" }
 spring-security-test = { module = "org.springframework.security:spring-security-test" }
 
+# Spring Framework (used as compileOnly in the `common` library; runtime is provided by service starters)
+spring-web = { module = "org.springframework:spring-web" }
+spring-webmvc = { module = "org.springframework:spring-webmvc" }
+spring-context = { module = "org.springframework:spring-context" }
+spring-test = { module = "org.springframework:spring-test" }
+spring-boot-autoconfigure = { module = "org.springframework.boot:spring-boot-autoconfigure" }
+
+# Logging
+slf4j-api = { module = "org.slf4j:slf4j-api" }
+
+# Bean Validation runtime (tests in `common`)
+hibernate-validator = { module = "org.hibernate.validator:hibernate-validator" }
+tomcat-embed-el = { module = "org.apache.tomcat.embed:tomcat-embed-el" }
+
 # Awaitility
 awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
 

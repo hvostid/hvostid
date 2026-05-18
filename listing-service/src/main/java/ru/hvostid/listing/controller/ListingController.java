@@ -31,6 +31,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.hvostid.common.dto.ErrorResponse;
+import ru.hvostid.common.exception.UnauthorizedException;
 import ru.hvostid.common.security.GatewayPreAuthentication;
 import ru.hvostid.listing.ListingConstants;
 import ru.hvostid.listing.dto.FlagListingRequest;
@@ -42,7 +43,6 @@ import ru.hvostid.listing.dto.ListingUpdateRequest;
 import ru.hvostid.listing.dto.PassportPublishedStatusResponse;
 import ru.hvostid.listing.dto.StatusUpdateRequest;
 import ru.hvostid.listing.entity.ListingStatus;
-import ru.hvostid.listing.exception.UnauthorizedException;
 import ru.hvostid.listing.service.ListingFlagService;
 import ru.hvostid.listing.service.ListingService;
 
