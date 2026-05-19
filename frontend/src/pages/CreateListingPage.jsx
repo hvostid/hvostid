@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createListing } from '../api/listings';
+import { createPassport } from '../api/passports';
 import ListingForm from '../components/ListingForm';
 
 export default function CreateListingPage() {
@@ -14,36 +15,63 @@ export default function CreateListingPage() {
         setError('');
 
         try {
-            const dataToSend = {
+            const today = new Date().toISOString().split('T')[0];
+
+            const passportData = {
+                species: formData.species,
+                breed: formData.breed || null,
+                name: formData.title || 'Временное имя',
+                birthDate: today,
+                gender: 'MALE',
+                color: '',
+                temperament: '',
+                specialNeeds: '',
+                neutered: false,
+                microchipped: false,
+                vaccinations: [],
+            };
+
+            console.log('📤 Creating passport...', passportData);
+            const passport = await createPassport(passportData);
+            const passportId = passport.id;
+            console.log('✅ Passport created with ID:', passportId);
+
+            // Создаём объявление с новым passportId
+            const listingData = {
                 title: formData.title.trim(),
                 description: formData.description.trim(),
                 species: formData.species,
                 city: formData.city.trim(),
-                passportId: '0', // Временное решение, пока паспорт создаётся отдельно
+                passportId: String(passportId),
             };
 
             if (formData.breed?.trim()) {
-                dataToSend.breed = formData.breed.trim();
+                listingData.breed = formData.breed.trim();
             }
 
             if (formData.age && String(formData.age).trim()) {
                 const ageNum = parseInt(formData.age, 10);
-                if (!isNaN(ageNum) && ageNum >= 0) {
-                    dataToSend.age = ageNum;
+                if (!isNaN(ageNum) && ageNum > 0) {
+                    listingData.age = ageNum;
                 }
             }
 
             if (formData.price && String(formData.price).trim()) {
                 const priceNum = parseInt(formData.price, 10);
-                if (!isNaN(priceNum) && priceNum >= 0) {
-                    dataToSend.price = priceNum;
+                if (!isNaN(priceNum) && priceNum > 0) {
+                    listingData.price = priceNum;
                 }
             }
 
-            const newListing = await createListing(dataToSend);
+            console.log('📤 Creating listing with passportId:', passportId);
+
+            const newListing = await createListing(listingData);
+            console.log('✅ Listing created with ID:', newListing.id);
+
+            // Переходим на страницу редактирования паспорта
             navigate(`/my-listings/${newListing.id}/passport`);
         } catch (err) {
-            console.error('Error:', err.response?.data);
+            console.error('❌ Error:', err.response?.data);
 
             if (err.response?.status === 403) {
                 setError('У вас нет прав продавца. Получите роль SELLER в профиле.');
@@ -74,7 +102,7 @@ export default function CreateListingPage() {
                 <ListingForm
                     onSubmit={handleSubmit}
                     isSubmitting={isSubmitting}
-                    submitLabel="Создать и продолжить"
+                    submitLabel="Создать объявление"
                 />
             </div>
         </div>

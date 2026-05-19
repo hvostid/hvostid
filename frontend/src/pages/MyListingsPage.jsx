@@ -25,6 +25,13 @@ const STATUS_ACTIONS = {
             confirmMessage:
                 'После отправки объявление будет проверено модератором. Вы не сможете его редактировать до завершения проверки.',
         },
+        {
+            action: 'DELETE',
+            label: 'Удалить',
+            variant: 'danger',
+            confirmTitle: 'Удалить объявление',
+            confirmMessage: 'Вы уверены? Это действие нельзя отменить.',
+        },
     ],
     MODERATION: [],
     PUBLISHED: [
@@ -43,6 +50,13 @@ const STATUS_ACTIONS = {
             confirmTitle: 'Пометить как проданное',
             confirmMessage: 'Объявление будет помечено как проданное и скрыто из каталога.',
         },
+        {
+            action: 'DELETE',
+            label: 'Удалить',
+            variant: 'danger',
+            confirmTitle: 'Удалить объявление',
+            confirmMessage: 'Вы уверены? Это действие нельзя отменить.',
+        },
     ],
     REJECTED: [
         {
@@ -60,6 +74,13 @@ const STATUS_ACTIONS = {
             confirmMessage:
                 'Объявление будет перемещено в черновики. Вы сможете отредактировать его позже.',
         },
+        {
+            action: 'DELETE',
+            label: 'Удалить',
+            variant: 'danger',
+            confirmTitle: 'Удалить объявление',
+            confirmMessage: 'Вы уверены? Это действие нельзя отменить.',
+        },
     ],
     ARCHIVED: [],
     SOLD: [],
@@ -70,6 +91,7 @@ export default function MyListingsPage() {
     const [loading, setLoading] = useState(true);
     const [activeStatus, setActiveStatus] = useState('ALL');
     const [actionLoading, setActionLoading] = useState(null);
+    const [error, setError] = useState(null);
 
     const [confirmDialog, setConfirmDialog] = useState({
         isOpen: false,
@@ -77,18 +99,21 @@ export default function MyListingsPage() {
         newStatus: null,
         title: '',
         message: '',
+        isDelete: false, // Добавляем флаг для удаления
     });
 
     // Загрузка объявлений при изменении activeStatus
     useEffect(() => {
         const loadListings = async () => {
             setLoading(true);
+            setError(null);
             try {
                 const status = activeStatus === 'ALL' ? null : activeStatus;
                 const data = await getMyListings(status);
                 setListings(data.content || []);
             } catch (error) {
                 console.error('Failed to load listings:', error);
+                setError('Не удалось загрузить объявления');
             } finally {
                 setLoading(false);
             }
@@ -99,6 +124,7 @@ export default function MyListingsPage() {
 
     const handleStatusChange = async (listingId, newStatus) => {
         setActionLoading(listingId);
+        setError(null);
         try {
             await changeListingStatus(listingId, newStatus);
             // Перезагружаем список после изменения статуса
@@ -107,9 +133,22 @@ export default function MyListingsPage() {
             setListings(data.content || []);
         } catch (error) {
             console.error('Failed to change status:', error);
+            setError('Не удалось изменить статус объявления');
         } finally {
             setActionLoading(null);
         }
+    };
+
+    const handleDeleteListing = async (listingId) => {
+        setActionLoading(listingId);
+        setError(null);
+        // await deleteListing(listingId);
+        //  нет отдельного API — можно изменить статус на ARCHIVED
+        await changeListingStatus(listingId, 'ARCHIVED');
+
+        const status = activeStatus === 'ALL' ? null : activeStatus;
+        const data = await getMyListings(status);
+        setListings(data.content || []);
     };
 
     const openConfirmDialog = (listingId, action) => {
@@ -119,12 +158,19 @@ export default function MyListingsPage() {
             newStatus: action.action,
             title: action.confirmTitle,
             message: action.confirmMessage,
+            isDelete: action.action === 'DELETE',
         });
     };
 
     const handleConfirm = async () => {
-        const { listingId, newStatus } = confirmDialog;
-        await handleStatusChange(listingId, newStatus);
+        const { listingId, newStatus, isDelete } = confirmDialog;
+
+        if (isDelete) {
+            await handleDeleteListing(listingId);
+        } else {
+            await handleStatusChange(listingId, newStatus);
+        }
+
         setConfirmDialog({ ...confirmDialog, isOpen: false });
     };
 
@@ -150,6 +196,13 @@ export default function MyListingsPage() {
                 </Link>
             </div>
 
+            {/* Сообщение об ошибке */}
+            {error && (
+                <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+                    {error}
+                </div>
+            )}
+
             <div className="border-b border-gray-200 mb-6">
                 <nav className="flex gap-4 overflow-x-auto">
                     {STATUS_TABS.map((tab) => (
@@ -157,13 +210,13 @@ export default function MyListingsPage() {
                             key={tab.value}
                             onClick={() => setActiveStatus(tab.value)}
                             className={`
-                px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
-                ${
-                    activeStatus === tab.value
-                        ? 'border-indigo-500 text-indigo-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }
-              `}
+                                px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
+                                ${
+                                    activeStatus === tab.value
+                                        ? 'border-indigo-500 text-indigo-600'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                }
+                            `}
                         >
                             {tab.label}
                         </button>
@@ -232,7 +285,7 @@ export default function MyListingsPage() {
                                             to={`/my-listings/${listing.id}/edit`}
                                             className="text-indigo-600 hover:text-indigo-900"
                                         >
-                                            Редактировать
+                                            Ред.
                                         </Link>
 
                                         {STATUS_ACTIONS[listing.status]?.map((action) => (
@@ -243,12 +296,33 @@ export default function MyListingsPage() {
                                                 }
                                                 disabled={actionLoading === listing.id}
                                                 className={`
-                          ${action.variant === 'primary' ? 'text-blue-600 hover:text-blue-900' : ''}
-                          ${action.variant === 'warning' ? 'text-gray-600 hover:text-gray-900' : ''}
-                          ${action.variant === 'success' ? 'text-gray-600 hover:text-gray-900' : ''}
-                          ${action.variant === 'secondary' ? 'text-gray-600 hover:text-gray-900' : ''}
-                          hover:underline disabled:opacity-50
-                        `}
+                                                    ${
+                                                        action.variant === 'primary'
+                                                            ? 'text-blue-600 hover:text-blue-900'
+                                                            : ''
+                                                    }
+                                                    ${
+                                                        action.variant === 'warning'
+                                                            ? 'text-gray-600 hover:text-gray-900'
+                                                            : ''
+                                                    }
+                                                    ${
+                                                        action.variant === 'success'
+                                                            ? 'text-gray-600 hover:text-gray-900'
+                                                            : ''
+                                                    }
+                                                    ${
+                                                        action.variant === 'secondary'
+                                                            ? 'text-gray-600 hover:text-gray-900'
+                                                            : ''
+                                                    }
+                                                    ${
+                                                        action.variant === 'danger'
+                                                            ? 'text-red-600 hover:text-red-900'
+                                                            : ''
+                                                    }
+                                                    hover:underline disabled:opacity-50
+                                                `}
                                             >
                                                 {actionLoading === listing.id
                                                     ? '...'
