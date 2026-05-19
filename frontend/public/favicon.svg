@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <g fill="none" fill-rule="nonzero" stroke="none" stroke-width="none" stroke-linecap="none" stroke-linejoin="miter" stroke-miterlimit="10" stroke-dasharray="" stroke-dashoffset="0" font-family="none" font-weight="none" font-size="none" text-anchor="none" style="mix-blend-mode: normal;" transform="matrix(2.185672, 0, 0, 2.040529, -24.572817, -17.587257)">
+    <g transform="matrix(0.534428, 0, 0, 0.527004, -6.555853, 1.114558)" style="">
+      <rect x="180.06" y="-39.214" width="100" height="100" fill="#000000" stroke-width="0" stroke-linecap="butt" visibility="hidden"/>
+      <path d="M245.229,30.354c-93.584,0 -187.168,47.697 -187.168,47.697v206.353c0,93.795 187.168,175.868 187.168,175.868c0,0 187.169,-82.073 187.169,-175.868v-206.353c0,0 -93.585,-47.697 -187.169,-47.697z" fill="#3949ab" stroke-width="1" stroke-linecap="round"/>
+      <path d="M 246.555 78.8 C 171.547 78.8 99.426 115.1 99.426 115.1 L 99.426 273.463 C 99.426 345.446 246.555 411.259 246.555 411.259 C 246.555 411.259 393.685 345.446 393.685 273.463 L 393.685 115.1 C 393.685 115.1 321.562 78.8 246.555 78.8 Z" fill="#92d6be" stroke-width="1" stroke-linecap="round" style=""/>
+      <ellipse cx="244.106" cy="294.67" rx="57.465" ry="44.935" fill="#f8fffd" stroke-width="0" stroke-linecap="butt" style=""/>
+      <g transform="matrix(1.530676, -0.390041, 0.396748, 1.626315, 208.800323, 201.181961)" fill="#f8fffd" stroke-width="0" stroke-linecap="butt" style="">
+        <ellipse cx="0" cy="0" rx="20" ry="24"/>
+      </g>
+      <g transform="matrix(1.252374, -0.415896, 0.424915, 1.336538, 161.667465, 260.93692)" fill="#f8fffd" stroke-width="0" stroke-linecap="butt" style="">
+        <ellipse cx="0" cy="0" rx="18" ry="22"/>
+      </g>
+      <g transform="matrix(1.530676, 0.390041, -0.396748, 1.626315, 280.895996, 199.773804)" fill="#f8fffd" stroke-width="0" stroke-linecap="butt" style="">
+        <ellipse cx="0" cy="0" rx="20" ry="24"/>
+      </g>
+      <g transform="matrix(1.252374, 0.415896, -0.424915, 1.336538, 328.394073, 259.503418)" fill="#f8fffd" stroke-width="0" stroke-linecap="butt" style="">
+        <ellipse cx="0" cy="0" rx="18" ry="22"/>
+      </g>
+    </g>
+  </g>
+</svg>
