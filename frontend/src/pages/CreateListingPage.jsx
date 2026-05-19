@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createListing } from '../api/listings';
+import { createPassport } from '../api/passports';
 import ListingForm from '../components/ListingForm';
 
 export default function CreateListingPage() {
@@ -14,16 +15,38 @@ export default function CreateListingPage() {
         setError('');
 
         try {
-            const dataToSend = {
+            const today = new Date().toISOString().split('T')[0];
+
+            const passportData = {
+                species: formData.species,
+                breed: formData.breed || null,
+                name: formData.title || 'Временное имя',
+                birthDate: today,
+                gender: 'MALE',
+                color: '',
+                temperament: '',
+                specialNeeds: '',
+                neutered: false,
+                microchipped: false,
+                vaccinations: [],
+            };
+
+            console.log('📤 Creating passport...', passportData);
+            const passport = await createPassport(passportData);
+            const passportId = passport.id;
+            console.log('✅ Passport created with ID:', passportId);
+
+            // Создаём объявление с новым passportId
+            const listingData = {
                 title: formData.title.trim(),
                 description: formData.description.trim(),
                 species: formData.species,
                 city: formData.city.trim(),
-                passportId: '0', // Временное решение, пока паспорт создаётся отдельно
+                passportId: String(passportId),
             };
 
             if (formData.breed?.trim()) {
-                dataToSend.breed = formData.breed.trim();
+                listingData.breed = formData.breed.trim();
             }
 
             if (formData.age && String(formData.age).trim()) {
@@ -74,7 +97,7 @@ export default function CreateListingPage() {
                 <ListingForm
                     onSubmit={handleSubmit}
                     isSubmitting={isSubmitting}
-                    submitLabel="Создать и продолжить"
+                    submitLabel="Создать объявление"
                 />
             </div>
         </div>

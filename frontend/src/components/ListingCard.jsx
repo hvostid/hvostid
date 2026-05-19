@@ -1,36 +1,49 @@
 import { Link } from 'react-router-dom';
 import TrustBadge from './TrustBadge';
+import { useState } from 'react';
 
-/**
- * Single listing card for the catalog grid.
- *
- * The current API does not include a photo URL or a denormalized trust score
- * on the listing payload (those live in passport-service / future enrichment
- * endpoints). The card renders a neutral placeholder when no photo is
- * available; `TrustBadge` renders nothing when `trustScore` is unset, so we
- * stay forward-compatible without showing a misleading "0".
- */
 export default function ListingCard({ listing }) {
     const { id, title, species, breed, age, price, city, photoUrl, trustScore } = listing;
+
+    const [imgError, setImgError] = useState(false);
+
+    // Финальный источник картинки
+    const imageSrc = photoUrl && !imgError ? photoUrl : '/def.png';
+    const isPlaceholder = !photoUrl || imgError;
 
     return (
         <Link
             to={`/listings/${id}`}
             className="flex flex-col rounded-lg overflow-hidden border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow"
         >
-            <div className="aspect-[4/3] bg-gray-100 relative">
-                {photoUrl ? (
-                    <img
-                        src={photoUrl}
-                        alt={title}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                    />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
-                        No photo
+            <div className="aspect-[4/3] bg-gray-200 relative">
+                <img
+                    src={imageSrc}
+                    alt={title}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    onError={() => {
+                        if (!imgError) {
+                            setImgError(true);
+                        }
+                    }}
+                />
+
+                {/* Осветляющий слой ТОЛЬКО для картинки-заглушки */}
+                {isPlaceholder && (
+                    <div className="absolute inset-0 bg-white/80 transition-all duration-300 hover:bg-white/50"></div>
+                )}
+                {!isPlaceholder && (
+                    <div className="absolute inset-0 bg-white/50 transition-all duration-300 hover:bg-white/30"></div>
+                )}
+
+                {/* Аккуратная надпись в углу, если нет фото */}
+                {isPlaceholder && (
+                    <div className="absolute bottom-2 right-2 bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-md">
+                        <span className="text-white text-xs font-medium">No photo</span>
                     </div>
                 )}
+
                 {trustScore !== undefined && trustScore !== null && (
                     <div className="absolute top-2 right-2">
                         <TrustBadge score={trustScore} />

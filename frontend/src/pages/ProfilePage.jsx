@@ -16,12 +16,7 @@ export default function ProfilePage() {
 
         try {
             await addRole('SELLER');
-            setRoleSuccess('Поздравляем! Теперь вы продавец. Страница обновится автоматически.');
-
-            // Обновляем страницу через 2 секунды, чтобы пользователь увидел сообщение
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
+            setRoleSuccess('Поздравляем! Теперь вы продавец.');
         } catch (err) {
             console.error('Failed to add SELLER role:', err);
             setRoleError('Не удалось получить роль продавца. Попробуйте позже.');

@@ -23,10 +23,10 @@ export default function PassportFormPage() {
     const { id: listingId } = useParams();
     const navigate = useNavigate();
 
-    const tempIdCounter = useRef(0);
+    const tempIdCounterRef = useRef(0);
     const generateTempId = () => {
-        tempIdCounter.current += 1;
-        return `temp_${Date.now()}_${tempIdCounter.current}`;
+        tempIdCounterRef.current += 1;
+        return `temp_${Date.now()}_${tempIdCounterRef.current}`;
     };
 
     const [loading, setLoading] = useState(true);
@@ -52,7 +52,7 @@ export default function PassportFormPage() {
     const [documents, setDocuments] = useState([]);
     const [uploading, setUploading] = useState(false);
     const [dragActive, setDragActive] = useState(false);
-    const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, docId: null, docName: '' });
+    const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, docId: null, docName: null });
 
     useEffect(() => {
         const load = async () => {
@@ -76,6 +76,11 @@ export default function PassportFormPage() {
                     setVaccinations(passport.vaccinations || []);
                     const trust = await getTrustScore(listing.passportId);
                     setTrustScore(trust);
+
+                    // Загружаем документы, если есть API
+                    if (passport.documents) {
+                        setDocuments(passport.documents);
+                    }
                 }
             } catch (err) {
                 console.error('Failed to load passport:', err);
@@ -100,10 +105,12 @@ export default function PassportFormPage() {
             setPassportId(saved.id);
             const trust = await getTrustScore(saved.id);
             setTrustScore(trust);
-            setSuccessMessage('Паспорт успешно сохранён!');
+            setSuccessMessage('Паспорт успешно сохранён! Возврат к списку объявлений...');
 
-            // Скрываем сообщение через 3 секунды
-            setTimeout(() => setSuccessMessage(null), 3000);
+            // ✅ Возвращаемся на страницу моих объявлений через 1.5 секунды
+            setTimeout(() => {
+                navigate('/my-listings');
+            }, 1500);
         } catch (err) {
             console.error('Failed to save passport:', err);
             setError('Ошибка при сохранении паспорта. Проверьте все поля и попробуйте снова.');
@@ -118,6 +125,7 @@ export default function PassportFormPage() {
             setTimeout(() => setError(null), 3000);
             return;
         }
+
         setVaccinations([
             ...vaccinations,
             {
@@ -203,14 +211,12 @@ export default function PassportFormPage() {
                 )}
             </div>
 
-            {/* Сообщение об ошибке */}
             {error && (
                 <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
                     {error}
                 </div>
             )}
 
-            {/* Сообщение об успехе */}
             {successMessage && (
                 <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md">
                     {successMessage}
@@ -404,16 +410,15 @@ export default function PassportFormPage() {
                 <section>
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">Фото и документы</h2>
 
-                    {/* Drag-and-drop зона */}
                     <div
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
                         className={`
-              border-2 border-dashed rounded-lg p-8 text-center transition-colors
-              ${dragActive ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 bg-gray-50'}
-              ${uploading ? 'opacity-50' : ''}
-            `}
+                            border-2 border-dashed rounded-lg p-8 text-center transition-colors
+                            ${dragActive ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 bg-gray-50'}
+                            ${uploading ? 'opacity-50' : ''}
+                        `}
                     >
                         {uploading ? (
                             <LoadingSpinner size="md" />
@@ -441,7 +446,6 @@ export default function PassportFormPage() {
                         )}
                     </div>
 
-                    {/* Список загруженных документов */}
                     {documents.length > 0 && (
                         <div className="mt-4 space-y-2">
                             <p className="text-sm text-gray-600">Загруженные файлы:</p>
@@ -471,7 +475,6 @@ export default function PassportFormPage() {
                     )}
                 </section>
 
-                {/* Кнопки действий */}
                 <div className="flex justify-end gap-3 pt-4 border-t">
                     <button
                         onClick={() => navigate('/my-listings')}
@@ -489,10 +492,9 @@ export default function PassportFormPage() {
                 </div>
             </div>
 
-            {/* Диалог подтверждения удаления документа */}
             <ConfirmDialog
                 isOpen={deleteDialog.isOpen}
-                onClose={() => setDeleteDialog({ isOpen: false, docId: null, docName: '' })}
+                onClose={() => setDeleteDialog({ isOpen: false, docId: null, docName: null })}
                 onConfirm={async () => {
                     try {
                         await deleteDocument(passportId, deleteDialog.docId);
@@ -504,7 +506,7 @@ export default function PassportFormPage() {
                         setError('Ошибка при удалении файла');
                         setTimeout(() => setError(null), 3000);
                     }
-                    setDeleteDialog({ isOpen: false, docId: null, docName: '' });
+                    setDeleteDialog({ isOpen: false, docId: null, docName: null });
                 }}
                 title="Удалить файл"
                 message={`Вы уверены, что хотите удалить файл "${deleteDialog.docName}"?`}
