@@ -161,9 +161,10 @@ export default function MyListingsPage() {
             setPassportsLoading(true);
             try {
                 const data = await getAllMyPassports();
-                setPassports(data.content || []);
+                setPassports(Array.isArray(data) ? data : []);
             } catch (error) {
                 console.error('Failed to load passports:', error);
+                setPassports([]);
             } finally {
                 setPassportsLoading(false);
             }
