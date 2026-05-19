@@ -22,9 +22,15 @@ else
     MINIO_NETWORK="${MINIO_NETWORK:-$(docker inspect hvostid-minio --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null || echo hvostid_default)}"
 fi
 
+# Every Docker invocation gets its own --rm container, so any state set in
+# one mc call (e.g. `mc alias set`) is gone in the next. Provide the alias
+# via the MC_HOST_<name> env var so every container is preconfigured without
+# needing a writable config volume.
+MC_HOST_VALUE="http://${MINIO_ACCESS_KEY}:${MINIO_SECRET_KEY}@${MINIO_ENDPOINT#http://}"
+
 run_mc() {
     if [[ "${USE_DOCKER_MC}" == false ]]; then
-        mc "$@"
+        MC_HOST_hvostid_seed="${MC_HOST_VALUE}" mc "$@"
         return
     fi
     if ! command -v docker >/dev/null 2>&1; then
@@ -32,6 +38,7 @@ run_mc() {
         exit 1
     fi
     docker run --rm --network "${MINIO_NETWORK}" \
+        -e "MC_HOST_hvostid_seed=${MC_HOST_VALUE}" \
         -v "${SEED_DATA_DIR}:/seed-data:ro" \
         minio/mc "$@"
 }
@@ -44,9 +51,6 @@ mc_path_for_local_file() {
         echo "/seed-data/${local_file}"
     fi
 }
-
-echo "Configuring MinIO alias..."
-run_mc alias set hvostid-seed "${MINIO_ENDPOINT}" "${MINIO_ACCESS_KEY}" "${MINIO_SECRET_KEY}" >/dev/null
 
 echo "Waiting for MinIO at ${MINIO_ENDPOINT}..."
 health_url="${MINIO_ENDPOINT}/minio/health/live"
@@ -79,8 +83,8 @@ while IFS=$'\t' read -r bucket object_key local_file; do
         exit 1
     fi
 
-    run_mc mb --ignore-existing "hvostid-seed/${bucket}" >/dev/null 2>&1 || true
-    run_mc cp "${source_path}" "hvostid-seed/${bucket}/${object_key}"
+    run_mc mb --ignore-existing "hvostid_seed/${bucket}" >/dev/null 2>&1 || true
+    run_mc cp "${source_path}" "hvostid_seed/${bucket}/${object_key}"
     count=$((count + 1))
 done < <(python3 -c "import json; [print(f\"{x['bucket']}\t{x['objectKey']}\t{x['localFile']}\") for x in json.load(open('${MANIFEST}'))]")
 
