@@ -1,4 +1,4 @@
-import { createContext, use, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import api from '../api/client';
 
 const AuthContext = createContext(null);
@@ -9,23 +9,40 @@ export function AuthProvider({ children }) {
 
     // On mount, check if we have a token and fetch profile
     useEffect(() => {
-        const token = localStorage.getItem('accessToken');
-        if (token) {
-            api.get('/profile/me')
-                .then((res) => setUser(res.data))
-                .catch(() => {
+        let isMounted = true;
+
+        const initAuth = async () => {
+            const token = localStorage.getItem('accessToken');
+            if (!token) {
+                if (isMounted) setLoading(false);
+                return;
+            }
+
+            try {
+                const profile = await api.get('/profile/me');
+                if (isMounted) {
+                    setUser(profile.data);
+                    setLoading(false);
+                }
+            } catch {
+                if (isMounted) {
                     localStorage.removeItem('accessToken');
                     localStorage.removeItem('refreshToken');
-                })
-                .finally(() => setLoading(false));
-        } else {
-            setLoading(false);
-        }
+                    setLoading(false);
+                }
+            }
+        };
+
+        initAuth();
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     const login = async (email, password) => {
-        const res = await api.post('/auth/login', { email, password });
-        const { accessToken, refreshToken } = res.data;
+        const { data } = await api.post('/auth/login', { email, password });
+        const { accessToken, refreshToken } = data;
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('refreshToken', refreshToken);
 
@@ -35,8 +52,8 @@ export function AuthProvider({ children }) {
     };
 
     const register = async (email, password, name) => {
-        const res = await api.post('/auth/register', { email, password, name });
-        return res.data;
+        const { data } = await api.post('/auth/register', { email, password, name });
+        return data;
     };
 
     const logout = async () => {
@@ -50,22 +67,45 @@ export function AuthProvider({ children }) {
         setUser(null);
     };
 
+    const addRole = async (role) => {
+        try {
+            await api.post('/profile/me/roles', { role });
+            const profile = await api.get('/profile/me');
+            setUser(profile.data);
+            return profile.data;
+        } catch (error) {
+            console.error('Failed to add role:', error);
+            throw error;
+        }
+    };
+
     const isAuthenticated = !!user;
 
     const hasRole = (role) => {
-        if (!user || !user.roles) return false;
+        if (!user?.roles) return false;
         return user.roles.includes(role);
     };
 
     return (
-        <AuthContext value={{ user, loading, login, register, logout, isAuthenticated, hasRole }}>
+        <AuthContext
+            value={{
+                user,
+                loading,
+                login,
+                register,
+                logout,
+                addRole,
+                isAuthenticated,
+                hasRole,
+            }}
+        >
             {children}
         </AuthContext>
     );
 }
 
 export function useAuth() {
-    const context = use(AuthContext);
+    const context = useContext(AuthContext);
     if (!context) {
         throw new Error('useAuth must be used within AuthProvider');
     }
