@@ -86,6 +86,15 @@ const STATUS_ACTIONS = {
     SOLD: [],
 };
 
+// Стили для кнопок в зависимости от варианта
+const ACTION_BUTTON_STYLES = {
+    primary: 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-indigo-200',
+    secondary: 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200',
+    warning: 'bg-red-50 text-red-700 hover:bg-red-100 border border-amber-200',
+    success: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200',
+    danger: 'bg-gray-50 text-red-700 hover:bg-red-100 border border-gray-200',
+};
+
 export default function MyListingsPage() {
     const [listings, setListings] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -99,10 +108,9 @@ export default function MyListingsPage() {
         newStatus: null,
         title: '',
         message: '',
-        isDelete: false, // Добавляем флаг для удаления
+        isDelete: false,
     });
 
-    // Загрузка объявлений при изменении activeStatus
     useEffect(() => {
         const loadListings = async () => {
             setLoading(true);
@@ -127,7 +135,6 @@ export default function MyListingsPage() {
         setError(null);
         try {
             await changeListingStatus(listingId, newStatus);
-            // Перезагружаем список после изменения статуса
             const status = activeStatus === 'ALL' ? null : activeStatus;
             const data = await getMyListings(status);
             setListings(data.content || []);
@@ -142,8 +149,6 @@ export default function MyListingsPage() {
     const handleDeleteListing = async (listingId) => {
         setActionLoading(listingId);
         setError(null);
-        // await deleteListing(listingId);
-        //  нет отдельного API — можно изменить статус на ARCHIVED
         await changeListingStatus(listingId, 'ARCHIVED');
 
         const status = activeStatus === 'ALL' ? null : activeStatus;
@@ -190,13 +195,12 @@ export default function MyListingsPage() {
                 <h1 className="text-xl font-bold text-gray-900">Мои объявления</h1>
                 <Link
                     to="/my-listings/new"
-                    className="bg-indigo-500 text-white px-2 py-1 rounded-md text-sm hover:bg-indigo-700 transition-colors"
+                    className="bg-indigo-500 text-white px-3 py-1.5 rounded-full text-sm hover:bg-indigo-700 transition-colors"
                 >
                     + Создать объявление
                 </Link>
             </div>
 
-            {/* Сообщение об ошибке */}
             {error && (
                 <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
                     {error}
@@ -243,19 +247,22 @@ export default function MyListingsPage() {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Название
                                 </th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Статус
                                 </th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Цена
                                 </th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Дата создания
                                 </th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Паспорт
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Действия
                                 </th>
                             </tr>
@@ -263,7 +270,7 @@ export default function MyListingsPage() {
                         <tbody className="bg-white divide-y divide-gray-200">
                             {listings.map((listing) => (
                                 <tr key={listing.id} className="hover:bg-gray-50">
-                                    <td className="px-4 py-2">
+                                    <td className="px-4 py-3">
                                         <Link
                                             to={`/my-listings/${listing.id}/edit`}
                                             className="text-gray-600 hover:text-gray-900 text-sm font-medium"
@@ -271,73 +278,62 @@ export default function MyListingsPage() {
                                             {listing.title}
                                         </Link>
                                     </td>
-                                    <td className="px-4 py-2">
+                                    <td className="px-4 py-3">
                                         <StatusBadge status={listing.status} />
                                     </td>
-                                    <td className="px-4 py-2 text-xs text-gray-900">
+                                    <td className="px-4 py-3 text-sm text-gray-900">
                                         {formatPrice(listing.price)}
                                     </td>
-                                    <td className="px-4 py-2 text-xs text-gray-500">
+                                    <td className="px-4 py-3 text-sm text-gray-500">
                                         {formatDate(listing.createdAt)}
                                     </td>
-                                    <td className="px-4 py-2 text-xs space-x-2">
-                                        <Link
-                                            to={`/my-listings/${listing.id}/edit`}
-                                            className="text-indigo-600 hover:text-indigo-900"
-                                        >
-                                            Ред.
-                                        </Link>
-
-                                        {STATUS_ACTIONS[listing.status]?.map((action) => (
-                                            <button
-                                                key={action.action}
-                                                onClick={() =>
-                                                    openConfirmDialog(listing.id, action)
-                                                }
-                                                disabled={actionLoading === listing.id}
-                                                className={`
-                                                    ${
-                                                        action.variant === 'primary'
-                                                            ? 'text-blue-600 hover:text-blue-900'
-                                                            : ''
-                                                    }
-                                                    ${
-                                                        action.variant === 'warning'
-                                                            ? 'text-gray-600 hover:text-gray-900'
-                                                            : ''
-                                                    }
-                                                    ${
-                                                        action.variant === 'success'
-                                                            ? 'text-gray-600 hover:text-gray-900'
-                                                            : ''
-                                                    }
-                                                    ${
-                                                        action.variant === 'secondary'
-                                                            ? 'text-gray-600 hover:text-gray-900'
-                                                            : ''
-                                                    }
-                                                    ${
-                                                        action.variant === 'danger'
-                                                            ? 'text-red-600 hover:text-red-900'
-                                                            : ''
-                                                    }
-                                                    hover:underline disabled:opacity-50
-                                                `}
-                                            >
-                                                {actionLoading === listing.id
-                                                    ? '...'
-                                                    : action.label}
-                                            </button>
-                                        ))}
-
-                                        {listing.passportId && (
+                                    <td className="px-4 py-3">
+                                        {/* Отдельная колонка для паспорта */}
+                                        {listing.passportId ? (
                                             <Link
                                                 to={`/my-listings/${listing.id}/passport`}
-                                                className="text-indigo-600 hover:text-indigo-900 hover:underline"
+                                                className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors"
                                             >
                                                 Паспорт
                                             </Link>
+                                        ) : (
+                                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-400">
+                                                Нет паспорта
+                                            </span>
                                         )}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {/* Контейнер для кнопок действий */}
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {/* Кнопка редактирования */}
+                                            <Link
+                                                to={`/my-listings/${listing.id}/edit`}
+                                                className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-700 hover:bg-gray-100 border border-indigo-200 transition-colors"
+                                            >
+                                                Ред.
+                                            </Link>
+
+                                            {/* Кнопки действий из STATUS_ACTIONS */}
+                                            {STATUS_ACTIONS[listing.status]?.map((action) => (
+                                                <button
+                                                    key={action.action}
+                                                    onClick={() =>
+                                                        openConfirmDialog(listing.id, action)
+                                                    }
+                                                    disabled={actionLoading === listing.id}
+                                                    className={`
+                                                        inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
+                                                        transition-all duration-200
+                                                        ${ACTION_BUTTON_STYLES[action.variant]}
+                                                        disabled:opacity-50 disabled:cursor-not-allowed
+                                                    `}
+                                                >
+                                                    {actionLoading === listing.id
+                                                        ? ''
+                                                        : action.label}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
