@@ -356,7 +356,7 @@ function PhotoGallery({ documents, documentsRestricted, hasPassportId }) {
 
     if (documentsRestricted || photos.length === 0) {
         return (
-            <section className="aspect-[4/3] bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 text-sm">
+            <section className="aspect-[16/1] bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 text-sm">
                 No photos uploaded
             </section>
         );
