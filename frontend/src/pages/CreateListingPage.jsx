@@ -71,8 +71,7 @@ export default function CreateListingPage() {
 
             navigate(`/my-listings/${newListing.id}/passport`);
         } catch (err) {
-            console.error('Error:', err);
-            console.error('Error response:', err.response?.data);
+            console.error('Failed to create listing:', err);
 
             if (err.response?.status === 403) {
                 setError('У вас нет прав продавца. Получите роль SELLER в профиле.');
