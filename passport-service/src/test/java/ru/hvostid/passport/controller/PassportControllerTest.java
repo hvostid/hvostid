@@ -233,6 +233,43 @@ class PassportControllerTest extends AbstractPassportIntegrationTest {
         }
     }
 
+    @Nested
+    @DisplayName("GET /api/v1/passports")
+    class ListMyTests {
+        @Test
+        @DisplayName("seller with no passports - returns empty list")
+        void list_noPassports_returnsEmpty() throws Exception {
+            mockMvc.perform(get(PASSPORTS_URL).header(USER_ID, 99L).header(USER_ROLES, SELLER.value()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$", hasSize(0)));
+        }
+
+        @Test
+        @DisplayName("seller with own passports - returns only their passports")
+        void list_ownPassports_returnsOnlyOwn() throws Exception {
+            createPassport(); // sellerId=10
+            // A different seller's passport must NOT leak into the listing.
+            mockMvc.perform(post(PASSPORTS_URL)
+                            .header(USER_ID, 11L)
+                            .header(USER_ROLES, SELLER.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(validRequestBody()))
+                    .andExpect(status().isCreated());
+
+            mockMvc.perform(get(PASSPORTS_URL).header(USER_ID, 10L).header(USER_ROLES, SELLER.value()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$", hasSize(1)))
+                    .andExpect(jsonPath("$[0].sellerId", is(10)));
+        }
+
+        @Test
+        @DisplayName("no user header - returns 401")
+        void list_noUserHeader_returns401() throws Exception {
+            mockMvc.perform(get(PASSPORTS_URL).header(USER_ROLES, SELLER.value()))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
     private void createPassport() throws Exception {
         mockMvc.perform(post(PASSPORTS_URL)
                         .header(USER_ID, 10L)
