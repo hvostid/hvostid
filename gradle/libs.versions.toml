@@ -8,6 +8,11 @@ spring-dependency-management = "1.1.7"
 spring-doc = "3.0.3"
 swagger-annotations = "2.2.50"
 
+# Override transitive dependencies
+bouncycastle = "1.84"
+postgresql = "42.7.11"
+tomcat = "11.0.22"
+
 # Plugins
 owasp-dependency-check = "12.2.2"
 sonarqube = "7.3.0.8198"
