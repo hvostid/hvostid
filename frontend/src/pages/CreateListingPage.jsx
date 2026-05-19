@@ -17,6 +17,7 @@ export default function CreateListingPage() {
         try {
             const today = new Date().toISOString().split('T')[0];
 
+            // 1. Создаём паспорт
             const passportData = {
                 species: formData.species,
                 breed: formData.breed || null,
@@ -36,7 +37,7 @@ export default function CreateListingPage() {
             const passportId = passport.id;
             console.log('✅ Passport created with ID:', passportId);
 
-            // Создаём объявление с новым passportId
+            // 2. Создаём объявление
             const listingData = {
                 title: formData.title.trim(),
                 description: formData.description.trim(),
@@ -45,28 +46,32 @@ export default function CreateListingPage() {
                 passportId: String(passportId),
             };
 
+            // Добавляем breed, если есть
             if (formData.breed?.trim()) {
                 listingData.breed = formData.breed.trim();
             }
 
+            // Добавляем age, если есть
             if (formData.age && String(formData.age).trim()) {
                 const ageNum = parseInt(formData.age, 10);
                 if (!isNaN(ageNum) && ageNum >= 0) {
-                    dataToSend.age = ageNum;
+                    listingData.age = ageNum;
                 }
             }
 
+            // Добавляем price, если есть
             if (formData.price && String(formData.price).trim()) {
                 const priceNum = parseInt(formData.price, 10);
                 if (!isNaN(priceNum) && priceNum >= 0) {
-                    dataToSend.price = priceNum;
+                    listingData.price = priceNum;
                 }
             }
 
-            const newListing = await createListing(dataToSend);
+            const newListing = await createListing(listingData);
+
             navigate(`/my-listings/${newListing.id}/passport`);
         } catch (err) {
-            console.error('Error:', err.response?.data);
+            console.error('Failed to create listing:', err);
 
             if (err.response?.status === 403) {
                 setError('У вас нет прав продавца. Получите роль SELLER в профиле.');
@@ -76,7 +81,9 @@ export default function CreateListingPage() {
                     .join(', ');
                 setError(`Ошибка: ${messages}`);
             } else {
-                setError(err.response?.data?.message || 'Не удалось создать объявление');
+                setError(
+                    err.response?.data?.message || err.message || 'Не удалось создать объявление'
+                );
             }
         } finally {
             setIsSubmitting(false);
