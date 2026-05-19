@@ -72,6 +72,10 @@ subprojects {
             "testcontainers.minio.image",
             rootProject.libs.versions.minio.image.get()
         )
+        systemProperty(
+            "testcontainers.redis.image",
+            rootProject.libs.versions.redis.image.get()
+        )
     }
 
     tasks.jacocoTestReport {

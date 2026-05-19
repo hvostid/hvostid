@@ -55,6 +55,18 @@ services:
             exit 0;
             "
 
+    redis:
+        image: redis:alpine
+        container_name: hvostid-redis
+        restart: unless-stopped
+        mem_limit: 128m
+        command: [ "redis-server", "--appendonly", "no", "--save", "" ]
+        healthcheck:
+            test: [ "CMD", "redis-cli", "ping" ]
+            interval: 5s
+            timeout: 3s
+            retries: 5
+
     # --- Application Services ---
 
     api-gateway:
@@ -148,10 +160,13 @@ services:
             MINIO_DOCUMENTS_BUCKET: ${MINIO_DOCUMENTS_BUCKET:-pet-documents}
             MINIO_PHOTOS_BUCKET: ${MINIO_PHOTOS_BUCKET:-pet-photos}
             LISTING_SERVICE_HOST: listing-service
+            REDIS_HOST: redis
         depends_on:
             postgres:
                 condition: service_healthy
             minio:
+                condition: service_healthy
+            redis:
                 condition: service_healthy
         healthcheck:
             test: [ "CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health || exit 1" ]

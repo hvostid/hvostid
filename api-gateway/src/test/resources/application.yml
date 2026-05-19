@@ -59,6 +59,8 @@ hvostid:
         public-paths:
             - /api/v1/auth/login
             - /api/v1/auth/register
+            - /api/v1/passports/*/docs/*/content
+            - /api/v1/passports/*/cover
             - /actuator/**
             - /swagger-ui.html
             - /swagger-ui/**

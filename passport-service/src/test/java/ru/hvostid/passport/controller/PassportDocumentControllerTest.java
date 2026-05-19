@@ -1,9 +1,9 @@
 package ru.hvostid.passport.controller;
 
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
@@ -29,7 +28,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
@@ -151,7 +149,7 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
     @DisplayName("GET /api/v1/passports/{id}/docs")
     class ListTests {
         @Test
-        @DisplayName("owner lists documents - returns metadata with downloadUrl")
+        @DisplayName("owner lists documents - returns metadata")
         void list_owner_returnsDocuments() throws Exception {
             createPassport();
             uploadPhoto();
@@ -160,8 +158,7 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$", hasSize(1)))
                     .andExpect(jsonPath("$[0].type", is("PHOTO")))
-                    .andExpect(jsonPath("$[0].originalFilename", is("photo.jpg")))
-                    .andExpect(jsonPath("$[0].downloadUrl", containsString("X-Amz-Expires=600")));
+                    .andExpect(jsonPath("$[0].originalFilename", is("photo.jpg")));
         }
 
         @Test
@@ -172,8 +169,7 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
 
             mockMvc.perform(get(DOCS_URL).header(USER_ID, 20L).header(USER_ROLES, MODERATOR.value()))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$", hasSize(1)))
-                    .andExpect(jsonPath("$[0].downloadUrl", notNullValue()));
+                    .andExpect(jsonPath("$", hasSize(1)));
         }
 
         @Test
@@ -188,8 +184,7 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
             mockMvc.perform(get(DOCS_URL).header(USER_ID, 99L).header(USER_ROLES, BUYER.value()))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$", hasSize(1)))
-                    .andExpect(jsonPath("$[0].type", is("PHOTO")))
-                    .andExpect(jsonPath("$[0].downloadUrl", notNullValue()));
+                    .andExpect(jsonPath("$[0].type", is("PHOTO")));
         }
 
         @Test
@@ -226,45 +221,46 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
 
     @Nested
     @DisplayName("GET /api/v1/passports/{id}/docs/{docId}")
-    class DownloadTests {
+    class DownloadTicketTests {
         @Test
-        @DisplayName("owner downloads document - returns 302")
-        void download_owner_returns302() throws Exception {
+        @DisplayName("owner gets ticketed URL - returns 200")
+        void ticket_owner_returns200() throws Exception {
             createPassport();
             uploadPhoto();
 
             mockMvc.perform(get(DOCS_URL + "/1").header(USER_ID, 10L).header(USER_ROLES, SELLER.value()))
-                    .andExpect(status().isFound())
-                    .andExpect(header().string(HttpHeaders.LOCATION, containsString("X-Amz-Expires=600")));
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.url", startsWith("/api/v1/passports/1/docs/1/content?t=")))
+                    .andExpect(jsonPath("$.expiresAt", notNullValue()));
         }
 
         @Test
-        @DisplayName("admin downloads document - returns 302")
-        void download_admin_returns302() throws Exception {
+        @DisplayName("admin gets ticketed URL - returns 200")
+        void ticket_admin_returns200() throws Exception {
             createPassport();
             uploadPhoto();
 
             mockMvc.perform(get(DOCS_URL + "/1").header(USER_ID, 20L).header(USER_ROLES, ADMIN.value()))
-                    .andExpect(status().isFound())
-                    .andExpect(header().string(HttpHeaders.LOCATION, containsString("X-Amz-Expires=600")));
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.url", startsWith("/api/v1/passports/1/docs/1/content?t=")));
         }
 
         @Test
-        @DisplayName("buyer on PUBLISHED listing downloads PHOTO - returns 302")
-        void download_buyerPublishedListingPhoto_returns302() throws Exception {
+        @DisplayName("buyer on PUBLISHED listing gets PHOTO ticket - returns 200")
+        void ticket_buyerPublishedListingPhoto_returns200() throws Exception {
             createPassport();
             uploadPhoto();
             when(listingServiceClient.hasPublishedListingForPassport(eq(1L), any()))
                     .thenReturn(true);
 
             mockMvc.perform(get(DOCS_URL + "/1").header(USER_ID, 99L).header(USER_ROLES, BUYER.value()))
-                    .andExpect(status().isFound())
-                    .andExpect(header().string(HttpHeaders.LOCATION, containsString("X-Amz-Expires=600")));
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.url", startsWith("/api/v1/passports/1/docs/1/content?t=")));
         }
 
         @Test
-        @DisplayName("buyer on PUBLISHED listing downloads VET_RECORD - returns 404")
-        void download_buyerPublishedListingVetRecord_returns404() throws Exception {
+        @DisplayName("buyer on PUBLISHED listing cannot ticket VET_RECORD - returns 404")
+        void ticket_buyerPublishedListingVetRecord_returns404() throws Exception {
             createPassport();
             uploadVetRecord();
             when(listingServiceClient.hasPublishedListingForPassport(any(), any()))
@@ -276,7 +272,7 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
 
         @Test
         @DisplayName("buyer without PUBLISHED listing - returns 404")
-        void download_buyerDraftListing_returns404() throws Exception {
+        void ticket_buyerDraftListing_returns404() throws Exception {
             createPassport();
             uploadPhoto();
             // default mock: hasPublishedListingForPassport returns false
