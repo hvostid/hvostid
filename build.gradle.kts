@@ -49,21 +49,15 @@ subprojects {
         }
     }
 
+    plugins.withId(rootProject.libs.plugins.spring.dependency.management.get().pluginId) {
+        extra["tomcat.version"] = rootProject.libs.versions.tomcat.get()
+        extra["postgresql.version"] = rootProject.libs.versions.postgresql.get()
+    }
+
     configurations.all {
         resolutionStrategy.eachDependency {
-            if (requested.group == "org.apache.tomcat.embed") {
-                useVersion(rootProject.libs.versions.tomcat.get())
-                because("CVE-2026-41293, 43512, 43515, 41284, 42498, 43513, 43514")
-            }
-
-            if (requested.group == "org.postgresql" && requested.name == "postgresql") {
-                useVersion(rootProject.libs.versions.postgresql.get())
-                because("CVE-2026-42198")
-            }
-
             if (requested.group == "org.bouncycastle" && requested.name.endsWith("-jdk18on")) {
                 useVersion(rootProject.libs.versions.bouncycastle.get())
-                because("CVE-2026-5598, CVE-2026-0636")
             }
         }
     }
