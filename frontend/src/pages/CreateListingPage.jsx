@@ -51,27 +51,22 @@ export default function CreateListingPage() {
 
             if (formData.age && String(formData.age).trim()) {
                 const ageNum = parseInt(formData.age, 10);
-                if (!isNaN(ageNum) && ageNum > 0) {
-                    listingData.age = ageNum;
+                if (!isNaN(ageNum) && ageNum >= 0) {
+                    dataToSend.age = ageNum;
                 }
             }
 
             if (formData.price && String(formData.price).trim()) {
                 const priceNum = parseInt(formData.price, 10);
-                if (!isNaN(priceNum) && priceNum > 0) {
-                    listingData.price = priceNum;
+                if (!isNaN(priceNum) && priceNum >= 0) {
+                    dataToSend.price = priceNum;
                 }
             }
 
-            console.log('📤 Creating listing with passportId:', passportId);
-
-            const newListing = await createListing(listingData);
-            console.log('✅ Listing created with ID:', newListing.id);
-
-            // Переходим на страницу редактирования паспорта
+            const newListing = await createListing(dataToSend);
             navigate(`/my-listings/${newListing.id}/passport`);
         } catch (err) {
-            console.error('❌ Error:', err.response?.data);
+            console.error('Error:', err.response?.data);
 
             if (err.response?.status === 403) {
                 setError('У вас нет прав продавца. Получите роль SELLER в профиле.');
