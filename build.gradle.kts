@@ -49,6 +49,19 @@ subprojects {
         }
     }
 
+    plugins.withId(rootProject.libs.plugins.spring.dependency.management.get().pluginId) {
+        extra["tomcat.version"] = rootProject.libs.versions.tomcat.get()
+        extra["postgresql.version"] = rootProject.libs.versions.postgresql.get()
+    }
+
+    configurations.all {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "org.bouncycastle" && requested.name.endsWith("-jdk18on")) {
+                useVersion(rootProject.libs.versions.bouncycastle.get())
+            }
+        }
+    }
+
     tasks.withType<Test> {
         useJUnitPlatform()
         systemProperty(

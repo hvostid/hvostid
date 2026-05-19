@@ -172,6 +172,7 @@ services:
             MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
             MINIO_DOCUMENTS_BUCKET: ${MINIO_DOCUMENTS_BUCKET:-pet-documents}
             MINIO_PHOTOS_BUCKET: ${MINIO_PHOTOS_BUCKET:-pet-photos}
+            LISTING_SERVICE_HOST: listing-service
         depends_on:
             postgres:
                 condition: service_healthy
