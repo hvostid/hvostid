@@ -30,8 +30,12 @@ export default function ListingCard({ listing }) {
                 />
 
                 {/* Осветляющий слой ТОЛЬКО для картинки-заглушки */}
-                {isPlaceholder && <div className="absolute inset-0 bg-white/80"></div>}
-                {!isPlaceholder && <div className="absolute inset-0 bg-white/50"></div>}
+                {isPlaceholder && (
+                    <div className="absolute inset-0 bg-white/80 transition-all duration-300 hover:bg-white/50"></div>
+                )}
+                {!isPlaceholder && (
+                    <div className="absolute inset-0 bg-white/50 transition-all duration-300 hover:bg-white/30"></div>
+                )}
 
                 {/* Аккуратная надпись в углу, если нет фото */}
                 {isPlaceholder && (
