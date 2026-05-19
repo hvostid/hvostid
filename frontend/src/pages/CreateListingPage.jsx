@@ -67,9 +67,7 @@ export default function CreateListingPage() {
                 }
             }
 
-            console.log('📤 Creating listing with data:', listingData);
             const newListing = await createListing(listingData);
-            console.log('✅ Listing created with ID:', newListing.id);
 
             navigate(`/my-listings/${newListing.id}/passport`);
         } catch (err) {
