@@ -1,12 +1,69 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
     <!--
-        Add suppression entries here for known false positives.
+        ============================================================
+        BOM-declared false positives
+        ============================================================
 
-        Example:
-        <suppress>
-            <notes>CVE-XXXX-XXXXX is a false positive for this library because ...</notes>
-            <cve>CVE-XXXX-XXXXX</cve>
-        </suppress>
+        The Spring Boot 4.0.6 BOM (spring-boot-dependencies-4.0.6.pom)
+        declares some dependencies at versions that have known CVEs.
+        OWASP Dependency Check reads the BOM POM during aggregate scan
+        and reports those declarations as project findings, even when
+        the project has explicitly overridden the resolved version via
+        resolutionStrategy in the root build.gradle.kts.
+
+        Verification: Trivy scans of the built Docker images (see
+        cd-main.yml) consume only the resolved JARs that ship inside
+        BOOT-INF/lib of each service fat jar. Trivy reports no
+        findings for any of the CVEs suppressed below, which confirms
+        the runtime artifacts are on the patched versions.
+
+        Each suppression below has an `until` date that matches the
+        expected release of a Spring Boot patch that bumps the BOM to
+        a non-vulnerable version. When that patch arrives, both the
+        override block in build.gradle.kts and the matching block
+        here should be removed in the same PR. Until then, run the
+        dependencyInsight commands documented in README.md after any
+        dependency change to confirm the runtime resolution is still
+        on the patched version.
     -->
+
+    <!-- Apache Tomcat embedded artifacts. -->
+    <suppress until="2026-09-30Z">
+        <notes><![CDATA[
+            Spring Boot 4.0.6 BOM pins tomcat.version=11.0.21. The
+            root build.gradle.kts forces every
+            org.apache.tomcat.embed:*-jdk18on artifact to 11.0.22 via
+            configurations.all.resolutionStrategy.eachDependency.
+            Trivy on the built images confirms 11.0.22 is what
+            actually ships. Remove this entry together with the
+            tomcat branch in build.gradle.kts once the Spring Boot
+            BOM moves past 11.0.21.
+        ]]></notes>
+        <gav regex="true">^org\.apache\.tomcat\.embed:.*:11\.0\.21$</gav>
+        <cve>CVE-2026-41293</cve>
+        <cve>CVE-2026-43512</cve>
+        <cve>CVE-2026-43515</cve>
+        <cve>CVE-2026-41284</cve>
+        <cve>CVE-2026-42498</cve>
+        <cve>CVE-2026-43513</cve>
+        <cve>CVE-2026-43514</cve>
+    </suppress>
+
+    <!-- PostgreSQL JDBC driver. -->
+    <suppress until="2026-09-30Z">
+        <notes><![CDATA[
+            Spring Boot 4.0.6 BOM pins postgresql=42.7.10. The root
+            build.gradle.kts forces org.postgresql:postgresql to
+            42.7.11 via
+            configurations.all.resolutionStrategy.eachDependency.
+            Trivy on the built images confirms 42.7.11 is what
+            actually ships. Remove this entry together with the
+            postgresql branch in build.gradle.kts once the Spring
+            Boot BOM moves past 42.7.10.
+        ]]></notes>
+        <gav>org.postgresql:postgresql:42.7.10</gav>
+        <cve>CVE-2026-42198</cve>
+    </suppress>
+
 </suppressions>
