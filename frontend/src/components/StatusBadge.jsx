@@ -1,12 +1,12 @@
 // components/StatusBadge.jsx
 export default function StatusBadge({ status }) {
     const styles = {
-        DRAFT: 'bg-gray-100 text-gray-800',
-        MODERATION: 'bg-yellow-100 text-yellow-800',
-        PUBLISHED: 'bg-green-100 text-green-800',
+        DRAFT: 'bg-gray-200 text-gray-800',
+        MODERATION: 'bg-gray-200 text-emerald-800',
+        PUBLISHED: 'bg-indigo-100 text-indigo-800',
         REJECTED: 'bg-red-100 text-red-800',
-        ARCHIVED: 'bg-gray-200 text-gray-600',
-        SOLD: 'bg-blue-100 text-blue-800',
+        ARCHIVED: 'bg-gray-300 text-gray-600',
+        SOLD: 'bg-gray-100 text-gray-800',
     };
 
     const labels = {
