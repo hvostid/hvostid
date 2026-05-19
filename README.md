@@ -343,7 +343,11 @@ commit-message rules, code-style decisions, and review checklist.
   `/v3/api-docs/<service>` on the gateway. CI uploads every spec as
   the `openapi-specs` artifact on each PR build (see
   [`ci-pr.yml`](./.github/workflows/ci-pr.yml)).
-- **Postman collection** -- tracked in T36 (TODO).
+- **Postman collections** -- five `COL-*.json` files plus a
+  `hvostid-local` environment under [`postman/`](./postman/). Import
+  into Postman or run headless via Newman; see
+  [`postman/README.md`](./postman/README.md) for the per-collection
+  flows and CI usage.
 
 ## CI/CD
 
@@ -486,7 +490,7 @@ hvostid/
   k6/                      -- load tests
   docker/                  -- compose helpers (db init, etc.)
   docs/                    -- architecture and design notes
-  postman/                 -- API collection (T36, TODO)
+  postman/                 -- Postman collections + Newman runner
   build.gradle.kts
   settings.gradle.kts
   gradle/libs.versions.toml
