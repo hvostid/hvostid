@@ -20,6 +20,7 @@ import ru.hvostid.listing.entity.Listing;
 import ru.hvostid.listing.entity.ListingStatus;
 import ru.hvostid.listing.entity.ListingStatusHistory;
 import ru.hvostid.listing.exception.*;
+import ru.hvostid.listing.repository.ListingFlagRepository;
 import ru.hvostid.listing.repository.ListingRepository;
 import ru.hvostid.listing.repository.ListingSpecifications;
 import ru.hvostid.listing.repository.ListingStatusHistoryRepository;
@@ -29,10 +30,15 @@ public class ListingService {
     private static final Logger log = LoggerFactory.getLogger(ListingService.class);
     private static final String LISTING_NOT_FOUND_MESSAGE = "Listing not found with id: ";
 
+    private final ListingFlagRepository flagRepository;
     private final ListingRepository listingRepository;
     private final ListingStatusHistoryRepository historyRepository;
 
-    public ListingService(ListingRepository listingRepository, ListingStatusHistoryRepository historyRepository) {
+    public ListingService(
+            ListingFlagRepository flagRepository,
+            ListingRepository listingRepository,
+            ListingStatusHistoryRepository historyRepository) {
+        this.flagRepository = flagRepository;
         this.listingRepository = listingRepository;
         this.historyRepository = historyRepository;
     }
@@ -275,6 +281,37 @@ public class ListingService {
                 filters.priceMin(),
                 filters.priceMax(),
                 blankToNull(filters.city()));
+    }
+
+    @Transactional
+    public void deleteListing(Long id, Long userId, Set<String> userRoles) {
+        log.debug("Deleting listing id={} by userId={}, roles={}", id, userId, userRoles);
+
+        Listing listing = requireListing(id);
+
+        boolean isOwner = listing.getSellerId().equals(userId);
+        boolean isAdmin = userRoles != null && userRoles.contains(UserRole.ADMIN.value());
+
+        if (!isOwner && !isAdmin) {
+            log.warn("Delete denied: not owner and not admin listingId={} userId={}", id, userId);
+            throw new AccessDeniedException("You don't have permission to delete this listing");
+        }
+
+        if (listing.getStatus() == ListingStatus.MODERATION) {
+            log.warn("Delete denied: listing in MODERATION listingId={}", id);
+            throw new ListingDeletionConflictException("Cannot delete a listing that is currently under moderation; "
+                    + "wait for the review to finish or ask a moderator to reject it.");
+        }
+
+        ListingStatus oldStatus = listing.getStatus();
+        Long listingId = listing.getId();
+
+        // Delete related entities
+        flagRepository.deleteByListingId(listingId);
+        historyRepository.deleteByListingId(listingId);
+        listingRepository.delete(listing);
+
+        log.info("Listing deleted id={} userId={} oldStatus={}", id, userId, oldStatus);
     }
 
     private static String blankToNull(String value) {

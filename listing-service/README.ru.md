@@ -14,13 +14,14 @@
 
 ## Эндпоинты
 
-| Метод  | Путь                         | Auth   | Заметки                             |
-|--------|------------------------------|--------|-------------------------------------|
-| GET    | `/api/v1/listings`           | bearer | Поиск + фильтры через query-параметры |
-| GET    | `/api/v1/listings/{id}`      | bearer |                                     |
-| POST   | `/api/v1/listings`           | seller |                                     |
-| PATCH  | `/api/v1/listings/{id}`      | seller | Только владелец                     |
-| DELETE | `/api/v1/listings/{id}`      | seller | Только владелец                     |
+| Метод  | Путь                         | Auth         | Заметки                             |
+|--------|------------------------------|--------------|-------------------------------------|
+| GET    | `/api/v1/listings`           | bearer       | Поиск + фильтры через query-параметры |
+| GET    | `/api/v1/listings/{id}`      | bearer       |                                     |
+| POST   | `/api/v1/listings`           | seller       |                                     |
+| PATCH  | `/api/v1/listings/{id}`      | seller       | Только владелец                     |
+| DELETE | `/api/v1/listings/{id}`      | seller/admin      | Только владелец                     |
+
 
 Полная спецификация: http://localhost:8082/swagger-ui.html.
 

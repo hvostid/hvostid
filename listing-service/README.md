@@ -13,13 +13,14 @@ Owns pet listings: create, update, search, filter.
 
 ## Endpoints
 
-| Method | Path                         | Auth   | Notes                               |
-|--------|------------------------------|--------|-------------------------------------|
-| GET    | `/api/v1/listings`           | bearer | Search + filter via query params    |
-| GET    | `/api/v1/listings/{id}`      | bearer |                                     |
-| POST   | `/api/v1/listings`           | seller |                                     |
-| PATCH  | `/api/v1/listings/{id}`      | seller | Owner only                          |
-| DELETE | `/api/v1/listings/{id}`      | seller | Owner only                          |
+| Method | Path                         | Auth         | Notes                               |
+|--------|------------------------------|--------------|-------------------------------------|
+| GET    | `/api/v1/listings`           | bearer       | Search + filter via query params    |
+| GET    | `/api/v1/listings/{id}`      | bearer       |                                     |
+| POST   | `/api/v1/listings`           | seller       |                                     |
+| PATCH  | `/api/v1/listings/{id}`      | seller       | Owner only                          |
+| DELETE | `/api/v1/listings/{id}`      | seller/admin      | Owner only                          |
+
 
 Full spec at http://localhost:8082/swagger-ui.html.
 

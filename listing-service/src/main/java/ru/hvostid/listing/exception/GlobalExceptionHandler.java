@@ -132,4 +132,12 @@ public class GlobalExceptionHandler {
                 ex.getMessage(),
                 request);
     }
+
+    @ExceptionHandler(ListingDeletionConflictException.class)
+    public ResponseEntity<ProblemDetails> handleDeletionConflict(
+            ListingDeletionConflictException ex, HttpServletRequest request) {
+        log.debug("Deletion conflict: {}", ex.getMessage());
+        return ProblemDetailsFactory.problem(
+                HttpStatus.CONFLICT, ConflictException.PROBLEM_TYPE, "Cannot delete listing", ex.getMessage(), request);
+    }
 }
