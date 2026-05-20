@@ -17,7 +17,7 @@ spring:
                         -   id: listing-service
                             uri: http://${LISTING_SERVICE_HOST:localhost}:8082
                             predicates:
-                                - Path=/api/v1/listings/**
+                                - Path=/api/v1/listings/**, /api/v1/moderation/**
 
                         -   id: passport-service
                             uri: http://${PASSPORT_SERVICE_HOST:localhost}:8083
