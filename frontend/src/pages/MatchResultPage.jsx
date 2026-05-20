@@ -159,7 +159,7 @@ export default function MatchResultPage() {
                             const factorName = FACTOR_LABELS[factor.name] || factor.name;
 
                             return (
-                                <div key={index}>
+<div key={factor.name}>
                                     <div className="flex justify-between text-sm mb-1">
                                         <span className="text-gray-700">{factorName}</span>
                                         <span className="text-gray-500">
