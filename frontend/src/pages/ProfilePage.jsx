@@ -7,7 +7,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import Input from '../components/Input';
 
 export default function ProfilePage() {
-    const { user: hasRole, addRole } = useAuth();
+    const { hasRole, addRole } = useAuth();
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
@@ -53,7 +53,7 @@ export default function ProfilePage() {
             setProfile(updated);
             setIsEditing(false);
             setSuccess('Профиль успешно обновлён');
-            setTimeout(() => setSuccess(''), 3000);
+            setTimeout(() => setSuccess(''), 2000);
         } catch (err) {
             console.error('Failed to update profile:', err);
             setError('Не удалось сохранить изменения');
@@ -79,7 +79,7 @@ export default function ProfilePage() {
         try {
             await addRole('SELLER');
             setSuccess('Поздравляем! Теперь вы продавец. Страница обновится.');
-            setTimeout(() => window.location.reload(), 2000);
+            setTimeout(() => window.location.reload(), 1000);
         } catch (err) {
             console.error('Failed to get seller role:', err);
             setError('Не удалось получить роль продавца');
