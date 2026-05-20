@@ -72,15 +72,17 @@ public class ListingService {
     }
 
     @Transactional(readOnly = true)
-    public ListingResponse getListing(Long id, Long userId) {
-        log.debug("Getting listing id={} for userId={}", id, userId);
+    public ListingResponse getListing(Long id, Long userId, Set<String> userRoles) {
+        log.debug("Getting listing id={} for userId={} roles={}", id, userId, userRoles);
 
         Listing listing = requireListing(id);
 
         boolean isOwner = listing.getSellerId().equals(userId);
         boolean isPublished = listing.getStatus() == ListingStatus.PUBLISHED;
+        boolean isPrivileged = userRoles != null
+                && (userRoles.contains(UserRole.MODERATOR.value()) || userRoles.contains(UserRole.ADMIN.value()));
 
-        if (!isPublished && !isOwner) {
+        if (!isPublished && !isOwner && !isPrivileged) {
             log.warn("Access denied to listing id={} for userId={}, status={}", id, userId, listing.getStatus());
             throw new AccessDeniedException("You don't have permission to view this listing");
         }

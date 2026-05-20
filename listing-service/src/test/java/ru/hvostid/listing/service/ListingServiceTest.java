@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
+import ru.hvostid.common.security.UserRole;
 import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
@@ -78,7 +80,7 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
         listingRepository.save(listing);
 
         // when - different user (userId=2) tries to view
-        ListingResponse response = listingService.getListing(created.id(), 2L);
+        ListingResponse response = listingService.getListing(created.id(), 2L, Set.of());
 
         // then
         assertThat(response.id()).isEqualTo(created.id());
@@ -91,7 +93,7 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
         ListingResponse created = listingService.createListing(validRequest, 1L);
 
         // when - same user tries to view
-        ListingResponse response = listingService.getListing(created.id(), 1L);
+        ListingResponse response = listingService.getListing(created.id(), 1L, Set.of());
 
         // then
         assertThat(response.id()).isEqualTo(created.id());
@@ -104,16 +106,43 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
         ListingResponse created = listingService.createListing(validRequest, 1L);
 
         // when/then - user 2 tries to view
-        assertThatThrownBy(() -> listingService.getListing(created.id(), 2L))
+        assertThatThrownBy(() -> listingService.getListing(created.id(), 2L, Set.of()))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("don't have permission");
     }
 
     @Test
     void getListing_WhenNotFound_ShouldThrowNotFoundException() {
-        assertThatThrownBy(() -> listingService.getListing(999L, 1L))
+        assertThatThrownBy(() -> listingService.getListing(999L, 1L, Set.of()))
                 .isInstanceOf(ListingNotFoundException.class)
                 .hasMessageContaining("not found");
+    }
+
+    @Test
+    void getListing_WhenModerationAndModeratorRole_ShouldReturnListing() {
+        // given - seller 1 owns a listing currently in MODERATION
+        ListingResponse created = listingService.createListing(validRequest, 1L);
+        setStatus(created.id(), ListingStatus.MODERATION);
+
+        // when - user 99 (not owner) reads with MODERATOR role
+        ListingResponse response = listingService.getListing(created.id(), 99L, Set.of(UserRole.MODERATOR.value()));
+
+        // then
+        assertThat(response.id()).isEqualTo(created.id());
+        assertThat(response.status()).isEqualTo(ListingStatus.MODERATION);
+    }
+
+    @Test
+    void getListing_WhenDraftAndAdminRole_ShouldReturnListing() {
+        // given - seller 1 owns a DRAFT listing
+        ListingResponse created = listingService.createListing(validRequest, 1L);
+
+        // when - user 99 (not owner) reads with ADMIN role
+        ListingResponse response = listingService.getListing(created.id(), 99L, Set.of(UserRole.ADMIN.value()));
+
+        // then
+        assertThat(response.id()).isEqualTo(created.id());
+        assertThat(response.status()).isEqualTo(ListingStatus.DRAFT);
     }
 
     // ==================== UPDATE LISTING TESTS ====================
@@ -331,7 +360,8 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
         setStatus(created.id(), ListingStatus.MODERATION);
 
         // when/then
-        assertThatThrownBy(() -> listingService.getListing(created.id(), 2L)).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> listingService.getListing(created.id(), 2L, Set.of()))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
@@ -341,7 +371,7 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
         setStatus(created.id(), ListingStatus.ARCHIVED);
 
         // when
-        ListingResponse response = listingService.getListing(created.id(), 1L);
+        ListingResponse response = listingService.getListing(created.id(), 1L, Set.of());
 
         // then
         assertThat(response.id()).isEqualTo(created.id());

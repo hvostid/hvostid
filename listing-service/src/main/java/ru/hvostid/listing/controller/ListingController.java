@@ -108,9 +108,10 @@ public class ListingController {
             @Parameter(description = "Listing ID", required = true, example = "1") @PathVariable Long id,
             @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
         long userId = GatewayPreAuthentication.currentUserId(user);
-        log.debug("GET /api/v1/listings/{}, userId={}", id, userId);
+        Set<String> roles = currentRoles(user);
+        log.debug("GET /api/v1/listings/{}, userId={}, roles={}", id, userId, roles);
 
-        ListingResponse response = listingService.getListing(id, userId);
+        ListingResponse response = listingService.getListing(id, userId, roles);
         return ResponseEntity.ok(response);
     }
 
@@ -256,13 +257,7 @@ public class ListingController {
             @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
 
         long userId = GatewayPreAuthentication.currentUserId(user);
-
-        // Extract roles without ROLE_ prefix
-        Set<String> roles = user.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .filter(Objects::nonNull)
-                .map(role -> role.startsWith("ROLE_") ? role.substring(5) : role)
-                .collect(Collectors.toSet());
+        Set<String> roles = currentRoles(user);
 
         log.debug(
                 "PATCH /api/v1/listings/{}/status, userId={}, roles={}, targetStatus={}",
@@ -273,6 +268,14 @@ public class ListingController {
 
         ListingResponse response = listingService.updateStatus(id, request, userId, roles);
         return ResponseEntity.ok(response);
+    }
+
+    private Set<String> currentRoles(UserDetails user) {
+        return user.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .filter(Objects::nonNull)
+                .map(role -> role.startsWith("ROLE_") ? role.substring(5) : role)
+                .collect(Collectors.toSet());
     }
 
     private Sort parseSort(String sort) {
