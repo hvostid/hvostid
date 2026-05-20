@@ -25,6 +25,7 @@ export default function PassportImage({
     const [ticketedUrl, setTicketedUrl] = useState(null);
     const [failed, setFailed] = useState(false);
     const retryRef = useRef(false);
+    const controllerRef = useRef(null);
 
     const fetchTicket = useCallback(
         async (signal) => {
@@ -41,12 +42,13 @@ export default function PassportImage({
 
     useEffect(() => {
         const controller = new AbortController();
+        controllerRef.current = controller;
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setFailed(false);
         setTicketedUrl(null);
         retryRef.current = false;
         fetchTicket(controller.signal);
-        return () => controller.abort();
+        return () => controllerRef.current?.abort();
     }, [fetchTicket]);
 
     const handleError = useCallback(() => {
@@ -56,7 +58,9 @@ export default function PassportImage({
         }
         retryRef.current = true;
         setTicketedUrl(null);
+        controllerRef.current?.abort();
         const controller = new AbortController();
+        controllerRef.current = controller;
         fetchTicket(controller.signal);
     }, [fetchTicket]);
 
