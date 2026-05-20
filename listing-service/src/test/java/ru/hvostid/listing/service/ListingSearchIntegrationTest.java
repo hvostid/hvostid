@@ -5,11 +5,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
 
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -74,33 +77,39 @@ class ListingSearchIntegrationTest extends AbstractPostgresContainerTest {
         }
     }
 
-    @Test
-    void searchByMultipleWords_returnsMatches() {
-        // plainto_tsquery uses AND between words
-        Page<ListingResponse> result = listingService.searchListings("хаски щенок", PageRequest.of(0, 10));
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("singleHitKeywords")
+    void searchListings_findsExpectedListing(
+            String description,
+            String keyword,
+            String extraSeedTitle,
+            String extraSeedDescription,
+            String extraSeedBreed,
+            String expectedTitleFragment) {
+        if (extraSeedTitle != null) {
+            createAndPublishListing(extraSeedTitle, extraSeedDescription, extraSeedBreed);
+        }
+
+        Page<ListingResponse> result = listingService.searchListings(keyword, PageRequest.of(0, 10));
 
         assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().getFirst().title()).contains("Хаски щенок");
+        assertThat(result.getContent().getFirst().title()).contains(expectedTitleFragment);
     }
 
-    @Test
-    void searchWithStemming_returnsWordRootMatches() {
-        // Russian stemming: "собаки" finds "собака"
-        createAndPublishListing("Собака", "Красивая собака", "Дворняжка");
-
-        Page<ListingResponse> result = listingService.searchListings("собаки", PageRequest.of(0, 10));
-
-        assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().getFirst().title()).contains("Собака");
-    }
-
-    @Test
-    void searchWithStopWords_ignoresThemAndStillWorks() {
-        // Russian stop words: и, в, на, с, по, за, под are ignored
-        Page<ListingResponse> result = listingService.searchListings("и в на хаски", PageRequest.of(0, 10));
-
-        assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().getFirst().title()).contains("Хаски");
+    static Stream<Arguments> singleHitKeywords() {
+        return Stream.of(
+                // plainto_tsquery uses AND between words
+                Arguments.of("AND search across multiple words", "хаски щенок", null, null, null, "Хаски щенок"),
+                // Russian stop words: и, в, на, с, по, за, под are ignored
+                Arguments.of("stop words are filtered out", "и в на хаски", null, null, null, "Хаски"),
+                // Russian stemming: "собаки" finds "собака"
+                Arguments.of(
+                        "Russian stemming finds word roots",
+                        "собаки",
+                        "Собака",
+                        "Красивая собака",
+                        "Дворняжка",
+                        "Собака"));
     }
 
     @Test
@@ -255,31 +264,20 @@ class ListingSearchIntegrationTest extends AbstractPostgresContainerTest {
         assertThat(result.getContent().getFirst().title()).contains("хаски");
     }
 
-    @Test
-    @DisplayName("Search does not expose unpublished listings")
-    void search_onlyReturnsPublishedListings() {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("blankOrUnmatchedKeywords")
+    void searchListings_blankOrUnmatched_returnsExpectedSize(String description, String keyword, int expectedSize) {
+        Page<ListingResponse> result = listingService.searchListings(keyword, PageRequest.of(0, 10));
 
-        Page<ListingResponse> result = listingService.searchListings("секретное", PageRequest.of(0, 10));
-
-        assertThat(result.getContent()).isEmpty();
+        assertThat(result.getContent()).hasSize(expectedSize);
     }
 
-    @Test
-    @DisplayName("Search with null keyword returns all published listings")
-    void searchWithNullKeyword_returnsAllPublished() {
-        Page<ListingResponse> result = listingService.searchListings(null, PageRequest.of(0, 10));
-
-        assertThat(result.getContent()).hasSize(3);
-    }
-
-    @Test
-    @DisplayName("Search with whitespace-only keyword returns all published")
-    void searchWithWhitespaceKeyword_returnsAllPublished() {
-        Page<ListingResponse> resultWhitespace = listingService.searchListings("   ", PageRequest.of(0, 10));
-        Page<ListingResponse> resultTab = listingService.searchListings("\t\n", PageRequest.of(0, 10));
-
-        assertThat(resultWhitespace.getContent()).hasSize(3);
-        assertThat(resultTab.getContent()).hasSize(3);
+    static Stream<Arguments> blankOrUnmatchedKeywords() {
+        return Stream.of(
+                Arguments.of("no-match keyword returns empty (published-only)", "секретное", 0),
+                Arguments.of("null keyword returns all published listings", null, 3),
+                Arguments.of("space-only keyword returns all published listings", "   ", 3),
+                Arguments.of("tab+newline keyword returns all published listings", "\t\n", 3));
     }
 
     @Test
