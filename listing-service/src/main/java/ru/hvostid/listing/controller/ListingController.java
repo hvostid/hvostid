@@ -31,7 +31,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.hvostid.common.dto.ErrorResponse;
-import ru.hvostid.common.exception.UnauthorizedException;
 import ru.hvostid.common.security.GatewayPreAuthentication;
 import ru.hvostid.listing.ListingConstants;
 import ru.hvostid.listing.dto.FlagListingRequest;
@@ -226,15 +225,13 @@ public class ListingController {
             description = "Missing or invalid authenticated user",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @GetMapping("/my")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Page<ListingResponse>> getMyListings(
             @Parameter(description = "Filter by listing status") @RequestParam(value = "status", required = false)
                     ListingStatus status,
             @ParameterObject @PageableDefault(size = 20) Pageable pageable,
             @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
 
-        if (user == null) {
-            throw new UnauthorizedException("Authentication is required");
-        }
         if (pageable.getPageSize() > ListingConstants.MAX_PAGE_SIZE) {
             throw new IllegalArgumentException("Page size cannot exceed " + ListingConstants.MAX_PAGE_SIZE);
         }

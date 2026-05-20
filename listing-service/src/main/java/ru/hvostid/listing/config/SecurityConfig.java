@@ -24,8 +24,6 @@ public class SecurityConfig {
         return GatewaySecurityDefaults.applyTo(http, authenticationManager)
                 .authorizeHttpRequests(auth -> auth.requestMatchers(HttpMethod.GET, "/api/v1/listings")
                         .permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/listings/my")
-                        .permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/listings/passports/*/has-published")
                         .permitAll()
                         .requestMatchers(GatewaySecurityDefaults.alwaysPublic())
