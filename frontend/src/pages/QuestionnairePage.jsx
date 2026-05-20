@@ -63,7 +63,7 @@ export default function QuestionnairePage() {
         childrenAgeMin: '',
         hasAllergies: false,
         allergyDetails: '',
-        petExperience: 'SOME',
+petExperience: 'BEGINNER',
         activityLevel: 'MEDIUM',
         monthlyBudget: '',
         workSchedule: 'OFFICE',
