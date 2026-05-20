@@ -35,6 +35,7 @@ import tools.jackson.databind.ObjectMapper;
 class TokenIntrospectionFilterTest {
     private static final List<String> PUBLIC_PATHS =
             List.of("POST /api/v1/auth/login", "POST /api/v1/auth/register", "GET /api/v1/listings", "/actuator/**");
+    private static final List<String> OPTIONAL_AUTH_PATHS = List.of("GET /api/v1/listings/*");
 
     @Mock
     private IntrospectionClient introspectionClient;
@@ -45,7 +46,10 @@ class TokenIntrospectionFilterTest {
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper();
         AuthProperties authProperties = new AuthProperties(
-                "http://localhost:8081/internal/auth/introspect", Duration.ofSeconds(3), PUBLIC_PATHS);
+                "http://localhost:8081/internal/auth/introspect",
+                Duration.ofSeconds(3),
+                PUBLIC_PATHS,
+                OPTIONAL_AUTH_PATHS);
         filter = new TokenIntrospectionFilter(introspectionClient, authProperties, objectMapper);
     }
 

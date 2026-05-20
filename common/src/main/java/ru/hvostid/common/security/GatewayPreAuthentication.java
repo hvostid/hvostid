@@ -48,6 +48,15 @@ public final class GatewayPreAuthentication {
         return parseUserId(user.getUsername());
     }
 
+    /**
+     * Anonymous-safe variant for endpoints that may be reached without an
+     * authenticated principal (soft-auth gateway paths). Returns {@code null}
+     * when the caller is anonymous; otherwise the same parsed user id.
+     */
+    public static Long currentUserIdOrNull(UserDetails user) {
+        return user == null ? null : parseUserId(user.getUsername());
+    }
+
     public static long parseUserId(String value) {
         try {
             long userId = Long.parseLong(value);

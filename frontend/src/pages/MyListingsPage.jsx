@@ -357,6 +357,16 @@ export default function MyListingsPage() {
                                                 >
                                                     {listing.title}
                                                 </Link>
+                                                {listing.moderationComment &&
+                                                    (listing.status === 'REJECTED' ||
+                                                        listing.status === 'DRAFT') && (
+                                                        <p
+                                                            className="mt-1 text-xs text-amber-700"
+                                                            title="Комментарий модератора"
+                                                        >
+                                                            Модератор: {listing.moderationComment}
+                                                        </p>
+                                                    )}
                                             </td>
                                             <td className="px-4 py-3">
                                                 <StatusBadge status={listing.status} />

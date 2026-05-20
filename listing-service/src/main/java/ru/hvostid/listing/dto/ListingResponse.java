@@ -45,7 +45,13 @@ public record ListingResponse(
         Instant updatedAt,
 
         @Schema(description = "Timestamp when the listing transitioned to SOLD", example = "2026-05-15T18:00:00Z")
-        Instant soldAt) {
+        Instant soldAt,
+
+        @Schema(
+                description = "Last moderator note (reason for rejection, comment on return to DRAFT). "
+                        + "Null when the listing has never been reviewed.",
+                example = "Please attach a clearer cover photo.")
+        String moderationComment) {
     public static ListingResponse from(Listing listing) {
         return new ListingResponse(
                 listing.getId(),
@@ -61,6 +67,7 @@ public record ListingResponse(
                 listing.getPassportId(),
                 listing.getCreatedAt(),
                 listing.getUpdatedAt(),
-                listing.getSoldAt());
+                listing.getSoldAt(),
+                listing.getModerationComment());
     }
 }

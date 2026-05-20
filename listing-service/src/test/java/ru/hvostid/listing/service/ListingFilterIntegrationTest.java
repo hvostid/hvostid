@@ -244,7 +244,7 @@ class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
         @DisplayName("Age range with min=0 should include newborn animals")
         void ageMinZero_includesNewborns() {
             // Create newborn listing
-            createPublishedListing("Newborn Puppy", "Just born", "Mixed", "dog", 0, 10000, "Moscow", "passport-new");
+            createPublishedListing("Newborn Puppy", "Just born", "Mixed", "dog", 0, 10000, "Moscow", "800");
 
             ListingFilterRequest filters = new ListingFilterRequest(null, null, 0, null, null, null, null);
             Page<ListingResponse> result = listingService.getListingsWithFilters(filters, PageRequest.of(0, 10));
@@ -264,7 +264,7 @@ class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
         @Test
         @DisplayName("Zero price listings are filterable")
         void zeroPrice_filteringWorks() {
-            createPublishedListing("Free Puppy", "Need home", "Mixed", "dog", 6, 0, "Moscow", "passport-free");
+            createPublishedListing("Free Puppy", "Need home", "Mixed", "dog", 6, 0, "Moscow", "801");
 
             ListingFilterRequest filters = new ListingFilterRequest(null, null, null, null, 0, 0, null);
             Page<ListingResponse> result = listingService.getListingsWithFilters(filters, PageRequest.of(0, 10));
@@ -415,8 +415,8 @@ class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
         @Test
         @DisplayName("Sort by price asc with equal prices maintains stable order")
         void sortByPriceAsc_equalPrices() {
-            createPublishedListing("Equal Price 1", "Same price", "Breed1", "dog", 12, 15000, "Moscow", "passport-eq1");
-            createPublishedListing("Equal Price 2", "Same price", "Breed2", "cat", 24, 15000, "Moscow", "passport-eq2");
+            createPublishedListing("Equal Price 1", "Same price", "Breed1", "dog", 12, 15000, "Moscow", "802");
+            createPublishedListing("Equal Price 2", "Same price", "Breed2", "cat", 24, 15000, "Moscow", "803");
 
             PageRequest pageRequest = PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "price"));
             Page<ListingResponse> result = listingService.getListingsWithFilters(

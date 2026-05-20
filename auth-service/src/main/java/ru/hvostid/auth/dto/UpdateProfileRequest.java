@@ -1,6 +1,7 @@
 package ru.hvostid.auth.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -13,6 +14,9 @@ public record UpdateProfileRequest(
         String name,
 
         @Size(max = 50, message = "phone must be at most 50 characters")
+        @Pattern(
+                regexp = "^$|^\\+?[0-9 ()\\-]{5,30}$",
+                message = "phone must contain only digits, spaces, parentheses, dashes, optional leading +")
         String phone,
 
         @Size(max = 255, message = "city must be at most 255 characters")

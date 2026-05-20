@@ -54,6 +54,7 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
     private final IntrospectionClient introspectionClient;
     private final ObjectMapper objectMapper;
     private final List<PublicPathRule> publicPathRules;
+    private final List<PublicPathRule> optionalAuthPathRules;
 
     public TokenIntrospectionFilter(
             IntrospectionClient introspectionClient, AuthProperties authProperties, ObjectMapper objectMapper) {
@@ -61,6 +62,9 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
         this.objectMapper = objectMapper;
         this.publicPathRules =
                 authProperties.publicPaths().stream().map(PublicPathRule::parse).toList();
+        this.optionalAuthPathRules = authProperties.optionalAuthPaths().stream()
+                .map(PublicPathRule::parse)
+                .toList();
     }
 
     @Override
@@ -68,6 +72,12 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         String method = request.getMethod();
         return publicPathRules.stream().anyMatch(rule -> rule.matches(method, path));
+    }
+
+    private boolean isOptionalAuthPath(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        String method = request.getMethod();
+        return optionalAuthPathRules.stream().anyMatch(rule -> rule.matches(method, path));
     }
 
     /**
@@ -105,8 +115,17 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+        boolean optionalAuth = isOptionalAuthPath(request);
 
         if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
+            if (optionalAuth) {
+                // Soft-auth path: no Bearer is allowed; downstream service decides
+                // (e.g., public listing detail). USER_ID/USER_ROLES are not set so
+                // any access check at the service treats the caller as anonymous.
+                log.debug("Anonymous pass-through on optional-auth path {}", request.getRequestURI());
+                filterChain.doFilter(request, response);
+                return;
+            }
             log.debug("Missing or malformed Authorization header on {}", request.getRequestURI());
             writeUnauthorized(request, response, "Missing or invalid Authorization header");
             return;
