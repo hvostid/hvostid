@@ -108,4 +108,12 @@ public class GlobalExceptionHandler {
         return ProblemDetailsFactory.problem(
                 HttpStatus.BAD_REQUEST, ValidationException.TYPE, "Invalid flag review", ex.getMessage(), request);
     }
+
+    @ExceptionHandler(ListingDeletionConflictException.class)
+    public ResponseEntity<ProblemDetails> handleDeletionConflict(
+            ListingDeletionConflictException ex, HttpServletRequest request) {
+        log.debug("Deletion conflict: {}", ex.getMessage());
+        return ProblemDetailsFactory.problem(
+                HttpStatus.CONFLICT, ConflictException.TYPE, "Cannot delete listing", ex.getMessage(), request);
+    }
 }

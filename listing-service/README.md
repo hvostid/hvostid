@@ -20,6 +20,7 @@ Owns pet listings: create, update, search, filter.
 | POST   | `/api/v1/listings`           | seller |                                     |
 | PATCH  | `/api/v1/listings/{id}`      | seller | Owner only                          |
 | DELETE | `/api/v1/listings/{id}`      | seller | Owner only                          |
+| DELETE | `/api/v1/listings/{id}` | seller/admin | Permanent deletion; 409 if listing in MODERATION |
 
 Full spec at http://localhost:8082/swagger-ui.html.
 

@@ -21,6 +21,7 @@
 | POST   | `/api/v1/listings`           | seller |                                     |
 | PATCH  | `/api/v1/listings/{id}`      | seller | Только владелец                     |
 | DELETE | `/api/v1/listings/{id}`      | seller | Только владелец                     |
+| DELETE | `/api/v1/listings/{id}` | seller/admin | Жёсткое удаление; 409 если объявление на модерации |
 
 Полная спецификация: http://localhost:8082/swagger-ui.html.
 

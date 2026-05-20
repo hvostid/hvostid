@@ -344,4 +344,35 @@ public class ListingController {
         boolean exists = listingService.hasPublishedListingForPassport(passportId);
         return ResponseEntity.ok(new PassportPublishedStatusResponse(passportId, exists));
     }
+
+    @Operation(
+            summary = "Permanently delete a listing",
+            description = "Hard-deletes a listing owned by the caller. " + "Only the owner or ADMIN can delete. "
+                    + "Listings in MODERATION state cannot be deleted. "
+                    + "Deletion cascades to flags and status history.")
+    @ApiResponse(responseCode = "204", description = "Listing deleted successfully")
+    @ApiResponse(responseCode = "401", description = "Missing or invalid authenticated user", content = @Content)
+    @ApiResponse(responseCode = "403", description = "Not owner and not ADMIN", content = @Content)
+    @ApiResponse(
+            responseCode = "404",
+            description = "Listing not found",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(
+            responseCode = "409",
+            description = "Listing is under moderation",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SELLER', 'ADMIN')")
+    public ResponseEntity<Void> deleteListing(
+            @Parameter(description = "Listing ID", required = true, example = "1") @PathVariable Long id,
+            @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
+
+        long userId = GatewayPreAuthentication.currentUserId(user);
+        Set<String> roles = currentRoles(user);
+
+        log.debug("DELETE /api/v1/listings/{}, userId={}, roles={}", id, userId, roles);
+
+        listingService.deleteListing(id, userId, roles);
+        return ResponseEntity.noContent().build();
+    }
 }
