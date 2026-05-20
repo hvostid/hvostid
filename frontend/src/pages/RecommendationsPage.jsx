@@ -1,12 +1,11 @@
 // pages/RecommendationsPage.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { getRecommendations } from '../api/matching';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
 
-// Цвета для бейджей совместимости
 const COMPATIBILITY_STYLES = {
     GREAT: 'bg-green-100 text-green-800',
     GOOD: 'bg-blue-100 text-blue-800',
@@ -38,9 +37,8 @@ export default function RecommendationsPage() {
     const [totalElements, setTotalElements] = useState(0);
     const [minScore, setMinScore] = useState(0);
     const [loadingMore, setLoadingMore] = useState(false);
-    const [hoveredCardId, setHoveredCardId] = useState(null);
 
-    const loadRecommendations = async (pageNum, currentMinScore) => {
+    const loadRecommendations = useCallback(async (pageNum, currentMinScore) => {
         setLoadingMore(true);
         try {
             const data = await getRecommendations(pageNum, 12, currentMinScore);
@@ -62,13 +60,13 @@ export default function RecommendationsPage() {
             setLoading(false);
             setLoadingMore(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         setLoading(true);
         setPage(0);
         loadRecommendations(0, minScore);
-    }, [minScore]);
+    }, [minScore, loadRecommendations]);
 
     const loadMore = () => {
         if (page + 1 < totalPages) {
@@ -82,7 +80,6 @@ export default function RecommendationsPage() {
         setMinScore(parseInt(e.target.value, 10));
     };
 
-    // Показываем скелетоны при первой загрузке
     if (loading && page === 0) {
         return (
             <div>
@@ -161,28 +158,14 @@ export default function RecommendationsPage() {
                                 COMPATIBILITY_STYLES.NOT_RECOMMENDED;
                             const compatibilityLabel =
                                 COMPATIBILITY_LABELS[item.level] || item.level;
-                            const isHovered = hoveredCardId === listing.id;
 
                             return (
-                                <div
-                                    key={listing.id}
-                                    className="relative group"
-                                    onMouseEnter={() => setHoveredCardId(listing.id)}
-                                    onMouseLeave={() => setHoveredCardId(null)}
-                                >
-                                    {/* Обычная карточка объявления */}
+                                <div key={listing.id} className="relative group">
                                     <div className="transition-transform duration-300 ease-out group-hover:scale-[1.02] group-hover:shadow-xl">
                                         <ListingCard listing={listing} />
                                     </div>
 
-                                    {/* Бейдж совместимости с анимацией при наведении */}
-                                    <div
-                                        className={`
-                                            absolute top-2 left-2 z-10
-                                            transition-all duration-300 ease-out
-                                            ${isHovered ? 'scale-110' : 'scale-100'}
-                                        `}
-                                    >
+                                    <div className="absolute top-2 left-2 z-10 transition-all duration-300 ease-out group-hover:scale-110">
                                         <div
                                             className={`px-2 py-1 rounded-full text-xs font-medium shadow-sm ${compatibilityStyle}`}
                                         >
@@ -190,22 +173,15 @@ export default function RecommendationsPage() {
                                         </div>
                                     </div>
 
-                                    {/* Затемнение при наведении — вся карточка кликабельна */}
                                     <Link
                                         to={`/listings/${listing.id}/match`}
-                                        className={`
-                                            absolute inset-0 rounded-lg
-                                            flex items-center justify-center
-                                            transition-all duration-300 ease-out
-                                            ${isHovered ? 'bg-black/20 opacity-100' : 'opacity-0 pointer-events-none'}
-                                        `}
+                                        className="absolute inset-0 rounded-lg flex items-center justify-center transition-all duration-300 ease-out bg-black/10 opacity-0 group-hover:opacity-70"
                                     />
                                 </div>
                             );
                         })}
                     </div>
 
-                    {/* Кнопка "Загрузить ещё" */}
                     {page + 1 < totalPages && (
                         <div className="text-center mt-8">
                             <button
