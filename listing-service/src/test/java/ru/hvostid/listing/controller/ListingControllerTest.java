@@ -242,6 +242,30 @@ class ListingControllerTest extends AbstractPostgresContainerTest {
             mockMvc.perform(get(LISTINGS_URL + "/{id}", draftId).header(USER_ID, 999L))
                     .andExpect(status().isForbidden());
         }
+
+        @Test
+        @DisplayName("non-published listing - accessible by MODERATOR")
+        void getListing_nonPublishedAndModerator_returns200() throws Exception {
+            Listing moderationListing = Listing.builder()
+                    .sellerId(testSellerId)
+                    .title("Moderation Puppy")
+                    .description("Description")
+                    .species("dog")
+                    .breed("Husky")
+                    .age(6)
+                    .price(20000)
+                    .city("Moscow")
+                    .passportId("passport-1")
+                    .build();
+            moderationListing.setStatus(ListingStatus.MODERATION);
+            Long moderationId = listingRepository.save(moderationListing).getId();
+
+            mockMvc.perform(get(LISTINGS_URL + "/{id}", moderationId)
+                            .header(USER_ID, 999L)
+                            .header(USER_ROLES, UserRole.MODERATOR.value()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status", is("MODERATION")));
+        }
     }
 
     @Nested

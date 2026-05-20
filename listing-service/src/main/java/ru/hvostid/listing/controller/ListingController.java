@@ -108,9 +108,14 @@ public class ListingController {
             @Parameter(description = "Listing ID", required = true, example = "1") @PathVariable Long id,
             @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
         long userId = GatewayPreAuthentication.currentUserId(user);
-        log.debug("GET /api/v1/listings/{}, userId={}", id, userId);
+        Set<String> roles = user.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .filter(Objects::nonNull)
+                .map(role -> role.startsWith("ROLE_") ? role.substring(5) : role)
+                .collect(Collectors.toSet());
+        log.debug("GET /api/v1/listings/{}, userId={}, roles={}", id, userId, roles);
 
-        ListingResponse response = listingService.getListing(id, userId);
+        ListingResponse response = listingService.getListing(id, userId, roles);
         return ResponseEntity.ok(response);
     }
 
