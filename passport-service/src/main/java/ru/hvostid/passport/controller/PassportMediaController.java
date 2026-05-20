@@ -16,8 +16,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import ru.hvostid.passport.entity.MediaTicket;
-import ru.hvostid.passport.entity.PassportDocument;
-import ru.hvostid.passport.repository.PassportDocumentRepository;
 import ru.hvostid.passport.service.MediaStreamRedirectFactory;
 import ru.hvostid.passport.service.MediaTicketService;
 
@@ -46,15 +44,10 @@ public class PassportMediaController {
     private static final Logger log = LoggerFactory.getLogger(PassportMediaController.class);
 
     private final MediaTicketService ticketService;
-    private final PassportDocumentRepository documentRepository;
     private final MediaStreamRedirectFactory redirectFactory;
 
-    public PassportMediaController(
-            MediaTicketService ticketService,
-            PassportDocumentRepository documentRepository,
-            MediaStreamRedirectFactory redirectFactory) {
+    public PassportMediaController(MediaTicketService ticketService, MediaStreamRedirectFactory redirectFactory) {
         this.ticketService = ticketService;
-        this.documentRepository = documentRepository;
         this.redirectFactory = redirectFactory;
     }
 
@@ -90,14 +83,8 @@ public class PassportMediaController {
             return notFound();
         }
 
-        PassportDocument document = documentRepository.findById(docId).orElse(null);
-        if (document == null) {
-            // Document was deleted between issue and redeem.
-            return notFound();
-        }
-
         log.debug("Streaming media docId={} via X-Accel-Redirect", docId);
-        return redirectFactory.noContentXAccelRedirect(document);
+        return redirectFactory.noContentXAccelRedirect(ticket.storagePath(), ticket.type());
     }
 
     private ResponseEntity<Void> notFound() {

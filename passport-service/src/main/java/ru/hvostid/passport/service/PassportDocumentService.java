@@ -159,7 +159,8 @@ public class PassportDocumentService {
             }
         }
 
-        String token = mediaTicketService.issue(new MediaTicket(document.getId(), passportId, userId));
+        String token = mediaTicketService.issue(
+                new MediaTicket(document.getId(), passportId, userId, document.getStoragePath(), document.getType()));
         String url = String.format("/api/v1/passports/%d/docs/%d/content?t=%s", passportId, document.getId(), token);
         Instant expiresAt = Instant.now().plus(mediaTicketProperties.ticketTtl());
         return new MediaTicketResponse(url, expiresAt);

@@ -7,6 +7,7 @@ import ru.hvostid.common.http.ProxyHeaders;
 import ru.hvostid.passport.config.MediaTicketProperties;
 import ru.hvostid.passport.config.MinioProperties;
 import ru.hvostid.passport.entity.PassportDocument;
+import ru.hvostid.passport.entity.PassportDocumentType;
 import ru.hvostid.passport.storage.MinioStorageService;
 
 /**
@@ -33,8 +34,12 @@ public class MediaStreamRedirectFactory {
     }
 
     public ResponseEntity<Void> noContentXAccelRedirect(PassportDocument document) {
-        String bucket = minioProperties.buckets().forDocumentType(document.getType());
-        String presigned = storageService.getPresignedUrl(bucket, document.getStoragePath(), properties.presignTtl());
+        return noContentXAccelRedirect(document.getStoragePath(), document.getType());
+    }
+
+    public ResponseEntity<Void> noContentXAccelRedirect(String storagePath, PassportDocumentType type) {
+        String bucket = minioProperties.buckets().forDocumentType(type);
+        String presigned = storageService.getPresignedUrl(bucket, storagePath, properties.presignTtl());
         String internalPath = toInternalRedirect(presigned);
         return ResponseEntity.noContent()
                 .header(ProxyHeaders.X_ACCEL_REDIRECT, internalPath)
