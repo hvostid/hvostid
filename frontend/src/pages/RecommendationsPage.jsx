@@ -178,10 +178,10 @@ export default function RecommendationsPage() {
                                     {/* Бейдж совместимости с анимацией при наведении */}
                                     <div
                                         className={`
-                      absolute top-2 left-2 z-10
-                      transition-all duration-300 ease-out
-                      ${isHovered ? 'scale-110' : 'scale-100'}
-                    `}
+                                            absolute top-2 left-2 z-10
+                                            transition-all duration-300 ease-out
+                                            ${isHovered ? 'scale-110' : 'scale-100'}
+                                        `}
                                     >
                                         <div
                                             className={`px-2 py-1 rounded-full text-xs font-medium shadow-sm ${compatibilityStyle}`}
@@ -190,15 +190,16 @@ export default function RecommendationsPage() {
                                         </div>
                                     </div>
 
-                                    {/* Затемнение при наведении и кнопка*/}
-                                    <div
+                                    {/* Затемнение при наведении — вся карточка кликабельна */}
+                                    <Link
+                                        to={`/listings/${listing.id}/match`}
                                         className={`
-                      absolute inset-0 bg-black/10 rounded-lg
-                      flex items-center justify-center
-                      transition-all duration-300 ease-out
-                      ${isHovered ? 'opacity-70' : 'opacity-0 pointer-events-none'}
-                    `}
-                                    ></div>
+                                            absolute inset-0 rounded-lg
+                                            flex items-center justify-center
+                                            transition-all duration-300 ease-out
+                                            ${isHovered ? 'bg-black/20 opacity-100' : 'opacity-0 pointer-events-none'}
+                                        `}
+                                    />
                                 </div>
                             );
                         })}
