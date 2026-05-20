@@ -38,7 +38,7 @@ public record ListingRequest(
 
         @NotBlank(message = "PassportId is required")
         @Pattern(
-                regexp = "(passport-)?[0-9]+",
+                regexp = "(passport-)?\\d+",
                 message = "PassportId must be a numeric passport-service id, optionally prefixed with 'passport-'")
         @Schema(description = "Pet passport identifier from passport-service", example = "12")
         String passportId) {}
