@@ -39,7 +39,7 @@ class MatchRecommendationsServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new MatchRecommendationsService(listingClient, matchScoreService);
+        service = new MatchRecommendationsService(listingClient, matchScoreService, null);
         questionnaire = new BuyerQuestionnaire(1L);
     }
 

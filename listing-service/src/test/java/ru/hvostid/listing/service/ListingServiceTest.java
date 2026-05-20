@@ -251,8 +251,9 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
     }
 
     @Test
-    void getPublishedListings_WithPagination_ShouldReturnCorrectPage() throws InterruptedException {
-        // given - create 5 published listings
+    void getPublishedListings_WithPagination_ShouldReturnCorrectPage() {
+        // given - create 5 published listings. No timestamp ordering is required:
+        // assertions below only check pagination boundaries, not createdAt order.
         List<Long> createdIds = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             ListingRequest request = new ListingRequest(
@@ -267,8 +268,6 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
             ListingResponse created = listingService.createListing(request, 1L);
             setStatus(created.id(), ListingStatus.PUBLISHED);
             createdIds.add(created.id());
-
-            Thread.sleep(1);
         }
 
         Pageable firstPage = PageRequest.of(0, 2);

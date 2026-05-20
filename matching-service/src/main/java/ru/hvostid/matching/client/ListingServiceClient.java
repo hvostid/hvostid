@@ -3,8 +3,6 @@ package ru.hvostid.matching.client;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
@@ -16,8 +14,6 @@ import ru.hvostid.matching.exception.ListingUnavailableException;
 
 @Component
 public class ListingServiceClient {
-    private static final Logger log = LoggerFactory.getLogger(ListingServiceClient.class);
-
     private final RestClient listingRestClient;
 
     public ListingServiceClient(RestClient listingRestClient) {
@@ -44,23 +40,20 @@ public class ListingServiceClient {
         } catch (HttpClientErrorException.Forbidden _) {
             throw new ListingNotFoundException("Listing not found or not accessible: " + listingId);
         } catch (HttpClientErrorException ex) {
-            log.warn(
-                    "Listing service error for id={} status={} requestId={}",
-                    listingId,
-                    ex.getStatusCode().value(),
-                    requestId);
             throw new ListingUnavailableException(
-                    "Listing service error: " + ex.getStatusCode().value(), ex);
+                    "Listing service error " + ex.getStatusCode().value() + " for listingId=" + listingId
+                            + " requestId=" + requestId,
+                    ex);
         } catch (RestClientException ex) {
-            log.warn("Listing service unavailable for id={} requestId={}", listingId, requestId, ex);
-            throw new ListingUnavailableException("Listing service unavailable", ex);
+            throw new ListingUnavailableException(
+                    "Listing service unavailable for listingId=" + listingId + " requestId=" + requestId, ex);
         }
     }
 
     @SuppressWarnings("unused")
     private ListingSnapshot getListingFallback(long listingId, long userId, String requestId, Throwable cause) {
-        log.warn("Listing service circuit open or call failed for id={} requestId={}", listingId, requestId, cause);
-        throw new ListingUnavailableException("Listing service unavailable", cause);
+        throw new ListingUnavailableException(
+                "Listing service unavailable for listingId=" + listingId + " requestId=" + requestId, cause);
     }
 
     /**
@@ -90,25 +83,20 @@ public class ListingServiceClient {
                     response.number(),
                     response.size());
         } catch (HttpClientErrorException ex) {
-            log.warn(
-                    "Listing service error fetching page={} size={} status={} requestId={}",
-                    page,
-                    size,
-                    ex.getStatusCode().value(),
-                    requestId);
             throw new ListingUnavailableException(
-                    "Listing service error: " + ex.getStatusCode().value(), ex);
+                    "Listing service error " + ex.getStatusCode().value() + " for catalog page=" + page + " size="
+                            + size + " requestId=" + requestId,
+                    ex);
         } catch (RestClientException ex) {
-            log.warn("Listing service unavailable for catalog page={} requestId={}", page, requestId, ex);
-            throw new ListingUnavailableException("Listing service unavailable", ex);
+            throw new ListingUnavailableException(
+                    "Listing service unavailable for catalog page=" + page + " requestId=" + requestId, ex);
         }
     }
 
     @SuppressWarnings("unused")
     private PublishedListingsPage getPublishedListingsFallback(int page, int size, String requestId, Throwable cause) {
-        log.warn(
-                "Listing service circuit open or call failed for catalog page={} requestId={}", page, requestId, cause);
-        throw new ListingUnavailableException("Listing service unavailable", cause);
+        throw new ListingUnavailableException(
+                "Listing service unavailable for catalog page=" + page + " requestId=" + requestId, cause);
     }
 
     private record ListingApiResponse(Long id, String species, String breed, Integer age, String passportId) {}

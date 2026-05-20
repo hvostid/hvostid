@@ -1,7 +1,5 @@
 package ru.hvostid.passport.client;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -11,8 +9,6 @@ import ru.hvostid.passport.exception.ListingServiceUnavailableException;
 
 @Component
 public class ListingServiceClient {
-    private static final Logger log = LoggerFactory.getLogger(ListingServiceClient.class);
-
     private final RestClient listingRestClient;
 
     public ListingServiceClient(RestClient listingRestClient) {
@@ -33,8 +29,8 @@ public class ListingServiceClient {
                     .body(HasPublishedResponse.class);
             return response != null && response.hasPublishedListing();
         } catch (RestClientException ex) {
-            log.warn("Listing service unavailable while checking passportId={}", passportId, ex);
-            throw new ListingServiceUnavailableException("Listing service unavailable", ex);
+            throw new ListingServiceUnavailableException(
+                    "Listing service unavailable while checking passportId=" + passportId, ex);
         }
     }
 

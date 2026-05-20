@@ -8,6 +8,8 @@ import static ru.hvostid.common.http.SecurityHeaders.USER_ID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -53,34 +55,23 @@ class ListingSearchIntegrationTest extends AbstractPostgresContainerTest {
         listingRepository.save(listing);
     }
 
-    @Test
-    void searchByRussianKeyword_returnsRelevantListings() {
-        Page<ListingResponse> result = listingService.searchListings("хаски", PageRequest.of(0, 10));
+    @ParameterizedTest(name = "[{index}] searchListings(\"{0}\") -> {1} hits, contains \"{2}\"")
+    @CsvSource(delimiter = '|', nullValues = "<null>", textBlock = """
+                    хаски     | 1 | Хаски
+                    labrador  | 1 | Лабрадор
+                              | 3 | <null>
+                    notexists | 0 | <null>
+                    """)
+    void searchListings_returnsExpectedPageForKeyword(String keyword, int expectedSize, String expectedFragment) {
+        String resolvedKeyword = keyword == null ? "" : keyword;
 
-        assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().getFirst().title()).contains("Хаски");
-    }
+        Page<ListingResponse> result = listingService.searchListings(resolvedKeyword, PageRequest.of(0, 10));
 
-    @Test
-    void searchByEnglishKeyword_returnsRelevantListings() {
-        Page<ListingResponse> result = listingService.searchListings("labrador", PageRequest.of(0, 10));
-
-        assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().getFirst().breed()).contains("Лабрадор");
-    }
-
-    @Test
-    void searchWithEmptyKeyword_returnsAllPublished() {
-        Page<ListingResponse> result = listingService.searchListings("", PageRequest.of(0, 10));
-
-        assertThat(result.getContent()).hasSize(3);
-    }
-
-    @Test
-    void searchWithNoMatches_returnsEmptyPage() {
-        Page<ListingResponse> result = listingService.searchListings("notexists", PageRequest.of(0, 10));
-
-        assertThat(result.getContent()).isEmpty();
+        assertThat(result.getContent()).hasSize(expectedSize);
+        if (expectedFragment != null) {
+            ListingResponse first = result.getContent().getFirst();
+            assertThat(first.title() + " " + first.breed()).contains(expectedFragment);
+        }
     }
 
     @Test
