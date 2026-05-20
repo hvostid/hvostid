@@ -58,9 +58,9 @@ class ListingMyControllerTest extends AbstractPostgresContainerTest {
     }
 
     @Test
-    @DisplayName("?my=true returns all statuses for the caller, including archived/sold")
+    @DisplayName("/my returns all statuses for the caller, including archived/sold")
     void myAll_returnsAllStatuses() throws Exception {
-        mockMvc.perform(get(LISTINGS_URL + "?my=true&page=0&size=20")
+        mockMvc.perform(get(LISTINGS_URL + "/my?page=0&size=20")
                         .header(USER_ID, OWNER_ID)
                         .header(USER_ROLES, UserRole.SELLER.value()))
                 .andExpect(status().isOk())
@@ -69,9 +69,9 @@ class ListingMyControllerTest extends AbstractPostgresContainerTest {
     }
 
     @Test
-    @DisplayName("?my=true&status=ARCHIVED returns only archived listings of the caller")
+    @DisplayName("/my?status=ARCHIVED returns only archived listings of the caller")
     void myArchived_filters() throws Exception {
-        mockMvc.perform(get(LISTINGS_URL + "?my=true&status=ARCHIVED&page=0&size=20")
+        mockMvc.perform(get(LISTINGS_URL + "/my?status=ARCHIVED&page=0&size=20")
                         .header(USER_ID, OWNER_ID)
                         .header(USER_ROLES, UserRole.SELLER.value()))
                 .andExpect(status().isOk())
@@ -81,24 +81,15 @@ class ListingMyControllerTest extends AbstractPostgresContainerTest {
     }
 
     @Test
-    @DisplayName("?my=true without auth returns 401")
+    @DisplayName("/my without auth returns 401")
     void myWithoutAuth_returns401() throws Exception {
-        mockMvc.perform(get(LISTINGS_URL + "?my=true")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get(LISTINGS_URL + "/my")).andExpect(status().isUnauthorized());
     }
 
     @Test
-    @DisplayName("?my=true together with ?q is rejected as 400")
-    void myWithKeyword_returns400() throws Exception {
-        mockMvc.perform(get(LISTINGS_URL + "?my=true&q=puppy")
-                        .header(USER_ID, OWNER_ID)
-                        .header(USER_ROLES, UserRole.SELLER.value()))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @DisplayName("?my=true does not leak listings owned by other users")
+    @DisplayName("/my?status=PUBLISHED does not leak listings owned by other users")
     void myDoesNotLeakOthers() throws Exception {
-        mockMvc.perform(get(LISTINGS_URL + "?my=true&status=PUBLISHED&page=0&size=20")
+        mockMvc.perform(get(LISTINGS_URL + "/my?status=PUBLISHED&page=0&size=20")
                         .header(USER_ID, OWNER_ID)
                         .header(USER_ROLES, UserRole.SELLER.value()))
                 .andExpect(status().isOk())
