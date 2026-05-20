@@ -228,19 +228,10 @@ public class ListingService {
         }
 
         String sanitizedKeyword = normalizeKeyword(keyword);
+        ListingFilterRequest emptyFilter = new ListingFilterRequest(null, null, null, null, null, null, null);
 
         return listingRepository
-                .searchByKeyword(
-                        ListingStatus.PUBLISHED.name(),
-                        sanitizedKeyword,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        pageable)
+                .searchByKeyword(ListingStatus.PUBLISHED.name(), sanitizedKeyword, emptyFilter, pageable)
                 .map(ListingResponse::from);
     }
 
@@ -256,7 +247,10 @@ public class ListingService {
         log.debug("Searching with keyword='{}' and filters: {}", keyword, filters);
 
         if (keyword == null || keyword.isBlank() || "\"\"".equals(keyword.trim())) {
-            return getListingsWithFilters(filters, pageable);
+            // Same path as getListingsWithFilters; inlined so the self-call doesn't
+            // skip the Spring proxy (and so the @Transactional context stays explicit).
+            Specification<Listing> spec = ListingSpecifications.withFilters(filters);
+            return listingRepository.findAll(spec, pageable).map(ListingResponse::from);
         }
 
         String sanitizedKeyword = normalizeKeyword(keyword);
@@ -267,22 +261,26 @@ public class ListingService {
             return Page.empty(pageable);
         }
 
-        ListingFilterRequest effective =
-                filters == null ? new ListingFilterRequest(null, null, null, null, null, null, null) : filters;
+        ListingFilterRequest effective = normalizeFilter(filters);
 
         Page<Listing> searchResults = listingRepository.searchByKeyword(
-                ListingStatus.PUBLISHED.name(),
-                sanitizedKeyword,
-                blankToNull(effective.species()),
-                blankToNull(effective.breed()),
-                effective.ageMin(),
-                effective.ageMax(),
-                effective.priceMin(),
-                effective.priceMax(),
-                blankToNull(effective.city()),
-                pageable);
+                ListingStatus.PUBLISHED.name(), sanitizedKeyword, effective, pageable);
 
         return searchResults.map(ListingResponse::from);
+    }
+
+    private static ListingFilterRequest normalizeFilter(ListingFilterRequest filters) {
+        if (filters == null) {
+            return new ListingFilterRequest(null, null, null, null, null, null, null);
+        }
+        return new ListingFilterRequest(
+                blankToNull(filters.species()),
+                blankToNull(filters.breed()),
+                filters.ageMin(),
+                filters.ageMax(),
+                filters.priceMin(),
+                filters.priceMax(),
+                blankToNull(filters.city()));
     }
 
     @Transactional

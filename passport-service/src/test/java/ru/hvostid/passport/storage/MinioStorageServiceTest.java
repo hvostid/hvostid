@@ -66,13 +66,15 @@ class MinioStorageServiceTest {
 
     @Test
     void getPresignedUrlRejectsInvalidExpiry() {
+        Duration negative = Duration.ofSeconds(-1);
+        Duration eightDays = Duration.ofDays(8);
         assertThatThrownBy(() -> storageService.getPresignedUrl(BUCKET, "object.txt", Duration.ZERO))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("expiry must be positive");
-        assertThatThrownBy(() -> storageService.getPresignedUrl(BUCKET, "object.txt", Duration.ofSeconds(-1)))
+        assertThatThrownBy(() -> storageService.getPresignedUrl(BUCKET, "object.txt", negative))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("expiry must be positive");
-        assertThatThrownBy(() -> storageService.getPresignedUrl(BUCKET, "object.txt", Duration.ofDays(8)))
+        assertThatThrownBy(() -> storageService.getPresignedUrl(BUCKET, "object.txt", eightDays))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("expiry must not exceed 7 days");
     }

@@ -54,6 +54,7 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
     private final IntrospectionClient introspectionClient;
     private final ObjectMapper objectMapper;
     private final List<PublicPathRule> publicPathRules;
+    private final List<PublicPathRule> optionalAuthPathRules;
 
     public TokenIntrospectionFilter(
             IntrospectionClient introspectionClient, AuthProperties authProperties, ObjectMapper objectMapper) {
@@ -61,6 +62,9 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
         this.objectMapper = objectMapper;
         this.publicPathRules =
                 authProperties.publicPaths().stream().map(PublicPathRule::parse).toList();
+        this.optionalAuthPathRules = authProperties.optionalAuthPaths().stream()
+                .map(PublicPathRule::parse)
+                .toList();
     }
 
     @Override
@@ -68,6 +72,12 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         String method = request.getMethod();
         return publicPathRules.stream().anyMatch(rule -> rule.matches(method, path));
+    }
+
+    private boolean isOptionalAuthPath(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        String method = request.getMethod();
+        return optionalAuthPathRules.stream().anyMatch(rule -> rule.matches(method, path));
     }
 
     /**
@@ -105,9 +115,30 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+        boolean optionalAuth = isOptionalAuthPath(request);
 
-        if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
-            log.debug("Missing or malformed Authorization header on {}", request.getRequestURI());
+        if (authHeader == null) {
+            if (optionalAuth) {
+                // Soft-auth path with no Authorization header at all: pass
+                // through anonymously and let the downstream service decide
+                // (e.g., public listing detail). USER_ID/USER_ROLES stay unset
+                // so any access check at the service treats the caller as
+                // anonymous.
+                log.debug("Anonymous pass-through on optional-auth path {}", request.getRequestURI());
+                filterChain.doFilter(request, response);
+                return;
+            }
+            log.debug("Missing Authorization header on {}", request.getRequestURI());
+            writeUnauthorized(request, response, "Missing or invalid Authorization header");
+            return;
+        }
+
+        if (!authHeader.startsWith(BEARER_PREFIX)) {
+            // A non-empty Authorization header that is not a Bearer token is
+            // a real client mistake: respond with 401 even on soft-auth paths
+            // rather than silently downgrading to anonymous, so the client
+            // sees its error instead of unexplained 403s downstream.
+            log.debug("Non-Bearer Authorization header on {}", request.getRequestURI());
             writeUnauthorized(request, response, "Missing or invalid Authorization header");
             return;
         }

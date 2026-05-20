@@ -244,7 +244,7 @@ class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
         @DisplayName("Age range with min=0 should include newborn animals")
         void ageMinZero_includesNewborns() {
             // Create newborn listing
-            createPublishedListing("Newborn Puppy", "Just born", "Mixed", "dog", 0, 10000, "Moscow", "passport-new");
+            createPublishedListing("Newborn Puppy", "Just born", "Mixed", "dog", 0, 10000, "Moscow", "800");
 
             ListingFilterRequest filters = new ListingFilterRequest(null, null, 0, null, null, null, null);
             Page<ListingResponse> result = listingService.getListingsWithFilters(filters, PageRequest.of(0, 10));
@@ -258,18 +258,18 @@ class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
             ListingFilterRequest filters = new ListingFilterRequest(null, null, null, 5000, null, null, null);
             Page<ListingResponse> result = listingService.getListingsWithFilters(filters, PageRequest.of(0, 10));
 
-            assertThat(result.getContent()).allMatch(l -> l.age() <= ListingConstants.MAX_AGE_MONTHS);
+            assertThat(result.getContent()).isNotEmpty().allMatch(l -> l.age() <= ListingConstants.MAX_AGE_MONTHS);
         }
 
         @Test
         @DisplayName("Zero price listings are filterable")
         void zeroPrice_filteringWorks() {
-            createPublishedListing("Free Puppy", "Need home", "Mixed", "dog", 6, 0, "Moscow", "passport-free");
+            createPublishedListing("Free Puppy", "Need home", "Mixed", "dog", 6, 0, "Moscow", "801");
 
             ListingFilterRequest filters = new ListingFilterRequest(null, null, null, null, 0, 0, null);
             Page<ListingResponse> result = listingService.getListingsWithFilters(filters, PageRequest.of(0, 10));
 
-            assertThat(result.getContent()).allMatch(l -> l.price() == 0);
+            assertThat(result.getContent()).isNotEmpty().allMatch(l -> l.price() == 0);
         }
 
         @Test
@@ -278,7 +278,7 @@ class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
             ListingFilterRequest filters = new ListingFilterRequest(null, null, null, null, null, 999999999, null);
             Page<ListingResponse> result = listingService.getListingsWithFilters(filters, PageRequest.of(0, 10));
 
-            assertThat(result.getContent()).allMatch(l -> l.price() <= ListingConstants.MAX_PRICE);
+            assertThat(result.getContent()).isNotEmpty().allMatch(l -> l.price() <= ListingConstants.MAX_PRICE);
         }
 
         @Test
@@ -415,8 +415,8 @@ class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
         @Test
         @DisplayName("Sort by price asc with equal prices maintains stable order")
         void sortByPriceAsc_equalPrices() {
-            createPublishedListing("Equal Price 1", "Same price", "Breed1", "dog", 12, 15000, "Moscow", "passport-eq1");
-            createPublishedListing("Equal Price 2", "Same price", "Breed2", "cat", 24, 15000, "Moscow", "passport-eq2");
+            createPublishedListing("Equal Price 1", "Same price", "Breed1", "dog", 12, 15000, "Moscow", "802");
+            createPublishedListing("Equal Price 2", "Same price", "Breed2", "cat", 24, 15000, "Moscow", "803");
 
             PageRequest pageRequest = PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "price"));
             Page<ListingResponse> result = listingService.getListingsWithFilters(
@@ -428,11 +428,13 @@ class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
 
         @Test
         @DisplayName("Sort by created_desc - newer listings appear first")
-        void sortByCreatedDesc_newerFirst() throws InterruptedException {
-            // Create listings with different timestamps
+        void sortByCreatedDesc_newerFirst() {
+            // Set explicit createdAt values so the sort assertion is deterministic
+            // without relying on wall-clock granularity / Thread.sleep.
             createPublishedListing("First", "Desc", "Breed1", "dog", 1, 1000, "City1", "pass-ts1");
-            Thread.sleep(10); // Ensure different timestamp
             createPublishedListing("Second", "Desc", "Breed2", "cat", 2, 2000, "City2", "pass-ts2");
+            stampCreatedAt("pass-ts1", java.time.Instant.parse("2026-05-01T10:00:00Z"));
+            stampCreatedAt("pass-ts2", java.time.Instant.parse("2026-05-01T10:05:00Z"));
 
             PageRequest pageRequest = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
             Page<ListingResponse> result = listingService.getListingsWithFilters(
@@ -441,6 +443,15 @@ class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
             assertThat(result.getContent()).isNotEmpty();
             assertThat(result.getContent().get(0).createdAt())
                     .isAfter(result.getContent().get(1).createdAt());
+        }
+
+        private void stampCreatedAt(String passportId, java.time.Instant timestamp) {
+            Listing entity = listingRepository.findAll().stream()
+                    .filter(l -> passportId.equals(l.getPassportId()))
+                    .findFirst()
+                    .orElseThrow();
+            entity.setCreatedAt(timestamp);
+            listingRepository.save(entity);
         }
     }
 

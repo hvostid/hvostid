@@ -31,8 +31,7 @@ class MatchExplanationServiceTest {
 
         String summary = service.buildSummary(pet, result, false);
 
-        assertThat(summary).isNotBlank();
-        assertThat(summary).containsIgnoringCase("match");
+        assertThat(summary).isNotBlank().containsIgnoringCase("match");
     }
 
     @Test
@@ -86,8 +85,7 @@ class MatchExplanationServiceTest {
 
         var tips = service.buildTips(pet, result);
 
-        assertThat(tips).isNotEmpty();
-        assertThat(tips.size()).isLessThanOrEqualTo(6);
+        assertThat(tips).isNotEmpty().hasSizeLessThanOrEqualTo(6);
     }
 
     private static BuyerQuestionnaire idealQuestionnaire() {

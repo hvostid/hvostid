@@ -54,14 +54,16 @@ class PassportServiceTest extends AbstractPassportIntegrationTest {
         PassportResponse created = passportService.createPassport(validCreateRequest(), 42L);
         UpdatePassportRequest request =
                 new UpdatePassportRequest(null, null, null, null, null, null, "changed", null, null, null);
+        Long passportId = created.id();
 
-        assertThatThrownBy(() -> passportService.updatePassport(created.id(), request, 43L))
+        assertThatThrownBy(() -> passportService.updatePassport(passportId, request, 43L))
                 .isInstanceOf(PassportAccessDeniedException.class);
     }
 
     @Test
     void getPassportRejectsMissingPassport() {
-        assertThatThrownBy(() -> passportService.getPassport(999L, 42L, Set.of(ADMIN.value())))
+        Set<String> adminRoles = Set.of(ADMIN.value());
+        assertThatThrownBy(() -> passportService.getPassport(999L, 42L, adminRoles))
                 .isInstanceOf(PassportNotFoundException.class);
     }
 
@@ -95,8 +97,10 @@ class PassportServiceTest extends AbstractPassportIntegrationTest {
     @Test
     void getPassportRejectsDifferentUser() {
         PassportResponse created = passportService.createPassport(validCreateRequest(), 42L);
+        Long passportId = created.id();
+        Set<String> noRoles = Set.of();
 
-        assertThatThrownBy(() -> passportService.getPassport(created.id(), 43L, Set.of()))
+        assertThatThrownBy(() -> passportService.getPassport(passportId, 43L, noRoles))
                 .isInstanceOf(PassportAccessDeniedException.class);
     }
 

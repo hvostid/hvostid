@@ -7,13 +7,13 @@ import org.springframework.http.HttpStatus;
  * mismatch, etc.). Maps to 409.
  */
 public class ConflictException extends BusinessException {
-    public static final String TYPE = "urn:problem-type:conflict";
+    public static final String PROBLEM_TYPE = "urn:problem-type:conflict";
 
     public ConflictException(String detail) {
-        super(HttpStatus.CONFLICT, TYPE, "Conflict", detail);
+        super(HttpStatus.CONFLICT, PROBLEM_TYPE, "Conflict", detail);
     }
 
     public ConflictException(String title, String detail) {
-        super(HttpStatus.CONFLICT, TYPE, title, detail);
+        super(HttpStatus.CONFLICT, PROBLEM_TYPE, title, detail);
     }
 }

@@ -9,7 +9,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import ru.hvostid.matching.client.ListingServiceClient;
 import ru.hvostid.matching.client.ListingSummary;
@@ -37,14 +39,24 @@ public class MatchRecommendationsService {
 
     private final ListingServiceClient listingClient;
     private final MatchScoreService matchScoreService;
+    private final MatchRecommendationsService self;
 
-    public MatchRecommendationsService(ListingServiceClient listingClient, MatchScoreService matchScoreService) {
+    public MatchRecommendationsService(
+            ListingServiceClient listingClient,
+            MatchScoreService matchScoreService,
+            @Lazy @Autowired(required = false) MatchRecommendationsService self) {
+        // @Lazy self-reference resolves to the Spring proxy so self.scoredCandidates(...)
+        // goes through the AOP chain and @Cacheable actually fires (a plain
+        // this.scoredCandidates() would short-circuit the proxy). Unit tests
+        // construct the service without a container and pass null, falling back
+        // to a direct call where caching is irrelevant.
         this.listingClient = listingClient;
         this.matchScoreService = matchScoreService;
+        this.self = self;
     }
 
     public RecommendationsResponse getRecommendations(long userId, int minScore, int page, int size, String requestId) {
-        List<ScoredListing> sorted = scoredCandidates(userId, requestId);
+        List<ScoredListing> sorted = self().scoredCandidates(userId, requestId);
 
         List<RecommendationItem> filtered = sorted.stream()
                 .filter(item -> item.score() >= minScore)
@@ -151,6 +163,10 @@ public class MatchRecommendationsService {
             page++;
         }
         return candidates;
+    }
+
+    private MatchRecommendationsService self() {
+        return self != null ? self : this;
     }
 
     /** Internal record for the cached sorted catalog. */

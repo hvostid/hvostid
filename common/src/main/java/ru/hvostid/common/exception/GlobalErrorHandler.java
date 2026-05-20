@@ -48,7 +48,7 @@ public class GlobalErrorHandler {
         log.debug("Validation failed at {}: {}", request.getRequestURI(), errors);
         return problem(
                 HttpStatus.BAD_REQUEST,
-                ValidationException.TYPE,
+                ValidationException.PROBLEM_TYPE,
                 "Validation failed",
                 "Request body failed validation",
                 errors,
@@ -69,7 +69,7 @@ public class GlobalErrorHandler {
         log.debug("Constraint violations at {}: {}", request.getRequestURI(), errors);
         return problem(
                 HttpStatus.BAD_REQUEST,
-                ValidationException.TYPE,
+                ValidationException.PROBLEM_TYPE,
                 "Validation failed",
                 "Request parameters failed validation",
                 errors,
@@ -81,7 +81,7 @@ public class GlobalErrorHandler {
         log.warn("Access denied at {}: {}", request.getRequestURI(), ex.getMessage());
         return problem(
                 HttpStatus.FORBIDDEN,
-                ForbiddenException.TYPE,
+                ForbiddenException.PROBLEM_TYPE,
                 "Access denied",
                 "You do not have permission to perform this operation",
                 null,
@@ -93,7 +93,7 @@ public class GlobalErrorHandler {
         log.warn("Bad credentials at {}: {}", request.getRequestURI(), ex.getMessage());
         return problem(
                 HttpStatus.UNAUTHORIZED,
-                UnauthorizedException.TYPE,
+                UnauthorizedException.PROBLEM_TYPE,
                 "Authentication required",
                 ex.getMessage(),
                 null,
@@ -106,7 +106,7 @@ public class GlobalErrorHandler {
         log.debug("Malformed body at {}: {}", request.getRequestURI(), ex.getMessage());
         return problem(
                 HttpStatus.BAD_REQUEST,
-                ValidationException.TYPE,
+                ValidationException.PROBLEM_TYPE,
                 "Malformed request body",
                 "Request body could not be parsed",
                 null,
@@ -121,7 +121,7 @@ public class GlobalErrorHandler {
             detail = String.format("Parameter '%s' has invalid value '%s'", mismatch.getName(), mismatch.getValue());
         }
         log.debug("Illegal argument at {}: {}", request.getRequestURI(), detail);
-        return problem(HttpStatus.BAD_REQUEST, ValidationException.TYPE, "Bad request", detail, null, request);
+        return problem(HttpStatus.BAD_REQUEST, ValidationException.PROBLEM_TYPE, "Bad request", detail, null, request);
     }
 
     @ExceptionHandler(Exception.class)

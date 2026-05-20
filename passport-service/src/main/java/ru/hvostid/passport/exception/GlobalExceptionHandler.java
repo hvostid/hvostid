@@ -30,7 +30,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ProblemDetails> handleNotFound(PassportNotFoundException ex, HttpServletRequest request) {
         log.debug("Passport not found: {}", ex.getMessage());
         return ProblemDetailsFactory.problem(
-                HttpStatus.NOT_FOUND, NotFoundException.TYPE, "Passport not found", ex.getMessage(), request);
+                HttpStatus.NOT_FOUND, NotFoundException.PROBLEM_TYPE, "Passport not found", ex.getMessage(), request);
     }
 
     @ExceptionHandler(ListingServiceUnavailableException.class)
@@ -46,7 +46,11 @@ public class GlobalExceptionHandler {
             PassportDocumentNotFoundException ex, HttpServletRequest request) {
         log.debug("Passport document not found: {}", ex.getMessage());
         return ProblemDetailsFactory.problem(
-                HttpStatus.NOT_FOUND, NotFoundException.TYPE, "Passport document not found", ex.getMessage(), request);
+                HttpStatus.NOT_FOUND,
+                NotFoundException.PROBLEM_TYPE,
+                "Passport document not found",
+                ex.getMessage(),
+                request);
     }
 
     @ExceptionHandler(PassportAccessDeniedException.class)
@@ -54,7 +58,7 @@ public class GlobalExceptionHandler {
             PassportAccessDeniedException ex, HttpServletRequest request) {
         log.warn("Passport access denied: {}", ex.getMessage());
         return ProblemDetailsFactory.problem(
-                HttpStatus.FORBIDDEN, ForbiddenException.TYPE, "Access denied", ex.getMessage(), request);
+                HttpStatus.FORBIDDEN, ForbiddenException.PROBLEM_TYPE, "Access denied", ex.getMessage(), request);
     }
 
     @ExceptionHandler(InvalidPassportDocumentException.class)
@@ -63,7 +67,7 @@ public class GlobalExceptionHandler {
         log.debug("Invalid passport document: {}", ex.getMessage());
         return ProblemDetailsFactory.problem(
                 HttpStatus.BAD_REQUEST,
-                ValidationException.TYPE,
+                ValidationException.PROBLEM_TYPE,
                 "Invalid passport document",
                 ex.getMessage(),
                 request);

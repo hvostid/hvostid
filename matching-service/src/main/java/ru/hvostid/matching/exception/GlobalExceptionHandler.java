@@ -27,7 +27,11 @@ public class GlobalExceptionHandler {
             QuestionnaireNotFoundException ex, HttpServletRequest request) {
         log.debug("Questionnaire not found: {}", ex.getMessage());
         return ProblemDetailsFactory.problem(
-                HttpStatus.NOT_FOUND, NotFoundException.TYPE, "Questionnaire not found", ex.getMessage(), request);
+                HttpStatus.NOT_FOUND,
+                NotFoundException.PROBLEM_TYPE,
+                "Questionnaire not found",
+                ex.getMessage(),
+                request);
     }
 
     @ExceptionHandler(QuestionnaireRequiredException.class)
@@ -35,7 +39,11 @@ public class GlobalExceptionHandler {
             QuestionnaireRequiredException ex, HttpServletRequest request) {
         log.debug("Questionnaire required: {}", ex.getMessage());
         return ProblemDetailsFactory.problem(
-                HttpStatus.BAD_REQUEST, ValidationException.TYPE, "Questionnaire required", ex.getMessage(), request);
+                HttpStatus.BAD_REQUEST,
+                ValidationException.PROBLEM_TYPE,
+                "Questionnaire required",
+                ex.getMessage(),
+                request);
     }
 
     @ExceptionHandler(ListingNotFoundException.class)
@@ -43,7 +51,7 @@ public class GlobalExceptionHandler {
             ListingNotFoundException ex, HttpServletRequest request) {
         log.debug("Listing not found: {}", ex.getMessage());
         return ProblemDetailsFactory.problem(
-                HttpStatus.NOT_FOUND, NotFoundException.TYPE, "Listing not found", ex.getMessage(), request);
+                HttpStatus.NOT_FOUND, NotFoundException.PROBLEM_TYPE, "Listing not found", ex.getMessage(), request);
     }
 
     @ExceptionHandler(ListingUnavailableException.class)

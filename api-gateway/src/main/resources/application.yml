@@ -67,6 +67,7 @@ hvostid:
         public-paths:
             - POST /api/v1/auth/login
             - POST /api/v1/auth/register
+            - POST /api/v1/auth/refresh
             - GET /api/v1/listings
             - GET /api/v1/passports/*/docs/*/content
             - GET /api/v1/passports/*/cover
@@ -75,6 +76,13 @@ hvostid:
             - /swagger-ui/**
             - /v3/api-docs
             - /v3/api-docs/**
+        # Soft-auth paths: filter runs but does not require a Bearer.
+        # When the caller is authenticated, USER_ID/USER_ROLES are still
+        # injected so the service can apply per-role logic. When the caller
+        # is anonymous, the request goes through with no identity headers
+        # and the service-level access check decides the response.
+        optional-auth-paths:
+            - GET /api/v1/listings/*
     rate-limit:
         # Per client-IP token bucket. Sized to fit the documented k6 load
         # profile (50 VU steady-state on the public catalog, ~50 req/s from

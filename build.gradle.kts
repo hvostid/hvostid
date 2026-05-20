@@ -52,12 +52,19 @@ subprojects {
     plugins.withId(rootProject.libs.plugins.spring.dependency.management.get().pluginId) {
         extra["tomcat.version"] = rootProject.libs.versions.tomcat.get()
         extra["postgresql.version"] = rootProject.libs.versions.postgresql.get()
+        extra["netty.version"] = rootProject.libs.versions.netty.get()
     }
 
     configurations.all {
         resolutionStrategy.eachDependency {
             if (requested.group == "org.bouncycastle" && requested.name.endsWith("-jdk18on")) {
                 useVersion(rootProject.libs.versions.bouncycastle.get())
+            }
+            // springdoc 3.0.3 pins swagger-ui 5.32.2 which bundles DOMPurify 3.3.2
+            // (CVE-2026-41238/9/40 + GHSA-39q2-94rc-95cp). 5.32.5 ships DOMPurify
+            // 3.4.0 with the fix; bump the webjar without changing springdoc.
+            if (requested.group == "org.webjars" && requested.name == "swagger-ui") {
+                useVersion(rootProject.libs.versions.swagger.ui.get())
             }
         }
     }

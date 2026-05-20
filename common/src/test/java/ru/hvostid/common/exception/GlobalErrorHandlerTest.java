@@ -50,7 +50,7 @@ class GlobalErrorHandlerTest {
         assertThat(body.status()).isEqualTo(404);
         assertThat(body.title()).isEqualTo("Listing not found");
         assertThat(body.detail()).isEqualTo("Listing 123 does not exist");
-        assertThat(body.type()).isEqualTo(NotFoundException.TYPE);
+        assertThat(body.type()).isEqualTo(NotFoundException.PROBLEM_TYPE);
         assertThat(body.instance()).isEqualTo("/api/v1/listings/123");
         assertThat(body.traceId()).isEqualTo("trace-abc");
         assertThat(body.errors()).isNull();
@@ -83,7 +83,7 @@ class GlobalErrorHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         ProblemDetails body = response.getBody();
         assertThat(body).isNotNull();
-        assertThat(body.type()).isEqualTo(ForbiddenException.TYPE);
+        assertThat(body.type()).isEqualTo(ForbiddenException.PROBLEM_TYPE);
         // Detail is intentionally generic, never leaks the underlying exception detail to the client.
         assertThat(body.detail()).contains("permission");
     }
@@ -97,7 +97,7 @@ class GlobalErrorHandlerTest {
         ProblemDetails body = response.getBody();
         assertThat(body).isNotNull();
         assertThat(body.detail()).isEqualTo("bad input");
-        assertThat(body.type()).isEqualTo(ValidationException.TYPE);
+        assertThat(body.type()).isEqualTo(ValidationException.PROBLEM_TYPE);
     }
 
     @Test
@@ -117,7 +117,9 @@ class GlobalErrorHandlerTest {
     }
 
     @SuppressWarnings("unused")
-    private void dummyHandler(Long id) {}
+    private void dummyHandler(Long id) {
+        // Reflection target for the MethodArgumentTypeMismatchException test above; intentionally empty.
+    }
 
     @Test
     void genericException_returns500_andDoesNotLeakStackTrace() {

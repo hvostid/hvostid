@@ -106,8 +106,8 @@ public class ListingController {
     public ResponseEntity<ListingResponse> getListing(
             @Parameter(description = "Listing ID", required = true, example = "1") @PathVariable Long id,
             @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
-        long userId = GatewayPreAuthentication.currentUserId(user);
-        Set<String> roles = currentRoles(user);
+        Long userId = GatewayPreAuthentication.currentUserIdOrNull(user);
+        Set<String> roles = user == null ? Set.of() : currentRoles(user);
         log.debug("GET /api/v1/listings/{}, userId={}, roles={}", id, userId, roles);
 
         ListingResponse response = listingService.getListing(id, userId, roles);
