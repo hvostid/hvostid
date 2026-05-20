@@ -49,22 +49,56 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(TokenIntrospectionFilter.class);
     private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
+    private static final Set<String> HTTP_METHODS = Set.of("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS");
 
     private final IntrospectionClient introspectionClient;
-    private final AuthProperties authProperties;
     private final ObjectMapper objectMapper;
+    private final List<PublicPathRule> publicPathRules;
 
     public TokenIntrospectionFilter(
             IntrospectionClient introspectionClient, AuthProperties authProperties, ObjectMapper objectMapper) {
         this.introspectionClient = introspectionClient;
-        this.authProperties = authProperties;
         this.objectMapper = objectMapper;
+        this.publicPathRules =
+                authProperties.publicPaths().stream().map(PublicPathRule::parse).toList();
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return authProperties.publicPaths().stream().anyMatch(pattern -> PATH_MATCHER.match(pattern, path));
+        String method = request.getMethod();
+        return publicPathRules.stream().anyMatch(rule -> rule.matches(method, path));
+    }
+
+    /**
+     * One entry from {@code hvostid.auth.public-paths}. Two forms are supported:
+     * <ul>
+     *   <li>{@code "/api/v1/auth/login"} - matches any HTTP method on this path
+     *       (backward compatible default).</li>
+     *   <li>{@code "GET /api/v1/listings"} - matches only the given method, so a
+     *       POST on the same path still goes through token introspection.</li>
+     * </ul>
+     */
+    record PublicPathRule(String method, String pathPattern) {
+        static PublicPathRule parse(String raw) {
+            String trimmed = raw.strip();
+            int space = trimmed.indexOf(' ');
+            if (space > 0) {
+                String maybeMethod = trimmed.substring(0, space).toUpperCase();
+                if (HTTP_METHODS.contains(maybeMethod)) {
+                    return new PublicPathRule(
+                            maybeMethod, trimmed.substring(space + 1).strip());
+                }
+            }
+            return new PublicPathRule(null, trimmed);
+        }
+
+        boolean matches(String requestMethod, String requestPath) {
+            if (method != null && !method.equalsIgnoreCase(requestMethod)) {
+                return false;
+            }
+            return PATH_MATCHER.match(pathPattern, requestPath);
+        }
     }
 
     @Override

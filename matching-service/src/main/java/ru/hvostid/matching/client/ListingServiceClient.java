@@ -52,6 +52,12 @@ public class ListingServiceClient {
 
     @SuppressWarnings("unused")
     private ListingSnapshot getListingFallback(long listingId, long userId, String requestId, Throwable cause) {
+        // ignore-exceptions keeps domain not-found out of the CB window, but
+        // resilience4j still routes them through the fallback. Re-throw so the
+        // controller maps to 404 instead of masking the upstream signal as 503.
+        if (cause instanceof ListingNotFoundException notFound) {
+            throw notFound;
+        }
         throw new ListingUnavailableException(
                 "Listing service unavailable for listingId=" + listingId + " requestId=" + requestId, cause);
     }
