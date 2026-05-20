@@ -128,6 +128,35 @@ class TokenIntrospectionFilterTest {
         }
 
         @Test
+        @DisplayName("non-Bearer Authorization header on a soft-auth path still returns 401")
+        void nonBearerHeader_onOptionalAuthPath_returns401() throws ServletException, IOException {
+            // /api/v1/listings/1 matches the optional-auth pattern; a malformed
+            // header is still a client mistake, not anonymous traffic.
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/listings/1");
+            request.addHeader(HttpHeaders.AUTHORIZATION, "Basic dXNlcjpwYXNz");
+            MockHttpServletResponse response = new MockHttpServletResponse();
+
+            filter.doFilterInternal(request, response, mock(FilterChain.class));
+
+            assertEquals(HttpStatus.UNAUTHORIZED.value(), response.getStatus());
+            verifyNoInteractions(introspectionClient);
+        }
+
+        @Test
+        @DisplayName("no Authorization header on a soft-auth path passes through anonymously")
+        void noHeader_onOptionalAuthPath_passesThrough() throws ServletException, IOException {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/listings/1");
+            MockHttpServletResponse response = new MockHttpServletResponse();
+            FilterChain chain = mock(FilterChain.class);
+
+            filter.doFilterInternal(request, response, chain);
+
+            verify(chain).doFilter(request, response);
+            assertNotEquals(HttpStatus.UNAUTHORIZED.value(), response.getStatus());
+            verifyNoInteractions(introspectionClient);
+        }
+
+        @Test
         @DisplayName("401 response body contains error details")
         void unauthorizedResponse_containsErrorDetails() throws ServletException, IOException {
             MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/listings");

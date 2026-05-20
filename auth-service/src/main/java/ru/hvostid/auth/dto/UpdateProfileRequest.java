@@ -13,7 +13,6 @@ public record UpdateProfileRequest(
         @Size(min = 1, max = 255, message = "name must be between 1 and 255 characters")
         String name,
 
-        @Size(max = 50, message = "phone must be at most 50 characters")
         @Pattern(
                 regexp = "^$|^\\+?[0-9 ()\\-]{5,30}$",
                 message = "phone must contain only digits, spaces, parentheses, dashes, optional leading +")
