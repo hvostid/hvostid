@@ -130,7 +130,6 @@ services:
             DB_NAME: hvostid_listing
             DB_USER: ${DB_USER}
             DB_PASSWORD: ${DB_PASSWORD}
-            PASSPORT_SERVICE_HOST: passport-service
         depends_on:
             postgres:
                 condition: service_healthy

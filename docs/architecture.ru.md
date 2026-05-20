@@ -120,12 +120,12 @@ Service-to-service вызовы используют обычный HTTP чер�
 с целевым хостом, инжектируемым из окружения, чтобы тот же код
 работал и локально, и в Compose.
 
-| Откуда          | Куда     | Зачем                                       | Property                       |
-|-----------------|----------|---------------------------------------------|--------------------------------|
-| Gateway         | Auth     | Интроспекция токена                         | `hvostid.auth.introspect-url`  |
-| Listing         | Passport | Обогатить объявление данными паспорта       | `hvostid.passport-service.url` |
-| Matching        | Listing  | Прочитать объявления для оценки             | `hvostid.listing-service.url`  |
-| Matching        | Passport | Прочитать паспорта для оценки               | `hvostid.passport-service.url` |
+| Откуда          | Куда     | Зачем                                                              | Property                       |
+|-----------------|----------|--------------------------------------------------------------------|--------------------------------|
+| Gateway         | Auth     | Интроспекция токена                                                | `hvostid.auth.introspect-url`  |
+| Passport        | Listing  | Проверить, что паспорт стоит за PUBLISHED-листингом (buyer-доступ) | `hvostid.listing-service.url`  |
+| Matching        | Listing  | Прочитать объявления для оценки                                    | `hvostid.listing-service.url`  |
+| Matching        | Passport | Прочитать паспорта для оценки                                      | `hvostid.passport-service.url` |
 
 Сервис-меша и circuit breaker нет; ошибки всплывают как обычные
 HTTP-ошибки и мапятся в `ErrorResponse` через

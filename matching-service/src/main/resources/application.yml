@@ -27,10 +27,6 @@ hvostid:
         url: http://${PASSPORT_SERVICE_HOST:localhost}:8083
         connect-timeout: 2s
         read-timeout: 3s
-    match:
-        cache:
-            ttl: 3m
-            maximum-size: 500
 
 resilience4j:
     circuitbreaker:
