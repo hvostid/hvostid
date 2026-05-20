@@ -86,8 +86,7 @@ class MatchExplanationServiceTest {
 
         var tips = service.buildTips(pet, result);
 
-        assertThat(tips).isNotEmpty();
-        assertThat(tips.size()).isLessThanOrEqualTo(6);
+        assertThat(tips).isNotEmpty().hasSizeLessThanOrEqualTo(6);
     }
 
     private static BuyerQuestionnaire idealQuestionnaire() {

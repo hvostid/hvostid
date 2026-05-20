@@ -1,10 +1,10 @@
 package ru.hvostid.listing.repository;
 
+import jakarta.annotation.Nullable;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.lang.Nullable;
 import ru.hvostid.listing.dto.ListingFilterRequest;
 import ru.hvostid.listing.entity.Listing;
 import ru.hvostid.listing.entity.ListingStatus;

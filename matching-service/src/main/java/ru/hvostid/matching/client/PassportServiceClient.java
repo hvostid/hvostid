@@ -36,7 +36,7 @@ public class PassportServiceClient {
             }
             return Optional.of(new PassportSnapshot(
                     response.species(), response.breed(), response.temperament(), response.specialNeeds()));
-        } catch (HttpClientErrorException.NotFound ex) {
+        } catch (HttpClientErrorException.NotFound _) {
             log.warn("Passport not found id={} requestId={}", passportId, requestId);
             return Optional.empty();
         } catch (RestClientException ex) {

@@ -36,12 +36,13 @@ class ListingServiceStatusTransitionTest {
     @InjectMocks
     private ListingService listingService;
 
+    private static final Long LISTING_ID = 1L;
+    private static final Long OWNER_ID = 100L;
+    private static final Long MODERATOR_ID = 200L;
+    private static final Long ADMIN_ID = 300L;
+    private static final Long OTHER_USER_ID = 999L;
+
     private Listing listing;
-    private final Long LISTING_ID = 1L;
-    private final Long OWNER_ID = 100L;
-    private final Long MODERATOR_ID = 200L;
-    private final Long ADMIN_ID = 300L;
-    private final Long OTHER_USER_ID = 999L;
 
     @BeforeEach
     void setUp() {

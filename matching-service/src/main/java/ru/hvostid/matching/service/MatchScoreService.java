@@ -150,7 +150,7 @@ public class MatchScoreService {
         }
         try {
             return Long.parseLong(digits);
-        } catch (NumberFormatException ex) {
+        } catch (NumberFormatException _) {
             return null;
         }
     }

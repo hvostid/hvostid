@@ -242,7 +242,7 @@ public class CompatibilityScoreCalculator {
     }
 
     private static int clampAttentionIndex(int attentionNeeds) {
-        return Math.clamp(attentionNeeds - 1, 0, 2);
+        return Math.clamp((long) attentionNeeds - 1, 0, 2);
     }
 
     private static int workScheduleIndex(WorkSchedule schedule) {
@@ -266,14 +266,16 @@ public class CompatibilityScoreCalculator {
         return CompatibilityLevel.RISKY;
     }
 
+    private static final String DANDER_KEYWORD = "dander";
+
     private static boolean allergenConflictsWithPet(String allergyDetails, PetContext pet) {
         String details = allergyDetails == null ? "" : allergyDetails.toLowerCase(Locale.ROOT);
-        if (containsAny(details, "pet", "animal", "dander", "fur", "шерст", "пух", "аллерг")) {
+        if (containsAny(details, "pet", "animal", DANDER_KEYWORD, "fur", "шерст", "пух", "аллерг")) {
             return true;
         }
         return switch (SpeciesKind.classify(pet.species())) {
-            case CAT -> containsAny(details, "cat", "кош", "feline", "dander");
-            case DOG -> containsAny(details, "dog", "собак", "canine", "dander", "fur", "hair");
+            case CAT -> containsAny(details, "cat", "кош", "feline", DANDER_KEYWORD);
+            case DOG -> containsAny(details, "dog", "собак", "canine", DANDER_KEYWORD, "fur", "hair");
             case OTHER -> false;
         };
     }

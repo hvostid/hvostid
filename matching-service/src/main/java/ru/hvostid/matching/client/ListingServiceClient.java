@@ -39,9 +39,9 @@ public class ListingServiceClient {
             }
             return new ListingSnapshot(
                     response.id(), response.species(), response.breed(), response.age(), response.passportId());
-        } catch (HttpClientErrorException.NotFound ex) {
+        } catch (HttpClientErrorException.NotFound _) {
             throw new ListingNotFoundException("Listing not found with id: " + listingId);
-        } catch (HttpClientErrorException.Forbidden ex) {
+        } catch (HttpClientErrorException.Forbidden _) {
             throw new ListingNotFoundException("Listing not found or not accessible: " + listingId);
         } catch (HttpClientErrorException ex) {
             log.warn(

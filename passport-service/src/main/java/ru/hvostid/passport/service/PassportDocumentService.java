@@ -146,17 +146,16 @@ public class PassportDocumentService {
             Long passportId, Long documentId, Long userId, Set<String> userRoles, String requestId) {
         PetPassport passport = accessService.getExistingPassport(passportId);
         PassportDocument document = getDocument(passportId, documentId);
-        if (!accessService.isPrivilegedViewer(passport, userId, userRoles)) {
-            if (document.getType() != PassportDocumentType.PHOTO
-                    || !listingServiceClient.hasPublishedListingForPassport(passportId, requestId)) {
-                log.warn(
-                        "Document ticket denied passportId={} documentId={} type={} userId={}",
-                        passportId,
-                        documentId,
-                        document.getType(),
-                        userId);
-                throw new PassportDocumentNotFoundException("Passport document not found with id: " + documentId);
-            }
+        if (!accessService.isPrivilegedViewer(passport, userId, userRoles)
+                && (document.getType() != PassportDocumentType.PHOTO
+                        || !listingServiceClient.hasPublishedListingForPassport(passportId, requestId))) {
+            log.warn(
+                    "Document ticket denied passportId={} documentId={} type={} userId={}",
+                    passportId,
+                    documentId,
+                    document.getType(),
+                    userId);
+            throw new PassportDocumentNotFoundException("Passport document not found with id: " + documentId);
         }
 
         String token = mediaTicketService.issue(

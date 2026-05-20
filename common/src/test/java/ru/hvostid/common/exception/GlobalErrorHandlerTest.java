@@ -117,7 +117,9 @@ class GlobalErrorHandlerTest {
     }
 
     @SuppressWarnings("unused")
-    private void dummyHandler(Long id) {}
+    private void dummyHandler(Long id) {
+        // Reflection target for the MethodArgumentTypeMismatchException test above; intentionally empty.
+    }
 
     @Test
     void genericException_returns500_andDoesNotLeakStackTrace() {

@@ -258,7 +258,7 @@ class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
             ListingFilterRequest filters = new ListingFilterRequest(null, null, null, 5000, null, null, null);
             Page<ListingResponse> result = listingService.getListingsWithFilters(filters, PageRequest.of(0, 10));
 
-            assertThat(result.getContent()).allMatch(l -> l.age() <= ListingConstants.MAX_AGE_MONTHS);
+            assertThat(result.getContent()).isNotEmpty().allMatch(l -> l.age() <= ListingConstants.MAX_AGE_MONTHS);
         }
 
         @Test
@@ -269,7 +269,7 @@ class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
             ListingFilterRequest filters = new ListingFilterRequest(null, null, null, null, 0, 0, null);
             Page<ListingResponse> result = listingService.getListingsWithFilters(filters, PageRequest.of(0, 10));
 
-            assertThat(result.getContent()).allMatch(l -> l.price() == 0);
+            assertThat(result.getContent()).isNotEmpty().allMatch(l -> l.price() == 0);
         }
 
         @Test
@@ -278,7 +278,7 @@ class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
             ListingFilterRequest filters = new ListingFilterRequest(null, null, null, null, null, 999999999, null);
             Page<ListingResponse> result = listingService.getListingsWithFilters(filters, PageRequest.of(0, 10));
 
-            assertThat(result.getContent()).allMatch(l -> l.price() <= ListingConstants.MAX_PRICE);
+            assertThat(result.getContent()).isNotEmpty().allMatch(l -> l.price() <= ListingConstants.MAX_PRICE);
         }
 
         @Test
