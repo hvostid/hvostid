@@ -31,8 +31,7 @@ class MatchExplanationServiceTest {
 
         String summary = service.buildSummary(pet, result, false);
 
-        assertThat(summary).isNotBlank();
-        assertThat(summary).containsIgnoringCase("match");
+        assertThat(summary).isNotBlank().containsIgnoringCase("match");
     }
 
     @Test

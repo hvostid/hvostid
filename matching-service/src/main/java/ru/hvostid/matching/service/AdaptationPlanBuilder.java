@@ -56,13 +56,13 @@ public class AdaptationPlanBuilder {
         switch (species) {
             case DOG -> {
                 tasks.add("Establish a consistent feeding schedule");
-                if (age == AgeBand.PUPPY) {
-                    tasks.add("Offer frequent small meals throughout the day");
-                    tasks.add("Start very short leash walks in quiet areas");
-                } else if (age == AgeBand.SENIOR) {
-                    tasks.add("Keep walks gentle and on a predictable schedule");
-                } else {
-                    tasks.add("Start short daily walks and build duration gradually");
+                switch (age) {
+                    case PUPPY -> {
+                        tasks.add("Offer frequent small meals throughout the day");
+                        tasks.add("Start very short leash walks in quiet areas");
+                    }
+                    case SENIOR -> tasks.add("Keep walks gentle and on a predictable schedule");
+                    case ADULT -> tasks.add("Start short daily walks and build duration gradually");
                 }
                 tasks.add("Begin basic commands with positive reinforcement");
             }

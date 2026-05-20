@@ -67,8 +67,7 @@ class AdaptationPlanBuilderTest {
 
         String tasks = String.join(" ", flattenTasks(builder.build(senior)));
 
-        assertThat(tasks).containsIgnoringCase("gentle");
-        assertThat(tasks).containsIgnoringCase("senior");
+        assertThat(tasks).containsIgnoringCase("gentle").containsIgnoringCase("senior");
     }
 
     @Test
@@ -78,8 +77,7 @@ class AdaptationPlanBuilderTest {
 
         String tasks = String.join(" ", flattenTasks(builder.build(nervous)));
 
-        assertThat(tasks).containsIgnoringCase("quiet");
-        assertThat(tasks).containsIgnoringCase("forced contact");
+        assertThat(tasks).containsIgnoringCase("quiet").containsIgnoringCase("forced contact");
     }
 
     @Test
