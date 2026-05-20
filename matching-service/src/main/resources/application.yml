@@ -40,6 +40,12 @@ resilience4j:
                 failure-rate-threshold: 50
                 wait-duration-in-open-state: 10s
                 permitted-number-of-calls-in-half-open-state: 3
+                # 404 (not found) and 403 (not accessible to the caller) are
+                # mapped to ListingNotFoundException and surfaced as 404 by the
+                # controller. They are not availability failures, so they must
+                # not feed the circuit-breaker window.
+                ignore-exceptions:
+                    - ru.hvostid.matching.exception.ListingNotFoundException
             passportService:
                 sliding-window-size: 10
                 failure-rate-threshold: 50

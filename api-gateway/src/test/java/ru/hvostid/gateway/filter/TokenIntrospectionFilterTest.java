@@ -34,7 +34,7 @@ import tools.jackson.databind.ObjectMapper;
 @ExtendWith(MockitoExtension.class)
 class TokenIntrospectionFilterTest {
     private static final List<String> PUBLIC_PATHS =
-            List.of("/api/v1/auth/login", "/api/v1/auth/register", "/actuator/**");
+            List.of("POST /api/v1/auth/login", "POST /api/v1/auth/register", "GET /api/v1/listings", "/actuator/**");
 
     @Mock
     private IntrospectionClient introspectionClient;
@@ -76,7 +76,21 @@ class TokenIntrospectionFilterTest {
         @Test
         @DisplayName("protected paths should be filtered")
         void protectedPath_shouldFilter() {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/passports");
+            assertFalse(filter.shouldNotFilter(request));
+        }
+
+        @Test
+        @DisplayName("GET /api/v1/listings is public (catalog browse)")
+        void getListings_shouldNotFilter() {
             MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/listings");
+            assertTrue(filter.shouldNotFilter(request));
+        }
+
+        @Test
+        @DisplayName("POST /api/v1/listings stays gated (only GET is public)")
+        void postListings_shouldFilter() {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/listings");
             assertFalse(filter.shouldNotFilter(request));
         }
     }
