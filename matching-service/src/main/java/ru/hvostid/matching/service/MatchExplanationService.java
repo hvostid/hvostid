@@ -121,7 +121,9 @@ public class MatchExplanationService {
         switch (SpeciesKind.classify(pet.species())) {
             case DOG -> tips.add("Dogs benefit from consistent walks and positive-reinforcement training");
             case CAT -> tips.add("Cats need a quiet litter area and vertical spaces to feel secure");
-            case OTHER -> {}
+            case OTHER -> {
+                // No species-specific tip for exotic / unclassified pets; profile-based tips still apply.
+            }
         }
     }
 

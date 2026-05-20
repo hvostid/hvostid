@@ -12,10 +12,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties(prefix = "hvostid.cors")
 public record CorsProperties(String allowedOrigins) {
+    private static final String DEFAULT_ORIGIN = "http://localhost";
 
     public CorsProperties {
         if (allowedOrigins == null || allowedOrigins.isBlank()) {
-            allowedOrigins = "http://localhost";
+            allowedOrigins = DEFAULT_ORIGIN;
         }
     }
 
@@ -30,12 +31,12 @@ public record CorsProperties(String allowedOrigins) {
      */
     public static List<String> parseOrigins(String raw) {
         if (raw == null || raw.isBlank()) {
-            return List.of("http://localhost");
+            return List.of(DEFAULT_ORIGIN);
         }
         List<String> origins = Arrays.stream(raw.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .toList();
-        return origins.isEmpty() ? List.of("http://localhost") : origins;
+        return origins.isEmpty() ? List.of(DEFAULT_ORIGIN) : origins;
     }
 }

@@ -56,7 +56,7 @@ public class CompatibilityScoreCalculator {
                     case APARTMENT ->
                         switch (size) {
                             case SMALL -> 18;
-                            case MEDIUM -> area >= 50 ? 16 : area >= 40 ? 12 : 8;
+                            case MEDIUM -> apartmentMediumScore(area);
                             case LARGE -> area >= 70 ? 8 : 4;
                         };
                     case HOUSE ->
@@ -154,9 +154,7 @@ public class CompatibilityScoreCalculator {
                     default -> 4;
                 };
 
-        String comment = gap >= 2
-                ? "Beginner owner, this breed requires experienced handling"
-                : gap == 1 ? "Some experience recommended for this breed" : "Owner experience matches breed care needs";
+        String comment = experienceComment(gap);
         return FactorScore.of(CompatibilityFactor.EXPERIENCE, Math.clamp(score, 0, max), comment);
     }
 
@@ -184,11 +182,7 @@ public class CompatibilityScoreCalculator {
                     default -> 3;
                 };
 
-        String comment = diff == 0
-                ? "Owner activity level matches breed needs"
-                : diff == 1
-                        ? "Slight mismatch between owner activity and breed needs"
-                        : "Significant activity level mismatch";
+        String comment = activityComment(diff);
         return FactorScore.of(CompatibilityFactor.ACTIVITY, Math.clamp(score, 0, max), comment);
     }
 
@@ -242,7 +236,7 @@ public class CompatibilityScoreCalculator {
     }
 
     private static int clampAttentionIndex(int attentionNeeds) {
-        return Math.clamp(attentionNeeds - 1, 0, 2);
+        return Math.clamp((long) attentionNeeds - 1, 0, 2);
     }
 
     private static int workScheduleIndex(WorkSchedule schedule) {
@@ -251,6 +245,36 @@ public class CompatibilityScoreCalculator {
             case HYBRID -> 1;
             case OFFICE -> 2;
         };
+    }
+
+    private static int apartmentMediumScore(int area) {
+        if (area >= 50) {
+            return 16;
+        }
+        if (area >= 40) {
+            return 12;
+        }
+        return 8;
+    }
+
+    private static String experienceComment(int gap) {
+        if (gap >= 2) {
+            return "Beginner owner, this breed requires experienced handling";
+        }
+        if (gap == 1) {
+            return "Some experience recommended for this breed";
+        }
+        return "Owner experience matches breed care needs";
+    }
+
+    private static String activityComment(int diff) {
+        if (diff == 0) {
+            return "Owner activity level matches breed needs";
+        }
+        if (diff == 1) {
+            return "Slight mismatch between owner activity and breed needs";
+        }
+        return "Significant activity level mismatch";
     }
 
     private CompatibilityLevel mapLevel(int total, boolean allergyCap) {
@@ -266,14 +290,16 @@ public class CompatibilityScoreCalculator {
         return CompatibilityLevel.RISKY;
     }
 
+    private static final String DANDER_KEYWORD = "dander";
+
     private static boolean allergenConflictsWithPet(String allergyDetails, PetContext pet) {
         String details = allergyDetails == null ? "" : allergyDetails.toLowerCase(Locale.ROOT);
-        if (containsAny(details, "pet", "animal", "dander", "fur", "шерст", "пух", "аллерг")) {
+        if (containsAny(details, "pet", "animal", DANDER_KEYWORD, "fur", "шерст", "пух", "аллерг")) {
             return true;
         }
         return switch (SpeciesKind.classify(pet.species())) {
-            case CAT -> containsAny(details, "cat", "кош", "feline", "dander");
-            case DOG -> containsAny(details, "dog", "собак", "canine", "dander", "fur", "hair");
+            case CAT -> containsAny(details, "cat", "кош", "feline", DANDER_KEYWORD);
+            case DOG -> containsAny(details, "dog", "собак", "canine", DANDER_KEYWORD, "fur", "hair");
             case OTHER -> false;
         };
     }

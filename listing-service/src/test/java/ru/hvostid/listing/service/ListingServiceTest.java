@@ -104,16 +104,19 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
     void getListing_WhenDraftAndNotOwner_ShouldThrowAccessDenied() {
         // given - create listing as seller 1
         ListingResponse created = listingService.createListing(validRequest, 1L);
+        Long listingId = created.id();
+        Set<String> noRoles = Set.of();
 
         // when/then - user 2 tries to view
-        assertThatThrownBy(() -> listingService.getListing(created.id(), 2L, Set.of()))
+        assertThatThrownBy(() -> listingService.getListing(listingId, 2L, noRoles))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("don't have permission");
     }
 
     @Test
     void getListing_WhenNotFound_ShouldThrowNotFoundException() {
-        assertThatThrownBy(() -> listingService.getListing(999L, 1L, Set.of()))
+        Set<String> noRoles = Set.of();
+        assertThatThrownBy(() -> listingService.getListing(999L, 1L, noRoles))
                 .isInstanceOf(ListingNotFoundException.class)
                 .hasMessageContaining("not found");
     }
@@ -189,9 +192,10 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
         ListingResponse created = listingService.createListing(validRequest, 1L);
         ListingUpdateRequest updateRequest =
                 new ListingUpdateRequest("Hacked Title", null, null, null, null, null, null, null);
+        Long listingId = created.id();
 
         // when/then - user 2 tries to update
-        assertThatThrownBy(() -> listingService.updateListing(created.id(), updateRequest, 2L))
+        assertThatThrownBy(() -> listingService.updateListing(listingId, updateRequest, 2L))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("don't have permission");
     }
@@ -247,8 +251,9 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
     }
 
     @Test
-    void getPublishedListings_WithPagination_ShouldReturnCorrectPage() throws InterruptedException {
-        // given - create 5 published listings
+    void getPublishedListings_WithPagination_ShouldReturnCorrectPage() {
+        // given - create 5 published listings. No timestamp ordering is required:
+        // assertions below only check pagination boundaries, not createdAt order.
         List<Long> createdIds = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             ListingRequest request = new ListingRequest(
@@ -263,8 +268,6 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
             ListingResponse created = listingService.createListing(request, 1L);
             setStatus(created.id(), ListingStatus.PUBLISHED);
             createdIds.add(created.id());
-
-            Thread.sleep(1);
         }
 
         Pageable firstPage = PageRequest.of(0, 2);
@@ -329,9 +332,10 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
 
         ListingUpdateRequest updateRequest =
                 new ListingUpdateRequest("Updated Title", null, null, null, null, null, null, null);
+        Long listingId = created.id();
 
         // when/then
-        assertThatThrownBy(() -> listingService.updateListing(created.id(), updateRequest, 1L))
+        assertThatThrownBy(() -> listingService.updateListing(listingId, updateRequest, 1L))
                 .isInstanceOf(InvalidListingStatusException.class)
                 .hasMessageContaining("Cannot edit listing in status: MODERATION");
     }
@@ -357,10 +361,12 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
     void getListing_WhenModerationAndNotOwner_ShouldThrowAccessDenied() {
         // given
         ListingResponse created = listingService.createListing(validRequest, 1L);
-        setStatus(created.id(), ListingStatus.MODERATION);
+        Long listingId = created.id();
+        setStatus(listingId, ListingStatus.MODERATION);
+        Set<String> noRoles = Set.of();
 
         // when/then
-        assertThatThrownBy(() -> listingService.getListing(created.id(), 2L, Set.of()))
+        assertThatThrownBy(() -> listingService.getListing(listingId, 2L, noRoles))
                 .isInstanceOf(AccessDeniedException.class);
     }
 

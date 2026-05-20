@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import ru.hvostid.listing.dto.ListingFilterRequest;
 import ru.hvostid.listing.entity.Listing;
 import ru.hvostid.listing.entity.ListingStatus;
 
@@ -29,47 +30,41 @@ public interface ListingRepository extends JpaRepository<Listing, Long>, JpaSpec
             @Param("newStatus") ListingStatus newStatus);
 
     @Query(value = """
-    SELECT * FROM listings l
-    WHERE l.status = :status
-    AND (
-        l.search_vector_ru @@ plainto_tsquery('russian', :keyword)
-        OR l.search_vector_en @@ plainto_tsquery('simple', :keyword)
-    )
-    AND (CAST(:species AS TEXT) IS NULL OR l.species ILIKE '%' || CAST(:species AS TEXT) || '%')
-    AND (CAST(:breed AS TEXT) IS NULL OR l.breed ILIKE '%' || CAST(:breed AS TEXT) || '%')
-    AND (CAST(:ageMin AS INTEGER) IS NULL OR l.age >= CAST(:ageMin AS INTEGER))
-    AND (CAST(:ageMax AS INTEGER) IS NULL OR l.age <= CAST(:ageMax AS INTEGER))
-    AND (CAST(:priceMin AS INTEGER) IS NULL OR l.price >= CAST(:priceMin AS INTEGER))
-    AND (CAST(:priceMax AS INTEGER) IS NULL OR l.price <= CAST(:priceMax AS INTEGER))
-    AND (CAST(:city AS TEXT) IS NULL OR LOWER(l.city) = LOWER(CAST(:city AS TEXT)))
-    ORDER BY GREATEST(
-        ts_rank(l.search_vector_ru, plainto_tsquery('russian', :keyword)),
-        ts_rank(l.search_vector_en, plainto_tsquery('simple', :keyword))
-    ) DESC
-    """, countQuery = """
-    SELECT count(*) FROM listings l
-    WHERE l.status = :status
-    AND (
-        l.search_vector_ru @@ plainto_tsquery('russian', :keyword)
-        OR l.search_vector_en @@ plainto_tsquery('simple', :keyword)
-    )
-    AND (CAST(:species AS TEXT) IS NULL OR l.species ILIKE '%' || CAST(:species AS TEXT) || '%')
-    AND (CAST(:breed AS TEXT) IS NULL OR l.breed ILIKE '%' || CAST(:breed AS TEXT) || '%')
-    AND (CAST(:ageMin AS INTEGER) IS NULL OR l.age >= CAST(:ageMin AS INTEGER))
-    AND (CAST(:ageMax AS INTEGER) IS NULL OR l.age <= CAST(:ageMax AS INTEGER))
-    AND (CAST(:priceMin AS INTEGER) IS NULL OR l.price >= CAST(:priceMin AS INTEGER))
-    AND (CAST(:priceMax AS INTEGER) IS NULL OR l.price <= CAST(:priceMax AS INTEGER))
-    AND (CAST(:city AS TEXT) IS NULL OR LOWER(l.city) = LOWER(CAST(:city AS TEXT)))
-    """, nativeQuery = true)
+            SELECT * FROM listings l
+            WHERE l.status = :status
+            AND (
+                l.search_vector_ru @@ plainto_tsquery('russian', :keyword)
+                OR l.search_vector_en @@ plainto_tsquery('simple', :keyword)
+            )
+            AND (CAST(:#{#filter.species()} AS TEXT) IS NULL OR l.species ILIKE '%' || CAST(:#{#filter.species()} AS TEXT) || '%')
+            AND (CAST(:#{#filter.breed()} AS TEXT) IS NULL OR l.breed ILIKE '%' || CAST(:#{#filter.breed()} AS TEXT) || '%')
+            AND (CAST(:#{#filter.ageMin()} AS INTEGER) IS NULL OR l.age >= CAST(:#{#filter.ageMin()} AS INTEGER))
+            AND (CAST(:#{#filter.ageMax()} AS INTEGER) IS NULL OR l.age <= CAST(:#{#filter.ageMax()} AS INTEGER))
+            AND (CAST(:#{#filter.priceMin()} AS INTEGER) IS NULL OR l.price >= CAST(:#{#filter.priceMin()} AS INTEGER))
+            AND (CAST(:#{#filter.priceMax()} AS INTEGER) IS NULL OR l.price <= CAST(:#{#filter.priceMax()} AS INTEGER))
+            AND (CAST(:#{#filter.city()} AS TEXT) IS NULL OR LOWER(l.city) = LOWER(CAST(:#{#filter.city()} AS TEXT)))
+            ORDER BY GREATEST(
+                ts_rank(l.search_vector_ru, plainto_tsquery('russian', :keyword)),
+                ts_rank(l.search_vector_en, plainto_tsquery('simple', :keyword))
+            ) DESC
+            """, countQuery = """
+            SELECT count(*) FROM listings l
+            WHERE l.status = :status
+            AND (
+                l.search_vector_ru @@ plainto_tsquery('russian', :keyword)
+                OR l.search_vector_en @@ plainto_tsquery('simple', :keyword)
+            )
+            AND (CAST(:#{#filter.species()} AS TEXT) IS NULL OR l.species ILIKE '%' || CAST(:#{#filter.species()} AS TEXT) || '%')
+            AND (CAST(:#{#filter.breed()} AS TEXT) IS NULL OR l.breed ILIKE '%' || CAST(:#{#filter.breed()} AS TEXT) || '%')
+            AND (CAST(:#{#filter.ageMin()} AS INTEGER) IS NULL OR l.age >= CAST(:#{#filter.ageMin()} AS INTEGER))
+            AND (CAST(:#{#filter.ageMax()} AS INTEGER) IS NULL OR l.age <= CAST(:#{#filter.ageMax()} AS INTEGER))
+            AND (CAST(:#{#filter.priceMin()} AS INTEGER) IS NULL OR l.price >= CAST(:#{#filter.priceMin()} AS INTEGER))
+            AND (CAST(:#{#filter.priceMax()} AS INTEGER) IS NULL OR l.price <= CAST(:#{#filter.priceMax()} AS INTEGER))
+            AND (CAST(:#{#filter.city()} AS TEXT) IS NULL OR LOWER(l.city) = LOWER(CAST(:#{#filter.city()} AS TEXT)))
+            """, nativeQuery = true)
     Page<Listing> searchByKeyword(
             @Param("status") String status,
             @Param("keyword") String keyword,
-            @Param("species") String species,
-            @Param("breed") String breed,
-            @Param("ageMin") Integer ageMin,
-            @Param("ageMax") Integer ageMax,
-            @Param("priceMin") Integer priceMin,
-            @Param("priceMax") Integer priceMax,
-            @Param("city") String city,
+            @Param("filter") ListingFilterRequest filter,
             Pageable pageable);
 }

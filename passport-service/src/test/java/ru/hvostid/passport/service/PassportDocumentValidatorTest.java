@@ -38,19 +38,20 @@ class PassportDocumentValidatorTest {
 
     @Test
     void validateRejectsUnsupportedExtension() {
-        assertThatThrownBy(() -> validator.validate(file("archive.zip", "application/pdf")))
-                .isInstanceOf(UnsupportedPassportDocumentException.class);
+        MockMultipartFile zip = file("archive.zip", "application/pdf");
+        assertThatThrownBy(() -> validator.validate(zip)).isInstanceOf(UnsupportedPassportDocumentException.class);
     }
 
     @Test
     void validateRejectsUnsupportedContentType() {
-        assertThatThrownBy(() -> validator.validate(file("photo.jpg", "text/plain")))
-                .isInstanceOf(UnsupportedPassportDocumentException.class);
+        MockMultipartFile textJpg = file("photo.jpg", "text/plain");
+        assertThatThrownBy(() -> validator.validate(textJpg)).isInstanceOf(UnsupportedPassportDocumentException.class);
     }
 
     @Test
     void validateRejectsExtensionAndContentTypeMismatch() {
-        assertThatThrownBy(() -> validator.validate(file("photo.jpg", "application/pdf")))
+        MockMultipartFile mismatched = file("photo.jpg", "application/pdf");
+        assertThatThrownBy(() -> validator.validate(mismatched))
                 .isInstanceOf(UnsupportedPassportDocumentException.class);
     }
 

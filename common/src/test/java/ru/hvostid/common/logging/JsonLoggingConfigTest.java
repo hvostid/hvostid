@@ -68,15 +68,17 @@ class JsonLoggingConfigTest {
 
         String json = new String(encoder.encode(event), StandardCharsets.UTF_8);
 
-        assertThat(json).contains("\"requestId\":\"req-abc\"");
-        assertThat(json).contains("\"userId\":\"u-42\"");
-        assertThat(json).contains("\"service\":\"listing-service\"");
-        assertThat(json).contains("\"message\":\"Listing created\"");
-        assertThat(json).contains("\"level\":\"INFO\"");
-        // Allowlist enforcement: an MDC key that is not requestId/userId must not leak.
-        assertThat(json).doesNotContain("ignored");
-        // Encoder noise that the shared config explicitly turns off.
-        assertThat(json).doesNotContain("@version").doesNotContain("\"tags\"");
+        assertThat(json)
+                .contains("\"requestId\":\"req-abc\"")
+                .contains("\"userId\":\"u-42\"")
+                .contains("\"service\":\"listing-service\"")
+                .contains("\"message\":\"Listing created\"")
+                .contains("\"level\":\"INFO\"")
+                // Allowlist enforcement: an MDC key that is not requestId/userId must not leak.
+                .doesNotContain("ignored")
+                // Encoder noise that the shared config explicitly turns off.
+                .doesNotContain("@version")
+                .doesNotContain("\"tags\"");
     }
 
     @Test
@@ -85,8 +87,9 @@ class JsonLoggingConfigTest {
         // drops includeMdcKeyName entries. Guard the actual file against this regression.
         Path shared = Path.of("src/main/resources/logback-shared.xml");
         String content = Files.readString(shared);
-        assertThat(content).doesNotContain("<includeMdc>false</includeMdc>");
-        assertThat(content).contains("<includeMdcKeyName>requestId</includeMdcKeyName>");
-        assertThat(content).contains("<includeMdcKeyName>userId</includeMdcKeyName>");
+        assertThat(content)
+                .doesNotContain("<includeMdc>false</includeMdc>")
+                .contains("<includeMdcKeyName>requestId</includeMdcKeyName>")
+                .contains("<includeMdcKeyName>userId</includeMdcKeyName>");
     }
 }

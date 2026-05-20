@@ -27,7 +27,11 @@ public class GlobalExceptionHandler {
             EmailAlreadyExistsException ex, HttpServletRequest request) {
         log.warn("Email conflict: {}", ex.getMessage());
         return ProblemDetailsFactory.problem(
-                HttpStatus.CONFLICT, ConflictException.TYPE, "Email already registered", ex.getMessage(), request);
+                HttpStatus.CONFLICT,
+                ConflictException.PROBLEM_TYPE,
+                "Email already registered",
+                ex.getMessage(),
+                request);
     }
 
     @ExceptionHandler(InvalidCredentialsException.class)
@@ -35,7 +39,11 @@ public class GlobalExceptionHandler {
             InvalidCredentialsException ex, HttpServletRequest request) {
         log.warn("Authentication failed: {}", ex.getMessage());
         return ProblemDetailsFactory.problem(
-                HttpStatus.UNAUTHORIZED, UnauthorizedException.TYPE, "Invalid credentials", ex.getMessage(), request);
+                HttpStatus.UNAUTHORIZED,
+                UnauthorizedException.PROBLEM_TYPE,
+                "Invalid credentials",
+                ex.getMessage(),
+                request);
     }
 
     @ExceptionHandler(InvalidRefreshTokenException.class)
@@ -43,20 +51,28 @@ public class GlobalExceptionHandler {
             InvalidRefreshTokenException ex, HttpServletRequest request) {
         log.warn("Refresh token rejected: {}", ex.getMessage());
         return ProblemDetailsFactory.problem(
-                HttpStatus.UNAUTHORIZED, UnauthorizedException.TYPE, "Invalid refresh token", ex.getMessage(), request);
+                HttpStatus.UNAUTHORIZED,
+                UnauthorizedException.PROBLEM_TYPE,
+                "Invalid refresh token",
+                ex.getMessage(),
+                request);
     }
 
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ProblemDetails> handleUserNotFound(UserNotFoundException ex, HttpServletRequest request) {
         log.warn("User not found: {}", ex.getMessage());
         return ProblemDetailsFactory.problem(
-                HttpStatus.NOT_FOUND, NotFoundException.TYPE, "User not found", ex.getMessage(), request);
+                HttpStatus.NOT_FOUND, NotFoundException.PROBLEM_TYPE, "User not found", ex.getMessage(), request);
     }
 
     @ExceptionHandler(ForbiddenRoleException.class)
     public ResponseEntity<ProblemDetails> handleForbiddenRole(ForbiddenRoleException ex, HttpServletRequest request) {
         log.warn("Forbidden role assignment: {}", ex.getMessage());
         return ProblemDetailsFactory.problem(
-                HttpStatus.FORBIDDEN, ForbiddenException.TYPE, "Forbidden role assignment", ex.getMessage(), request);
+                HttpStatus.FORBIDDEN,
+                ForbiddenException.PROBLEM_TYPE,
+                "Forbidden role assignment",
+                ex.getMessage(),
+                request);
     }
 }

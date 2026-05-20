@@ -117,7 +117,9 @@ class CompatibilityScoreCalculatorTest {
 
         CompatibilityResult result = calculator.calculate(questionnaire, pet);
 
-        assertThat(result.factors()).allSatisfy(f -> assertThat(f.comment()).isNotBlank());
+        assertThat(result.factors())
+                .isNotEmpty()
+                .allSatisfy(f -> assertThat(f.comment()).isNotBlank());
     }
 
     @Test

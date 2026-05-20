@@ -39,7 +39,7 @@ class MatchRecommendationsServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new MatchRecommendationsService(listingClient, matchScoreService);
+        service = new MatchRecommendationsService(listingClient, matchScoreService, null);
         questionnaire = new BuyerQuestionnaire(1L);
     }
 
@@ -120,7 +120,7 @@ class MatchRecommendationsServiceTest {
             String passportId = "p-" + score;
             ListingSnapshot snapshot = new ListingSnapshot((long) score, "dog", "Labrador", 12, passportId);
             CompatibilityResult result = new CompatibilityResult(score, levelFor(score), List.of(), false);
-            when(matchScoreService.scoreSnapshot(eq(questionnaire), eq(snapshot), eq("req-1")))
+            when(matchScoreService.scoreSnapshot(questionnaire, snapshot, "req-1"))
                     .thenReturn(result);
         }
     }
