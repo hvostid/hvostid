@@ -293,7 +293,19 @@ export default function CatalogPage() {
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {listings.map((listing) => (
-                                <ListingCard key={listing.id} listing={listing} />
+                                <div
+                                    key={listing.id}
+                                    className="relative group transition-transform duration-300 ease-out hover:scale-[1.02]"
+                                >
+                                    <ListingCard listing={listing} />
+
+                                    {/* Лёгкое затемнение при наведении */}
+                                    <div
+                                        className={`
+                                            absolute inset-0 bg-black/10 rounded-lg flex items-center justify-center transition-all duration-300 ease-out opacity-0 group-hover:opacity-70 pointer-events-none
+                                        `}
+                                    />
+                                </div>
                             ))}
                         </div>
                         <Pagination page={page} totalPages={totalPages} onChange={setPage} />
