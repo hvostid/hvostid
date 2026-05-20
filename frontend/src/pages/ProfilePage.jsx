@@ -76,10 +76,13 @@ export default function ProfilePage() {
     const handleAddSellerRole = async () => {
         setSaving(true);
         setError('');
+        setSuccess('');
+
         try {
-            await addRole('SELLER');
-            setSuccess('Поздравляем! Теперь вы продавец. Страница обновится.');
-            setTimeout(() => window.location.reload(), 1000);
+            const updatedProfile = await addRole('SELLER');
+            setProfile(updatedProfile);
+            setSuccess('Поздравляем! Теперь вы продавец.');
+            setTimeout(() => setSuccess(''), 2000);
         } catch (err) {
             console.error('Failed to get seller role:', err);
             setError('Не удалось получить роль продавца');
