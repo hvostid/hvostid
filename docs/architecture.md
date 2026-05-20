@@ -120,12 +120,12 @@ Service-to-service calls use plain HTTP through `RestClient`, with the
 target host injected from the environment so the same code works
 locally and in Compose.
 
-| From            | To       | Purpose                                 | Property                       |
-|-----------------|----------|-----------------------------------------|--------------------------------|
-| Gateway         | Auth     | Token introspection                     | `hvostid.auth.introspect-url`  |
-| Listing         | Passport | Enrich a listing with passport data     | `hvostid.passport-service.url` |
-| Matching        | Listing  | Read listings for compatibility scoring | `hvostid.listing-service.url`  |
-| Matching        | Passport | Read passports for compatibility scoring| `hvostid.passport-service.url` |
+| From            | To       | Purpose                                                      | Property                       |
+|-----------------|----------|--------------------------------------------------------------|--------------------------------|
+| Gateway         | Auth     | Token introspection                                          | `hvostid.auth.introspect-url`  |
+| Passport        | Listing  | Check if a passport backs a PUBLISHED listing (buyer gate)   | `hvostid.listing-service.url`  |
+| Matching        | Listing  | Read listings for compatibility scoring                      | `hvostid.listing-service.url`  |
+| Matching        | Passport | Read passports for compatibility scoring                     | `hvostid.passport-service.url` |
 
 There is no service mesh and no circuit breaker; failures surface as
 plain HTTP errors and are mapped to `ErrorResponse` by each service's

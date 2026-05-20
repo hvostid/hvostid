@@ -18,10 +18,6 @@ spring:
             ddl-auto: validate
         open-in-view: false
 
-hvostid:
-    passport-service:
-        url: http://${PASSPORT_SERVICE_HOST:localhost}:8083
-
 management:
     endpoints:
         web:

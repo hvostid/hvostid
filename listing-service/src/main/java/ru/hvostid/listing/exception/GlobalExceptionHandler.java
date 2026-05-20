@@ -94,6 +94,14 @@ public class GlobalExceptionHandler {
                 HttpStatus.CONFLICT, ConflictException.PROBLEM_TYPE, "Duplicate flag", ex.getMessage(), request);
     }
 
+    @ExceptionHandler(DuplicateListingException.class)
+    public ResponseEntity<ProblemDetails> handleDuplicateListing(
+            DuplicateListingException ex, HttpServletRequest request) {
+        log.debug("Duplicate listing: {}", ex.getMessage());
+        return ProblemDetailsFactory.problem(
+                HttpStatus.CONFLICT, ConflictException.PROBLEM_TYPE, "Duplicate listing", ex.getMessage(), request);
+    }
+
     @ExceptionHandler(ListingNotFlaggableException.class)
     public ResponseEntity<ProblemDetails> handleListingNotFlaggable(
             ListingNotFlaggableException ex, HttpServletRequest request) {

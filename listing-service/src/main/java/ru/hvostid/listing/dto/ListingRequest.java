@@ -2,6 +2,7 @@ package ru.hvostid.listing.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
@@ -36,5 +37,8 @@ public record ListingRequest(
         String city,
 
         @NotBlank(message = "PassportId is required")
+        @Pattern(
+                regexp = "(passport-)?\\d+",
+                message = "PassportId must be a numeric passport-service id, optionally prefixed with 'passport-'")
         @Schema(description = "Pet passport identifier from passport-service", example = "12")
         String passportId) {}

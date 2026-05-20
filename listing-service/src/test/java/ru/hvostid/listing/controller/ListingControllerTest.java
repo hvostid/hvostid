@@ -81,7 +81,7 @@ class ListingControllerTest extends AbstractPostgresContainerTest {
         @Test
         @DisplayName("create listing invalid title -> 400")
         void create_invalidTitle_returns400() throws Exception {
-            ListingRequest request = new ListingRequest("ab", "Desc", "dog", "Labrador", 3, 10000, "Moscow", "p-1");
+            ListingRequest request = new ListingRequest("ab", "Desc", "dog", "Labrador", 3, 10000, "Moscow", "1");
 
             mockMvc.perform(post(LISTINGS_URL)
                             .header(USER_ID, testSellerId)
@@ -95,7 +95,7 @@ class ListingControllerTest extends AbstractPostgresContainerTest {
 
         @Test
         void create_invalidUserId_returns401() throws Exception {
-            ListingRequest request = new ListingRequest("Test", "Desc", "dog", "Labrador", 3, 10000, "Moscow", "p-1");
+            ListingRequest request = new ListingRequest("Test", "Desc", "dog", "Labrador", 3, 10000, "Moscow", "1");
 
             mockMvc.perform(post(LISTINGS_URL)
                             .header(USER_ID, -1)
@@ -352,7 +352,7 @@ class ListingControllerTest extends AbstractPostgresContainerTest {
 
         @BeforeEach
         void setUp() throws Exception {
-            ListingRequest request = new ListingRequest("Test", "Desc", "dog", "Labrador", 3, 10000, "Moscow", "p-1");
+            ListingRequest request = new ListingRequest("Test", "Desc", "dog", "Labrador", 3, 10000, "Moscow", "1");
 
             String response = mockMvc.perform(post(LISTINGS_URL)
                             .header(USER_ID, testSellerId)

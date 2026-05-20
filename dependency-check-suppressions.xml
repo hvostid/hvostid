@@ -66,4 +66,52 @@
         <cve>CVE-2026-42198</cve>
     </suppress>
 
+    <!-- Netty 4.2.x family. -->
+    <suppress until="2026-09-30Z">
+        <notes><![CDATA[
+            Spring Boot 4.0.6 BOM pins netty.version=4.2.12.Final.
+            The root build.gradle.kts overrides the extra property to
+            4.2.13.Final via the spring-dependency-management plugin,
+            and dependencyInsight confirms every io.netty:* artifact
+            resolves to 4.2.13.Final on the runtime classpath. Trivy
+            on the built images confirms 4.2.13.Final is what
+            actually ships. Remove this entry together with the
+            netty branch in build.gradle.kts once the Spring Boot BOM
+            moves past 4.2.12.Final.
+        ]]></notes>
+        <gav regex="true">^io\.netty:.*:4\.2\.12\.Final$</gav>
+        <cve>CVE-2026-41417</cve>
+        <cve>CVE-2026-42577</cve>
+        <cve>CVE-2026-42578</cve>
+        <cve>CVE-2026-42579</cve>
+        <cve>CVE-2026-42580</cve>
+        <cve>CVE-2026-42581</cve>
+        <cve>CVE-2026-42582</cve>
+        <cve>CVE-2026-42583</cve>
+        <cve>CVE-2026-42584</cve>
+        <cve>CVE-2026-42585</cve>
+        <cve>CVE-2026-42586</cve>
+        <cve>CVE-2026-42587</cve>
+        <cve>CVE-2026-44248</cve>
+    </suppress>
+
+    <!-- swagger-ui webjar bundled with springdoc. -->
+    <suppress until="2026-09-30Z">
+        <notes><![CDATA[
+            springdoc-openapi 3.0.3 pulls org.webjars:swagger-ui:5.32.2
+            which ships DOMPurify 3.3.2 (CVE-2026-41238/41239/41240 +
+            GHSA-39q2-94rc-95cp). The root build.gradle.kts overrides
+            the webjar to 5.32.5, which bundles DOMPurify 3.4.0 (the
+            fixed version), via configurations.all.resolutionStrategy.
+            Trivy on the built images confirms 5.32.5 is what actually
+            ships. Remove this entry together with the swagger-ui
+            branch in build.gradle.kts once springdoc bumps the webjar.
+        ]]></notes>
+        <gav>org.webjars:swagger-ui:5.32.2</gav>
+        <cve>CVE-2026-41238</cve>
+        <cve>CVE-2026-41239</cve>
+        <cve>CVE-2026-41240</cve>
+        <vulnerabilityName>GHSA-39q2-94rc-95cp</vulnerabilityName>
+    </suppress>
+
 </suppressions>
