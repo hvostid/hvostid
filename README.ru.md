@@ -343,7 +343,10 @@ npm install --prefix frontend  # eslint + prettier + lint-staged для pre-comm
   `/v3/api-docs/<service>` на gateway. CI прикрепляет все спеки как
   артефакт `openapi-specs` к каждому PR-сборке (см.
   [`ci-pr.yml`](./.github/workflows/ci-pr.yml)).
-- **Postman-коллекция** -- отслеживается в T36 (TODO).
+- **Postman-коллекции** -- пять файлов `COL-*.json` плюс окружение
+  `hvostid-local` в [`postman/`](./postman/). Импортируются в Postman
+  или прогоняются headless через Newman; описание flow-ов и запуск в
+  CI -- в [`postman/README.md`](./postman/README.md).
 
 ## CI/CD
 
@@ -489,7 +492,7 @@ hvostid/
   k6/                      -- нагрузочные тесты
   docker/                  -- помощники для compose (init БД и т.п.)
   docs/                    -- архитектура и проектные заметки
-  postman/                 -- API-коллекция (T36, TODO)
+  postman/                 -- Postman-коллекции + Newman runner
   build.gradle.kts
   settings.gradle.kts
   gradle/libs.versions.toml

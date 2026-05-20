@@ -1,5 +1,6 @@
 package ru.hvostid.passport.service;
 
+import java.util.List;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +51,14 @@ public class PassportService {
         log.info("Passport created id={} sellerId={}", saved.getId(), saved.getSellerId());
         trustScoreService.recalculate(saved.getId());
         return PassportResponse.from(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PassportResponse> listOwnedBy(Long sellerId) {
+        log.debug("Listing passports for sellerId={}", sellerId);
+        return passportRepository.findBySellerIdOrderByCreatedAtDesc(sellerId).stream()
+                .map(PassportResponse::from)
+                .toList();
     }
 
     @Transactional(readOnly = true)

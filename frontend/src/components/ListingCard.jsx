@@ -1,15 +1,20 @@
 import { Link } from 'react-router-dom';
-import TrustBadge from './TrustBadge';
 import { useState } from 'react';
+import { passportCoverUrl } from '../api/passports';
+import TrustBadge from './TrustBadge';
 
 export default function ListingCard({ listing }) {
-    const { id, title, species, breed, age, price, city, photoUrl, trustScore } = listing;
+    const { id, title, species, breed, age, price, city, passportId, trustScore } = listing;
 
     const [imgError, setImgError] = useState(false);
 
-    // Финальный источник картинки
-    const imageSrc = photoUrl && !imgError ? photoUrl : '/def.png';
-    const isPlaceholder = !photoUrl || imgError;
+    // Cover photo: passport-service public endpoint returns the first PHOTO
+    // for a passport that backs a PUBLISHED listing. 404s for passports
+    // without a photo upload (or before the passport was reachable);
+    // `onError` flips us to the local placeholder.
+    const coverSrc = passportId ? passportCoverUrl(passportId) : null;
+    const imageSrc = coverSrc && !imgError ? coverSrc : '/def.png';
+    const isPlaceholder = !coverSrc || imgError;
 
     return (
         <Link

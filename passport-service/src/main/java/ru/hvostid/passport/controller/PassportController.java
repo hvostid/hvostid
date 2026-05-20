@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -67,6 +68,24 @@ public class PassportController {
 
         PassportResponse response = passportService.createPassport(request, sellerId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @Operation(
+            summary = "List passports owned by the authenticated seller",
+            description = "Returns every pet passport whose sellerId matches the caller. Ordered by creation"
+                    + " time, newest first. Each entry includes its vaccination list.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Passport list",
+            content = @Content(schema = @Schema(implementation = PassportResponse.class)))
+    @ApiResponse(responseCode = "401", description = "Missing or invalid authenticated user", content = @Content)
+    @GetMapping
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<PassportResponse>> listMyPassports(
+            @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
+        long sellerId = GatewayPreAuthentication.currentUserId(user);
+        log.debug("GET /api/v1/passports, sellerId={}", sellerId);
+        return ResponseEntity.ok(passportService.listOwnedBy(sellerId));
     }
 
     @Operation(

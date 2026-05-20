@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import java.net.URI;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -26,6 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 import ru.hvostid.common.dto.ErrorResponse;
 import ru.hvostid.common.http.SecurityHeaders;
 import ru.hvostid.common.security.GatewayPreAuthentication;
+import ru.hvostid.passport.dto.MediaTicketResponse;
 import ru.hvostid.passport.dto.PassportDocumentResponse;
 import ru.hvostid.passport.entity.PassportDocumentType;
 import ru.hvostid.passport.service.PassportDocumentService;
@@ -69,8 +69,9 @@ public class PassportDocumentController {
 
     @Operation(
             summary = "List passport documents",
-            description =
-                    "Owners, moderators, and admins receive every document type with a short-TTL presigned MinIO downloadUrl. Other authenticated callers receive only PHOTO documents (also with a downloadUrl), and only when the passport is referenced by at least one PUBLISHED listing; otherwise the endpoint returns 404 to prevent passport-id enumeration.")
+            description = "Privileged callers (owner / MODERATOR / ADMIN) see every document. "
+                    + "Other authenticated callers see only PHOTO entries, and only when the passport is "
+                    + "referenced by at least one PUBLISHED listing.")
     @ApiResponse(
             responseCode = "200",
             description = "Document list",
@@ -79,11 +80,8 @@ public class PassportDocumentController {
     @ApiResponse(
             responseCode = "404",
             description = "Passport not found or not viewable by the caller",
-            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    @ApiResponse(
-            responseCode = "503",
-            description = "Listing service unavailable",
-            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+            content = @Content)
+    @ApiResponse(responseCode = "503", description = "Listing service unavailable", content = @Content)
     @GetMapping
     public ResponseEntity<List<PassportDocumentResponse>> listDocuments(
             @Parameter(description = "Pet passport ID", required = true, example = "1") @PathVariable Long passportId,
@@ -98,21 +96,23 @@ public class PassportDocumentController {
     }
 
     @Operation(
-            summary = "Download a passport document",
-            description =
-                    "Redirects to a short-TTL MinIO presigned URL. Owners, moderators, and admins can download any document; other authenticated callers can only download PHOTO documents on a passport referenced by at least one PUBLISHED listing.")
-    @ApiResponse(responseCode = "302", description = "Redirect to presigned URL", content = @Content)
+            summary = "Issue a download URL for a passport document",
+            description = "Returns a short lived URL that streams the document content. The URL works in <img src>"
+                    + " and is enforced by a single use ticket, not by Bearer auth. Owners, moderators, and admins can"
+                    + " ticket any document type; other authenticated callers can only ticket PHOTO documents on a"
+                    + " passport referenced by at least one PUBLISHED listing.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Ticketed URL",
+            content = @Content(schema = @Schema(implementation = MediaTicketResponse.class)))
     @ApiResponse(responseCode = "401", description = "Missing or invalid authenticated user", content = @Content)
     @ApiResponse(
             responseCode = "404",
             description = "Passport or document not found, or not viewable by the caller",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    @ApiResponse(
-            responseCode = "503",
-            description = "Listing service unavailable",
-            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "503", description = "Listing service unavailable", content = @Content)
     @GetMapping("/{docId}")
-    public ResponseEntity<Void> downloadDocument(
+    public ResponseEntity<MediaTicketResponse> downloadDocument(
             @Parameter(description = "Pet passport ID", required = true, example = "1") @PathVariable Long passportId,
             @Parameter(description = "Passport document ID", required = true, example = "1") @PathVariable Long docId,
             @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user,
@@ -122,8 +122,8 @@ public class PassportDocumentController {
         String requestId = httpRequest.getHeader(SecurityHeaders.REQUEST_ID);
         log.debug("GET /api/v1/passports/{}/docs/{}, userId={}, roles={}", passportId, docId, userId, roles);
 
-        String url = documentService.getDownloadUrl(passportId, docId, userId, roles, requestId);
-        return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(url)).build();
+        MediaTicketResponse response = documentService.issueDownloadTicket(passportId, docId, userId, roles, requestId);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Delete a passport document", description = "Deletes a passport document owned by the seller.")

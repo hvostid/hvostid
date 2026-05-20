@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import api from '../api/client';
+import { issueDocumentTicket } from '../api/passports';
+import PassportImage from '../components/PassportImage';
 import TrustBadge from '../components/TrustBadge';
 import { useAuth } from '../context/AuthContext';
 
@@ -185,6 +187,7 @@ export default function ListingDetailPage() {
                     documents={documents}
                     documentsRestricted={documentsRestricted}
                     hasPassportId={Boolean(listing.passportId)}
+                    passportId={listing.passportId}
                 />
                 <MainInfo listing={listing} />
                 <PassportBlock
@@ -193,7 +196,7 @@ export default function ListingDetailPage() {
                     hasPassportId={Boolean(listing.passportId)}
                 />
                 {canSeeAllDocs && documents && documents.length > 0 && (
-                    <DocumentsBlock documents={documents} />
+                    <DocumentsBlock documents={documents} passportId={listing.passportId} />
                 )}
             </article>
 
@@ -344,11 +347,8 @@ function PassportBlock({ passport, restricted, hasPassportId }) {
     );
 }
 
-function PhotoGallery({ documents, documentsRestricted, hasPassportId }) {
-    const photos = useMemo(
-        () => (documents ?? []).filter((d) => d.type === 'PHOTO' && d.downloadUrl),
-        [documents]
-    );
+function PhotoGallery({ documents, documentsRestricted, hasPassportId, passportId }) {
+    const photos = useMemo(() => (documents ?? []).filter((d) => d.type === 'PHOTO'), [documents]);
 
     if (!hasPassportId) {
         return null;
@@ -365,37 +365,23 @@ function PhotoGallery({ documents, documentsRestricted, hasPassportId }) {
     return (
         <section className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {photos.map((photo) => (
-                <PhotoTile key={photo.id} photo={photo} />
+                <div
+                    key={photo.id}
+                    className="aspect-square bg-gray-100 rounded-md overflow-hidden"
+                >
+                    <PassportImage
+                        passportId={passportId}
+                        document={photo}
+                        className="w-full h-full object-cover"
+                        placeholderClassName="w-full h-full bg-gray-100 animate-pulse"
+                    />
+                </div>
             ))}
         </section>
     );
 }
 
-function PhotoTile({ photo }) {
-    const [failed, setFailed] = useState(false);
-
-    if (failed) {
-        return (
-            <div className="aspect-square bg-gray-100 rounded-md flex items-center justify-center text-xs text-gray-400">
-                Failed to load
-            </div>
-        );
-    }
-
-    return (
-        <div className="aspect-square bg-gray-100 rounded-md overflow-hidden">
-            <img
-                src={photo.downloadUrl}
-                alt={photo.originalFilename || 'Pet photo'}
-                loading="lazy"
-                className="w-full h-full object-cover"
-                onError={() => setFailed(true)}
-            />
-        </div>
-    );
-}
-
-function DocumentsBlock({ documents }) {
+function DocumentsBlock({ documents, passportId }) {
     const otherDocs = documents.filter((d) => d.type !== 'PHOTO');
     if (otherDocs.length === 0) return null;
 
@@ -414,7 +400,7 @@ function DocumentsBlock({ documents }) {
                             </p>
                             <p className="text-xs text-gray-500">{doc.originalFilename}</p>
                         </div>
-                        <DocumentDownloadLink doc={doc} />
+                        <DocumentDownloadLink doc={doc} passportId={passportId} />
                     </li>
                 ))}
             </ul>
@@ -422,24 +408,40 @@ function DocumentsBlock({ documents }) {
     );
 }
 
-function DocumentDownloadLink({ doc }) {
-    // The backend now ships a presigned MinIO URL on the document, so a plain
-    // anchor is enough — no blob hop, no race between revokeObjectURL and
-    // the synthetic click. The link opens in a new tab so the original page
-    // is preserved if the browser chooses to navigate rather than download.
-    if (!doc.downloadUrl) {
-        return <span className="text-xs text-gray-400">Unavailable</span>;
+function DocumentDownloadLink({ doc, passportId }) {
+    // Documents stream through the same ticketed X-Accel-Redirect path as
+    // photos. Issuing a ticket up front would let it expire while the user
+    // hovers; instead we issue on click, open the URL in a fresh tab, and
+    // let the new tab consume the single-use ticket.
+    const [pending, setPending] = useState(false);
+    const [failed, setFailed] = useState(false);
+
+    const handleClick = useCallback(async () => {
+        if (pending) return;
+        setPending(true);
+        setFailed(false);
+        try {
+            const { url } = await issueDocumentTicket(passportId, doc.id);
+            window.open(url, '_blank', 'noopener,noreferrer');
+        } catch {
+            setFailed(true);
+        } finally {
+            setPending(false);
+        }
+    }, [pending, passportId, doc.id]);
+
+    if (failed) {
+        return <span className="text-xs text-red-500">Unavailable</span>;
     }
     return (
-        <a
-            href={doc.downloadUrl}
-            download={doc.originalFilename || `document-${doc.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-indigo-600 hover:underline"
+        <button
+            type="button"
+            onClick={handleClick}
+            disabled={pending}
+            className="text-xs text-indigo-600 hover:underline disabled:text-gray-400 disabled:no-underline"
         >
-            Download
-        </a>
+            {pending ? 'Opening…' : 'Download'}
+        </button>
     );
 }
 

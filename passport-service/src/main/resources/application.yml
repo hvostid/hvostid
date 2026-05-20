@@ -21,6 +21,12 @@ spring:
         multipart:
             max-file-size: 10MB
             max-request-size: 20MB
+    data:
+        redis:
+            host: ${REDIS_HOST:localhost}
+            port: ${REDIS_PORT:6379}
+            connect-timeout: 2s
+            timeout: 2s
 
 hvostid:
     minio:
@@ -34,6 +40,18 @@ hvostid:
         url: http://${LISTING_SERVICE_HOST:localhost}:8082
         connect-timeout: 2s
         read-timeout: 3s
+    media:
+        # TTL bounds how long a ticket can sit before it is redeemed. The
+        # browser fetches a ticket right before the <img> request fires, so a
+        # tight value (single digit minutes) is fine.
+        ticket-ttl: 5m
+        # Lifetime of the MinIO presigned URL baked into X-Accel-Redirect.
+        # The frontend nginx consumes the redirect immediately, so this can be
+        # very short. Keep it long enough to absorb retries and clock skew.
+        presign-ttl: 30s
+        # Internal nginx location declared with the "internal" directive.
+        # See frontend/nginx.conf for the matching proxy_pass to MinIO.
+        internal-redirect-prefix: /_protected/minio
 
 management:
     endpoints:

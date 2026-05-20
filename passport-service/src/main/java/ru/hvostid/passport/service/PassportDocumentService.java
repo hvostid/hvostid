@@ -1,7 +1,7 @@
 package ru.hvostid.passport.service;
 
 import java.io.IOException;
-import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -11,8 +11,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import ru.hvostid.passport.client.ListingServiceClient;
+import ru.hvostid.passport.config.MediaTicketProperties;
 import ru.hvostid.passport.config.MinioProperties;
+import ru.hvostid.passport.dto.MediaTicketResponse;
 import ru.hvostid.passport.dto.PassportDocumentResponse;
+import ru.hvostid.passport.entity.MediaTicket;
 import ru.hvostid.passport.entity.PassportDocument;
 import ru.hvostid.passport.entity.PassportDocumentType;
 import ru.hvostid.passport.entity.PetPassport;
@@ -26,7 +29,6 @@ import ru.hvostid.passport.storage.PassportObjectNameFactory;
 @Service
 public class PassportDocumentService {
     private static final Logger log = LoggerFactory.getLogger(PassportDocumentService.class);
-    private static final Duration DOWNLOAD_URL_EXPIRY = Duration.ofMinutes(10);
 
     private final PassportAccessService accessService;
     private final PassportDocumentRepository documentRepository;
@@ -36,6 +38,8 @@ public class PassportDocumentService {
     private final MinioProperties minioProperties;
     private final TrustScoreService trustScoreService;
     private final ListingServiceClient listingServiceClient;
+    private final MediaTicketService mediaTicketService;
+    private final MediaTicketProperties mediaTicketProperties;
 
     public PassportDocumentService(
             PassportAccessService accessService,
@@ -45,7 +49,9 @@ public class PassportDocumentService {
             MinioStorageService storageService,
             MinioProperties minioProperties,
             TrustScoreService trustScoreService,
-            ListingServiceClient listingServiceClient) {
+            ListingServiceClient listingServiceClient,
+            MediaTicketService mediaTicketService,
+            MediaTicketProperties mediaTicketProperties) {
         this.accessService = accessService;
         this.documentRepository = documentRepository;
         this.validator = validator;
@@ -54,6 +60,8 @@ public class PassportDocumentService {
         this.minioProperties = minioProperties;
         this.trustScoreService = trustScoreService;
         this.listingServiceClient = listingServiceClient;
+        this.mediaTicketService = mediaTicketService;
+        this.mediaTicketProperties = mediaTicketProperties;
     }
 
     @Transactional
@@ -64,7 +72,7 @@ public class PassportDocumentService {
         PetPassport passport = accessService.getExistingPassport(passportId);
         accessService.requireOwner(passport, userId, "upload documents to");
 
-        String bucket = bucketFor(type);
+        String bucket = minioProperties.buckets().forDocumentType(type);
         String storagePath =
                 objectNameFactory.create(passport.getSellerId(), passport.getId(), file.getOriginalFilename());
         log.debug("Uploading passport document passportId={} type={} bucket={}", passportId, type, bucket);
@@ -97,10 +105,6 @@ public class PassportDocumentService {
      * existence-hiding rule trust-score uses. Mismatches throw 404 rather
      * than 403 so anonymous probers cannot enumerate passport ids.
      *
-     * <p>Every entry returned carries a short-TTL presigned MinIO URL so the
-     * caller can use it directly (e.g. as an {@code <img src>}) without an
-     * extra round-trip through this service.
-     *
      * <p>Intentionally not annotated with {@code @Transactional}: the
      * buyer-path access check makes a synchronous HTTP call to
      * listing-service, which would otherwise hold a Hikari connection for
@@ -118,26 +122,27 @@ public class PassportDocumentService {
                     userId);
             throw new PassportNotFoundException("Passport not found with id: " + passportId);
         }
-
         return documentRepository.findByPassportIdOrderByUploadedAtDesc(passportId).stream()
                 .filter(doc -> privileged || doc.getType() == PassportDocumentType.PHOTO)
-                .map(doc -> PassportDocumentResponse.from(doc, presignedUrlFor(doc)))
+                .map(PassportDocumentResponse::from)
                 .toList();
     }
 
     /**
-     * Returns a presigned MinIO URL for a single document.
+     * Authorizes the caller, then issues a single use media ticket that the
+     * browser uses as an {@code <img src>} via the gateway-public content
+     * endpoint.
      *
-     * <p>Owner / MODERATOR / ADMIN can download any document type. Other
-     * authenticated callers can download a PHOTO document attached to a
-     * passport that is referenced by at least one PUBLISHED listing; every
-     * other combination throws 404 (hide existence; see
-     * {@link #listDocuments}).
+     * <p>Owner / MODERATOR / ADMIN can ticket any document type. Other
+     * authenticated callers can ticket a PHOTO document attached to a
+     * passport referenced by at least one PUBLISHED listing; every other
+     * combination throws 404 (hide existence; see {@link #listDocuments}).
      *
      * <p>Not annotated with {@code @Transactional} for the same reason as
-     * {@link #listDocuments}.
+     * {@link #listDocuments}: the buyer-path check calls listing-service over
+     * HTTP and should not hold a Hikari connection across the round-trip.
      */
-    public String getDownloadUrl(
+    public MediaTicketResponse issueDownloadTicket(
             Long passportId, Long documentId, Long userId, Set<String> userRoles, String requestId) {
         PetPassport passport = accessService.getExistingPassport(passportId);
         PassportDocument document = getDocument(passportId, documentId);
@@ -145,7 +150,7 @@ public class PassportDocumentService {
             if (document.getType() != PassportDocumentType.PHOTO
                     || !listingServiceClient.hasPublishedListingForPassport(passportId, requestId)) {
                 log.warn(
-                        "Document download denied passportId={} documentId={} type={} userId={}",
+                        "Document ticket denied passportId={} documentId={} type={} userId={}",
                         passportId,
                         documentId,
                         document.getType(),
@@ -153,12 +158,34 @@ public class PassportDocumentService {
                 throw new PassportDocumentNotFoundException("Passport document not found with id: " + documentId);
             }
         }
-        return presignedUrlFor(document);
+
+        String token = mediaTicketService.issue(
+                new MediaTicket(document.getId(), passportId, userId, document.getStoragePath(), document.getType()));
+        String url = String.format("/api/v1/passports/%d/docs/%d/content?t=%s", passportId, document.getId(), token);
+        Instant expiresAt = Instant.now().plus(mediaTicketProperties.ticketTtl());
+        return new MediaTicketResponse(url, expiresAt);
     }
 
-    private String presignedUrlFor(PassportDocument document) {
-        return storageService.getPresignedUrl(
-                bucketFor(document.getType()), document.getStoragePath(), DOWNLOAD_URL_EXPIRY);
+    /**
+     * Resolves the cover photo for a passport that backs at least one
+     * PUBLISHED listing. Public path: there is no ticket dance because the
+     * photo is, by definition, already visible to anyone browsing the
+     * catalog.
+     *
+     * <p>Returns the first PHOTO entry by upload time. Throws
+     * {@link PassportDocumentNotFoundException} if the passport does not
+     * exist, is not referenced by a PUBLISHED listing, or has no PHOTO
+     * uploaded yet -- the controller turns every failure mode into 404 so a
+     * probing client cannot distinguish them.
+     */
+    public PassportDocument resolveCoverPhoto(Long passportId, String requestId) {
+        accessService.getExistingPassport(passportId);
+        if (!listingServiceClient.hasPublishedListingForPassport(passportId, requestId)) {
+            throw new PassportDocumentNotFoundException("Cover not available for passport " + passportId);
+        }
+        return documentRepository
+                .findFirstByPassportIdAndTypeOrderByUploadedAtAsc(passportId, PassportDocumentType.PHOTO)
+                .orElseThrow(() -> new PassportDocumentNotFoundException("No cover photo for passport " + passportId));
     }
 
     @Transactional
@@ -167,7 +194,7 @@ public class PassportDocumentService {
         accessService.requireOwner(passport, userId, "delete documents from");
         PassportDocument document = getDocument(passportId, documentId);
         documentRepository.delete(document);
-        storageService.delete(bucketFor(document.getType()), document.getStoragePath());
+        storageService.delete(minioProperties.buckets().forDocumentType(document.getType()), document.getStoragePath());
         log.info("Passport document deleted id={} passportId={}", documentId, passportId);
         trustScoreService.recalculate(passportId);
     }
@@ -177,14 +204,6 @@ public class PassportDocumentService {
                 .findByIdAndPassportId(documentId, passportId)
                 .orElseThrow(() ->
                         new PassportDocumentNotFoundException("Passport document not found with id: " + documentId));
-    }
-
-    private String bucketFor(PassportDocumentType type) {
-        return switch (type) {
-            case PHOTO -> minioProperties.buckets().photos();
-            case VACCINATION_CERT, VET_RECORD, OTHER ->
-                minioProperties.buckets().documents();
-        };
     }
 
     private void deleteUploadedObjectAfterMetadataFailure(String bucket, String storagePath, RuntimeException cause) {

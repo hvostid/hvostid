@@ -161,9 +161,10 @@ export default function MyListingsPage() {
             setPassportsLoading(true);
             try {
                 const data = await getAllMyPassports();
-                setPassports(data.content || []);
+                setPassports(Array.isArray(data) ? data : []);
             } catch (error) {
                 console.error('Failed to load passports:', error);
+                setPassports([]);
             } finally {
                 setPassportsLoading(false);
             }
@@ -504,7 +505,13 @@ export default function MyListingsPage() {
                             </div>
                         ) : (
                             passports.map((passport) => {
-                                const listing = listings.find((l) => l.passportId === passport.id);
+                                // listing-service stores passportId as String;
+                                // passport-service ships id as a JSON number.
+                                // Compare in String space so the link does not
+                                // collapse to "no listing" for valid links.
+                                const listing = listings.find(
+                                    (l) => String(l.passportId) === String(passport.id)
+                                );
                                 return (
                                     <PassportCard
                                         key={passport.id}
