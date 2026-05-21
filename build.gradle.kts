@@ -15,6 +15,10 @@ sonarqube {
     }
 }
 
+tasks.named("sonar") {
+    dependsOn(subprojects.map { "${it.path}:jacocoTestReport" })
+}
+
 dependencyCheck {
     failBuildOnCVSS = 9.0f
     suppressionFile = "dependency-check-suppressions.xml"
@@ -83,11 +87,26 @@ subprojects {
             "testcontainers.redis.image",
             rootProject.libs.versions.redis.image.get()
         )
+        finalizedBy(tasks.named("jacocoTestReport"))
     }
 
     tasks.jacocoTestReport {
+        // Only run after tests have produced an .exec file.
+        dependsOn(tasks.withType<Test>())
         reports {
             xml.required = true
+        }
+    }
+
+    sonar {
+        properties {
+            // The Sonar Gradle plugin (7.3.0) does not unwrap Provider values
+            // and ends up writing the toString() form. Resolve to a plain
+            // path string up front so the scanner reads an actual file.
+            property(
+                "sonar.coverage.jacoco.xmlReportPaths",
+                layout.buildDirectory.file("reports/jacoco/test/jacocoTestReport.xml").get().asFile.path
+            )
         }
     }
 
