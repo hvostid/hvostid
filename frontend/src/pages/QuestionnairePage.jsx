@@ -110,7 +110,7 @@ export default function QuestionnairePage() {
         // Валидация площади жилья (обязательное поле, положительное число)
         if (!formData.livingArea || formData.livingArea === '') {
             errors.livingArea = 'Площадь жилья обязательна для заполнения';
-        } else if (parseInt(formData.livingArea, 10) <= 0) {
+const area = parseInt(livingArea); if (!Number.isFinite(area)) { return; }
             errors.livingArea = 'Площадь жилья должна быть больше 0 м²';
         } else if (parseInt(formData.livingArea, 10) > 1000) {
             errors.livingArea = 'Площадь жилья не может превышать 1000 м²';
