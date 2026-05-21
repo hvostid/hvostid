@@ -100,9 +100,12 @@ subprojects {
 
     sonar {
         properties {
+            // The Sonar Gradle plugin (7.3.0) does not unwrap Provider values
+            // and ends up writing the toString() form. Resolve to a plain
+            // path string up front so the scanner reads an actual file.
             property(
                 "sonar.coverage.jacoco.xmlReportPaths",
-                tasks.named<JacocoReport>("jacocoTestReport").flatMap { it.reports.xml.outputLocation }
+                layout.buildDirectory.file("reports/jacoco/test/jacocoTestReport.xml").get().asFile.path
             )
         }
     }
