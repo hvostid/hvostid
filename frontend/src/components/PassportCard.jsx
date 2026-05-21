@@ -16,6 +16,13 @@ export default function PassportCard({ passport, listingId }) {
     // Если нет паспорта, не показываем карточку
     if (!passport) return null;
 
+    // Ссылка для просмотра паспорта
+    // Если есть listingId — идём через объявление
+    // Если нет — идём напрямую на PassportFormPage через passportId
+    const passportViewUrl = listingId
+        ? `/my-listings/${listingId}/passport`
+        : `/passports/${passport.id}/edit`;
+
     const body = (
         <div className="flex items-center gap-3">
             {/* Иконка вида животного */}
@@ -55,35 +62,22 @@ export default function PassportCard({ passport, listingId }) {
             </div>
 
             {/* Стрелка-индикатор */}
-            {listingId && (
-                <div className="text-gray-400 group-hover:text-indigo-500 transition-colors">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5l7 7-7 7"
-                        />
-                    </svg>
-                </div>
-            )}
+            <div className="text-gray-400 group-hover:text-indigo-500 transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                    />
+                </svg>
+            </div>
         </div>
     );
 
-    // The passport-form route is keyed by listing id (the passport view lives
-    // inside the listing edit flow). Orphan passports -- no listing yet --
-    // render as a static card so we do not navigate to /my-listings/undefined.
-    if (!listingId) {
-        return (
-            <div className="block bg-white rounded-lg border border-gray-200 p-3 opacity-75 group">
-                {body}
-            </div>
-        );
-    }
-
     return (
         <Link
-            to={`/my-listings/${listingId}/passport`}
+            to={passportViewUrl}
             className="block bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition-all duration-200 hover:border-indigo-300 group"
         >
             {body}

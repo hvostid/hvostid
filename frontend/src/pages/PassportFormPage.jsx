@@ -9,6 +9,7 @@ import {
     getTrustScore,
     uploadDocument,
     deleteDocument,
+    issueDocumentTicket,
 } from '../api/passports';
 import Input from '../components/Input';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -20,8 +21,11 @@ const GENDER_OPTIONS = [
 ];
 
 export default function PassportFormPage() {
-    const { id: listingId } = useParams();
+    const { id: listingId, passportId: directPassportId } = useParams();
     const navigate = useNavigate();
+
+    // Определяем, как мы попали на страницу
+    const isDirectPassportAccess = !!directPassportId;
 
     const tempIdCounterRef = useRef(0);
     const generateTempId = () => {
@@ -53,32 +57,111 @@ export default function PassportFormPage() {
     const [uploading, setUploading] = useState(false);
     const [dragActive, setDragActive] = useState(false);
     const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, docId: null, docName: null });
+    const [imageErrors, setImageErrors] = useState({});
 
     useEffect(() => {
         const load = async () => {
             try {
+                // Если прямой доступ к паспорту (через /passports/:passportId/edit)
+                if (isDirectPassportAccess && directPassportId) {
+                    const passport = await getPassport(directPassportId);
+                    setPassportId(passport.id);
+                    setFormData({
+                        name: passport.name ?? '',
+                        species: passport.species ?? '',
+                        breed: passport.breed ?? '',
+                        birthDate: passport.birthDate ?? '',
+                        gender: passport.gender ?? 'MALE',
+                        color: passport.color ?? '',
+                        temperament: passport.temperament ?? '',
+                        specialNeeds: passport.specialNeeds ?? '',
+                        neutered: passport.neutered ?? false,
+                        microchipped: passport.microchipped ?? false,
+                    });
+                    setVaccinations(passport.vaccinations ?? []);
+
+                    // Пытаемся загрузить trust score (может быть недоступен без опубликованного объявления)
+                    try {
+                        const trust = await getTrustScore(directPassportId);
+                        setTrustScore(trust);
+                    } catch {
+                        // Trust score недоступен для паспорта без опубликованного объявления
+                        console.log('Trust score not available for unlinked passport');
+                    }
+
+                    if (passport.documents && passport.documents.length > 0) {
+                        const docsWithUrls = await Promise.all(
+                            passport.documents.map(async (doc) => {
+                                if (doc.type === 'PHOTO') {
+                                    try {
+                                        const { url } = await issueDocumentTicket(
+                                            passport.id,
+                                            doc.id
+                                        );
+                                        return { ...doc, downloadUrl: url };
+                                    } catch (err) {
+                                        console.warn(
+                                            `Failed to load URL for document ${doc.id}:`,
+                                            err
+                                        );
+                                        return { ...doc, downloadUrl: null };
+                                    }
+                                }
+                                return doc;
+                            })
+                        );
+                        setDocuments(docsWithUrls);
+                    } else if (passport.documents) {
+                        setDocuments(passport.documents);
+                    }
+                    setLoading(false);
+                    return;
+                }
+
+                // Старая логика: через listingId
                 const listing = await getListingById(listingId);
                 if (listing.passportId) {
                     const passport = await getPassport(listing.passportId);
                     setPassportId(passport.id);
                     setFormData({
-                        name: passport.name || '',
-                        species: passport.species || listing.species,
-                        breed: passport.breed || listing.breed,
-                        birthDate: passport.birthDate || '',
-                        gender: passport.gender || 'MALE',
-                        color: passport.color || '',
-                        temperament: passport.temperament || '',
-                        specialNeeds: passport.specialNeeds || '',
-                        neutered: passport.neutered || false,
-                        microchipped: passport.microchipped || false,
+                        name: passport.name ?? '',
+                        species: passport.species ?? listing.species ?? '',
+                        breed: passport.breed ?? listing.breed ?? '',
+                        birthDate: passport.birthDate ?? '',
+                        gender: passport.gender ?? 'MALE',
+                        color: passport.color ?? '',
+                        temperament: passport.temperament ?? '',
+                        specialNeeds: passport.specialNeeds ?? '',
+                        neutered: passport.neutered ?? false,
+                        microchipped: passport.microchipped ?? false,
                     });
-                    setVaccinations(passport.vaccinations || []);
+                    setVaccinations(passport.vaccinations ?? []);
                     const trust = await getTrustScore(listing.passportId);
                     setTrustScore(trust);
 
-                    // Загружаем документы, если есть API
-                    if (passport.documents) {
+                    if (passport.documents && passport.documents.length > 0) {
+                        const docsWithUrls = await Promise.all(
+                            passport.documents.map(async (doc) => {
+                                if (doc.type === 'PHOTO') {
+                                    try {
+                                        const { url } = await issueDocumentTicket(
+                                            passport.id,
+                                            doc.id
+                                        );
+                                        return { ...doc, downloadUrl: url };
+                                    } catch (err) {
+                                        console.warn(
+                                            `Failed to load URL for document ${doc.id}:`,
+                                            err
+                                        );
+                                        return { ...doc, downloadUrl: null };
+                                    }
+                                }
+                                return doc;
+                            })
+                        );
+                        setDocuments(docsWithUrls);
+                    } else if (passport.documents) {
                         setDocuments(passport.documents);
                     }
                 }
@@ -90,7 +173,7 @@ export default function PassportFormPage() {
             }
         };
         load();
-    }, [listingId]);
+    }, [listingId, directPassportId]);
 
     const handleSave = async () => {
         setSaving(true);
@@ -103,11 +186,17 @@ export default function PassportFormPage() {
                 ? await updatePassport(passportId, passportData)
                 : await createPassport(passportData);
             setPassportId(saved.id);
-            const trust = await getTrustScore(saved.id);
-            setTrustScore(trust);
+
+            // Обновляем trust score только если паспорт привязан к опубликованному объявлению
+            try {
+                const trust = await getTrustScore(saved.id);
+                setTrustScore(trust);
+            } catch {
+                // Trust score не обновляется для паспорта без опубликованного объявления
+            }
+
             setSuccessMessage('Паспорт успешно сохранён! Возврат к списку объявлений...');
 
-            // ✅ Возвращаемся на страницу моих объявлений через 1.5 секунды
             setTimeout(() => {
                 navigate('/my-listings');
             }, 1500);
@@ -158,7 +247,14 @@ export default function PassportFormPage() {
 
         try {
             const doc = await uploadDocument(passportId, file, 'PHOTO');
-            setDocuments([...documents, doc]);
+            let downloadUrl = null;
+            try {
+                const { url } = await issueDocumentTicket(passportId, doc.id);
+                downloadUrl = url;
+            } catch (err) {
+                console.warn('Failed to get download URL for new document:', err);
+            }
+            setDocuments([...documents, { ...doc, downloadUrl }]);
             setSuccessMessage('Файл успешно загружен');
             setTimeout(() => setSuccessMessage(null), 2000);
         } catch (err) {
@@ -189,6 +285,10 @@ export default function PassportFormPage() {
         setDragActive(false);
     };
 
+    const handleImageError = (docId) => {
+        setImageErrors((prev) => ({ ...prev, [docId]: true }));
+    };
+
     if (loading) {
         return (
             <div className="flex justify-center py-12">
@@ -196,6 +296,10 @@ export default function PassportFormPage() {
             </div>
         );
     }
+
+    // Разделяем документы на фото и другие
+    const photos = documents.filter((doc) => doc.type === 'PHOTO');
+    const otherDocs = documents.filter((doc) => doc.type !== 'PHOTO');
 
     return (
         <div className="max-w-3xl mx-auto">
@@ -210,6 +314,13 @@ export default function PassportFormPage() {
                     </div>
                 )}
             </div>
+
+            {!trustScore && passportId && (
+                <div className="mb-6 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-md text-sm">
+                    Trust score недоступен для паспорта, не привязанного к опубликованному
+                    объявлению.
+                </div>
+            )}
 
             {error && (
                 <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
@@ -410,6 +521,60 @@ export default function PassportFormPage() {
                 <section>
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">Фото и документы</h2>
 
+                    {/* Сетка с превью существующих фото */}
+                    {photos.length > 0 && (
+                        <div className="mb-4">
+                            <p className="text-sm text-gray-600 mb-2">Загруженные фото:</p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {photos.map((photo) => (
+                                    <div
+                                        key={photo.id}
+                                        className="relative group aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200"
+                                    >
+                                        {photo.downloadUrl && !imageErrors[photo.id] ? (
+                                            <img
+                                                src={photo.downloadUrl}
+                                                alt={photo.originalFilename}
+                                                className="w-full h-full object-cover"
+                                                onError={() => handleImageError(photo.id)}
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                                                <svg
+                                                    className="w-8 h-8 mb-1"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={1.5}
+                                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                    />
+                                                </svg>
+                                                <span className="text-xs">Нет фото</span>
+                                            </div>
+                                        )}
+                                        <button
+                                            onClick={() =>
+                                                setDeleteDialog({
+                                                    isOpen: true,
+                                                    docId: photo.id,
+                                                    docName: photo.originalFilename,
+                                                })
+                                            }
+                                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Drag-and-drop зона для загрузки новых фото */}
                     <div
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
@@ -446,17 +611,33 @@ export default function PassportFormPage() {
                         )}
                     </div>
 
-                    {documents.length > 0 && (
+                    {/* Другие документы (не фото) */}
+                    {otherDocs.length > 0 && (
                         <div className="mt-4 space-y-2">
-                            <p className="text-sm text-gray-600">Загруженные файлы:</p>
-                            {documents.map((doc) => (
+                            <p className="text-sm text-gray-600">Документы:</p>
+                            {otherDocs.map((doc) => (
                                 <div
                                     key={doc.id}
                                     className="flex justify-between items-center bg-gray-50 p-2 rounded-md"
                                 >
-                                    <span className="text-sm truncate flex-1">
-                                        {doc.originalFilename}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <svg
+                                            className="w-5 h-5 text-gray-400"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                            />
+                                        </svg>
+                                        <span className="text-sm truncate max-w-[200px]">
+                                            {doc.originalFilename}
+                                        </span>
+                                    </div>
                                     <button
                                         onClick={() =>
                                             setDeleteDialog({
@@ -465,7 +646,7 @@ export default function PassportFormPage() {
                                                 docName: doc.originalFilename,
                                             })
                                         }
-                                        className="text-red-600 hover:text-red-800 ml-2"
+                                        className="text-red-600 hover:text-red-800 text-sm"
                                     >
                                         Удалить
                                     </button>

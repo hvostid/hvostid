@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
-
+import CreatePassportPage from './pages/CreatePassportPage';
 // Public pages
 import CatalogPage from './pages/CatalogPage';
 import ListingDetailPage from './pages/ListingDetailPage';
@@ -98,6 +98,23 @@ export default function App() {
                     />
                     <Route
                         path="/my-listings/:id/passport"
+                        element={
+                            <ProtectedRoute requiredRole="SELLER">
+                                <PassportFormPage />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/passports/new"
+                        element={
+                            <ProtectedRoute requiredRole="SELLER">
+                                <CreatePassportPage />
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/passports/:passportId/edit"
                         element={
                             <ProtectedRoute requiredRole="SELLER">
                                 <PassportFormPage />
