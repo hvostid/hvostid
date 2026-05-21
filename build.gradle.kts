@@ -102,7 +102,7 @@ subprojects {
         properties {
             property(
                 "sonar.coverage.jacoco.xmlReportPaths",
-                layout.buildDirectory.file("reports/jacoco/test/jacocoTestReport.xml").get().asFile.path
+                tasks.named<JacocoReport>("jacocoTestReport").flatMap { it.reports.xml.outputLocation }
             )
         }
     }
