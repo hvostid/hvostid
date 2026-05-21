@@ -108,16 +108,15 @@ export default function QuestionnairePage() {
         const errors = {};
 
         // Валидация площади жилья (обязательное поле, положительное число)
-        if (!formData.livingArea || formData.livingArea === '') {
+        if (!formData.livingArea) {
             errors.livingArea = 'Площадь жилья обязательна для заполнения';
-const area = parseInt(livingArea); if (!Number.isFinite(area)) { return; }
             errors.livingArea = 'Площадь жилья должна быть больше 0 м²';
         } else if (parseInt(formData.livingArea, 10) > 1000) {
             errors.livingArea = 'Площадь жилья не может превышать 1000 м²';
         }
 
         // Валидация бюджета (обязательное поле, положительное число)
-        if (!formData.monthlyBudget || formData.monthlyBudget === '') {
+        if (!formData.monthlyBudget) {
             errors.monthlyBudget = 'Месячный бюджет обязателен для заполнения';
         } else if (parseInt(formData.monthlyBudget, 10) < 0) {
             errors.monthlyBudget = 'Бюджет не может быть отрицательным';
@@ -126,7 +125,7 @@ const area = parseInt(livingArea); if (!Number.isFinite(area)) { return; }
         }
 
         // Валидация возраста детей (если есть дети)
-        if (formData.hasChildren && (!formData.childrenAgeMin || formData.childrenAgeMin === '')) {
+        if (formData.hasChildren && !formData.childrenAgeMin) {
             errors.childrenAgeMin = 'Укажите минимальный возраст детей';
         } else if (formData.hasChildren && parseInt(formData.childrenAgeMin, 10) < 0) {
             errors.childrenAgeMin = 'Возраст детей не может быть отрицательным';

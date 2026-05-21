@@ -34,3 +34,9 @@ export const changeListingStatus = async (id, status, comment = null) => {
     const response = await api.patch(`/listings/${id}/status`, { status, comment });
     return response.data;
 };
+
+// Delete listing (hard delete, owner only).
+// Backend rejects deletion of listings under moderation with 409.
+export const deleteListing = async (id) => {
+    await api.delete(`/listings/${id}`);
+};

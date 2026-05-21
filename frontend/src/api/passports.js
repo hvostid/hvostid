@@ -70,3 +70,8 @@ export async function getAllMyPassports() {
     const response = await api.get('/passports');
     return response.data;
 }
+// Delete a passport. Backend rejects deletion when the passport
+// is referenced by a PUBLISHED listing (409).
+export const deletePassport = async (petId) => {
+    await api.delete(`/passports/${petId}`);
+};
