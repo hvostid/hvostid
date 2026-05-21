@@ -38,9 +38,6 @@ export default function ListingCard({ listing }) {
                 {isPlaceholder && (
                     <div className="absolute inset-0 bg-white/80 transition-all duration-300 "></div>
                 )}
-                {!isPlaceholder && (
-                    <div className="absolute inset-0 bg-white/30 transition-all duration-300 "></div>
-                )}
 
                 {/* Аккуратная надпись в углу, если нет фото */}
                 {isPlaceholder && (
