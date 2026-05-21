@@ -2,7 +2,7 @@
 import api from './client';
 
 // Get my listings (with optional status filter)
-export const getMyListings = async (status = null, page = 0, size = 20) => {
+export const getMyListings = async (status = null, page = 0, size = 100) => {
     let url = `/listings/my?page=${page}&size=${size}`;
     if (status && status !== 'ALL') {
         url += `&status=${status}`;
