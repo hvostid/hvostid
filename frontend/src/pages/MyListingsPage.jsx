@@ -84,11 +84,19 @@ const STATUS_ACTIONS = {
             confirmMessage: 'Вы уверены? Это действие нельзя отменить.',
         },
     ],
-    ARCHIVED: [],
+    ARCHIVED: [
+        {
+            action: 'DELETE',
+            label: 'Удалить навсегда',
+            variant: 'danger',
+            confirmTitle: 'Удалить объявление навсегда',
+            confirmMessage:
+                'Вы уверены? Это действие нельзя отменить. Объявление будет удалено без возможности восстановления.',
+        },
+    ],
     SOLD: [],
 };
 
-// Стили для кнопок в зависимости от варианта
 const ACTION_BUTTON_STYLES = {
     primary: 'bg-gray-50 text-gray-700 hover:bg-gray-300 border border-indigo-200',
     secondary: 'bg-gray-50 text-gray-700 hover:bg-gray-300 border border-gray-200',
@@ -103,13 +111,11 @@ export default function MyListingsPage() {
     const [activeStatus, setActiveStatus] = useState('ALL');
     const [actionLoading, setActionLoading] = useState(null);
     const [error, setError] = useState(null);
+    const [confirmLoading, setConfirmLoading] = useState(false);
 
-    // Состояния для паспортов
     const [passports, setPassports] = useState([]);
     const [passportsLoading, setPassportsLoading] = useState(true);
     const [sidebarOpen, setSidebarOpen] = useState(false);
-
-    // Кэш паспортов для быстрого доступа по id
     const [passportCache, setPassportCache] = useState({});
 
     const [confirmDialog, setConfirmDialog] = useState({
@@ -131,7 +137,6 @@ export default function MyListingsPage() {
                 const data = await getMyListings(status);
                 setListings(data.content || []);
 
-                // Загружаем паспорта для каждого объявления, у которого есть passportId
                 const newCache = { ...passportCache };
                 for (const listing of data.content || []) {
                     if (listing.passportId && !newCache[listing.passportId]) {
@@ -155,7 +160,7 @@ export default function MyListingsPage() {
         loadListings();
     }, [activeStatus]);
 
-    // Загрузка всех паспортов пользователя для боковой панели
+    // Загрузка всех паспортов
     useEffect(() => {
         const loadPassports = async () => {
             setPassportsLoading(true);
@@ -189,13 +194,21 @@ export default function MyListingsPage() {
     };
 
     const handleDeleteListing = async (listingId) => {
-        setActionLoading(listingId);
+        setConfirmLoading(true);
         setError(null);
-        await changeListingStatus(listingId, 'ARCHIVED');
+        try {
+            await changeListingStatus(listingId, 'ARCHIVED');
 
-        const status = activeStatus === 'ALL' ? null : activeStatus;
-        const data = await getMyListings(status);
-        setListings(data.content || []);
+            const status = activeStatus === 'ALL' ? null : activeStatus;
+            const data = await getMyListings(status);
+            setListings(data.content || []);
+        } catch (error) {
+            console.error('Failed to delete listing:', error);
+            setError('Не удалось удалить объявление');
+        } finally {
+            setConfirmLoading(false);
+            setActionLoading(null);
+        }
     };
 
     const openConfirmDialog = (listingId, action) => {
@@ -231,7 +244,6 @@ export default function MyListingsPage() {
         return `${price.toLocaleString('ru-RU')} ₽`;
     };
 
-    // Получить имя питомца по passportId
     const getPetName = (passportId) => {
         if (!passportId) return null;
         const passport = passportCache[passportId];
@@ -245,7 +257,6 @@ export default function MyListingsPage() {
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-xl font-bold text-gray-900">Мои объявления</h1>
                     <div className="flex gap-3">
-                        {/* Кнопка открытия панели паспортов */}
                         <button
                             onClick={() => setSidebarOpen(!sidebarOpen)}
                             className="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-full text-sm hover:bg-gray-200 transition-colors flex items-center gap-2"
@@ -291,14 +302,12 @@ export default function MyListingsPage() {
                             <button
                                 key={tab.value}
                                 onClick={() => setActiveStatus(tab.value)}
-                                className={`
-                                    px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
+                                className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
                                     ${
                                         activeStatus === tab.value
                                             ? 'border-indigo-500 text-indigo-600'
                                             : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
-                                    }
-                                `}
+                                    }`}
                             >
                                 {tab.label}
                             </button>
@@ -351,12 +360,19 @@ export default function MyListingsPage() {
                                     return (
                                         <tr key={listing.id} className="hover:bg-gray-50">
                                             <td className="px-4 py-3">
-                                                <Link
-                                                    to={`/my-listings/${listing.id}/edit`}
-                                                    className="text-gray-600 hover:text-gray-900 text-sm font-medium"
-                                                >
-                                                    {listing.title}
-                                                </Link>
+                                                {/* Редактирование доступно для всех, кроме MODERATION */}
+                                                {listing.status !== 'MODERATION' ? (
+                                                    <Link
+                                                        to={`/my-listings/${listing.id}/edit`}
+                                                        className="text-gray-600 hover:text-gray-900 text-sm font-medium"
+                                                    >
+                                                        {listing.title}
+                                                    </Link>
+                                                ) : (
+                                                    <span className="text-gray-400 text-sm">
+                                                        {listing.title}
+                                                    </span>
+                                                )}
                                                 {listing.moderationComment &&
                                                     (listing.status === 'REJECTED' ||
                                                         listing.status === 'DRAFT') && (
@@ -406,12 +422,14 @@ export default function MyListingsPage() {
                                             </td>
                                             <td className="px-4 py-3">
                                                 <div className="flex flex-wrap gap-1.5">
-                                                    <Link
-                                                        to={`/my-listings/${listing.id}/edit`}
-                                                        className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-700 hover:bg-gray-200 border border-indigo-200 transition-colors"
-                                                    >
-                                                        Ред.
-                                                    </Link>
+                                                    {listing.status !== 'MODERATION' && (
+                                                        <Link
+                                                            to={`/my-listings/${listing.id}/edit`}
+                                                            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-700 hover:bg-gray-200 border border-indigo-200 transition-colors"
+                                                        >
+                                                            Ред.
+                                                        </Link>
+                                                    )}
 
                                                     {STATUS_ACTIONS[listing.status]?.map(
                                                         (action) => (
@@ -426,12 +444,7 @@ export default function MyListingsPage() {
                                                                 disabled={
                                                                     actionLoading === listing.id
                                                                 }
-                                                                className={`
-                                                                inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
-                                                                transition-all duration-200
-                                                                ${ACTION_BUTTON_STYLES[action.variant]}
-                                                                disabled:opacity-50 disabled:cursor-not-allowed
-                                                            `}
+                                                                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200 ${ACTION_BUTTON_STYLES[action.variant]} disabled:opacity-50 disabled:cursor-not-allowed`}
                                                             >
                                                                 {actionLoading === listing.id
                                                                     ? ''
@@ -450,16 +463,11 @@ export default function MyListingsPage() {
                 )}
             </div>
 
-            {/* Правая боковая панель с паспортами */}
+            {/* Правая боковая панель */}
             <div
-                className={`
-                    fixed top-0 right-0 h-full w-80 bg-white shadow-xl z-40
-                    transform transition-transform duration-300 ease-in-out
-                    ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}
-                `}
+                className={`fixed top-0 right-0 h-full w-80 bg-white shadow-xl z-40 transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
             >
                 <div className="h-full flex flex-col">
-                    {/* Заголовок панели */}
                     <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white sticky top-0">
                         <h2 className="text-lg font-semibold text-gray-900">
                             Мои питомцы
@@ -487,7 +495,6 @@ export default function MyListingsPage() {
                         </button>
                     </div>
 
-                    {/* Список паспортов */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
                         {passportsLoading ? (
                             <div className="flex justify-center py-8">
@@ -515,10 +522,6 @@ export default function MyListingsPage() {
                             </div>
                         ) : (
                             passports.map((passport) => {
-                                // listing-service stores passportId as String;
-                                // passport-service ships id as a JSON number.
-                                // Compare in String space so the link does not
-                                // collapse to "no listing" for valid links.
                                 const listing = listings.find(
                                     (l) => String(l.passportId) === String(passport.id)
                                 );
@@ -533,10 +536,9 @@ export default function MyListingsPage() {
                         )}
                     </div>
 
-                    {/* Подвал панели */}
                     <div className="p-4 border-t border-gray-200 bg-white">
                         <Link
-                            to="/my-listings/new"
+                            to="/passports/new"
                             onClick={() => setSidebarOpen(false)}
                             className="block w-full text-center px-3 py-2 rounded-md bg-indigo-600 text-white text-sm hover:bg-indigo-700 transition-colors"
                         >
@@ -546,7 +548,6 @@ export default function MyListingsPage() {
                 </div>
             </div>
 
-            {/* Оверлей при открытой панели (для мобильных) */}
             {sidebarOpen && (
                 <div
                     className="fixed inset-0 bg-black/20 z-30 lg:hidden"
@@ -560,6 +561,7 @@ export default function MyListingsPage() {
                 onConfirm={handleConfirm}
                 title={confirmDialog.title}
                 message={confirmDialog.message}
+                isLoading={confirmLoading}
             />
         </div>
     );
