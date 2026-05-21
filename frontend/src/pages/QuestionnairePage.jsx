@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getQuestionnaire, saveQuestionnaire } from '../api/matching';
 import LoadingSpinner from '../components/LoadingSpinner';
-import Input from '../components/Input';
 
 // Значения из бэкенда: APARTMENT, HOUSE, FARM
 const LIVING_SPACE_OPTIONS = [
@@ -51,6 +50,7 @@ export default function QuestionnairePage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [validationErrors, setValidationErrors] = useState({});
 
     const params = new URLSearchParams(location.search);
     const returnUrl = params.get('returnUrl');
@@ -63,7 +63,7 @@ export default function QuestionnairePage() {
         childrenAgeMin: '',
         hasAllergies: false,
         allergyDetails: '',
-petExperience: 'BEGINNER',
+        petExperience: 'BEGINNER',
         activityLevel: 'MEDIUM',
         monthlyBudget: '',
         workSchedule: 'OFFICE',
@@ -85,7 +85,7 @@ petExperience: 'BEGINNER',
                         childrenAgeMin: data.childrenAgeMin || '',
                         hasAllergies: data.hasAllergies || false,
                         allergyDetails: data.allergyDetails || '',
-                        petExperience: data.petExperience || 'SOME',
+                        petExperience: data.petExperience || 'BEGINNER',
                         activityLevel: data.activityLevel || 'MEDIUM',
                         monthlyBudget: data.monthlyBudget || '',
                         workSchedule: data.workSchedule || 'OFFICE',
@@ -103,8 +103,47 @@ petExperience: 'BEGINNER',
         loadQuestionnaire();
     }, []);
 
+    // Валидация формы
+    const validateForm = () => {
+        const errors = {};
+
+        // Валидация площади жилья (обязательное поле, положительное число)
+        if (!formData.livingArea || formData.livingArea === '') {
+            errors.livingArea = 'Площадь жилья обязательна для заполнения';
+        } else if (parseInt(formData.livingArea, 10) <= 0) {
+            errors.livingArea = 'Площадь жилья должна быть больше 0 м²';
+        } else if (parseInt(formData.livingArea, 10) > 1000) {
+            errors.livingArea = 'Площадь жилья не может превышать 1000 м²';
+        }
+
+        // Валидация бюджета (обязательное поле, положительное число)
+        if (!formData.monthlyBudget || formData.monthlyBudget === '') {
+            errors.monthlyBudget = 'Месячный бюджет обязателен для заполнения';
+        } else if (parseInt(formData.monthlyBudget, 10) < 0) {
+            errors.monthlyBudget = 'Бюджет не может быть отрицательным';
+        } else if (parseInt(formData.monthlyBudget, 10) > 1000000) {
+            errors.monthlyBudget = 'Бюджет не может превышать 1 000 000 ₽';
+        }
+
+        // Валидация возраста детей (если есть дети)
+        if (formData.hasChildren && (!formData.childrenAgeMin || formData.childrenAgeMin === '')) {
+            errors.childrenAgeMin = 'Укажите минимальный возраст детей';
+        } else if (formData.hasChildren && parseInt(formData.childrenAgeMin, 10) < 0) {
+            errors.childrenAgeMin = 'Возраст детей не может быть отрицательным';
+        }
+
+        setValidationErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (!validateForm()) {
+            setError('Пожалуйста, заполните все обязательные поля');
+            return;
+        }
+
         setSaving(true);
         setError('');
         setSuccess('');
@@ -150,7 +189,7 @@ petExperience: 'BEGINNER',
             <h1 className="text-2xl font-bold text-gray-900 mb-6">Анкета совместимости</h1>
             <p className="text-gray-600 mb-6">
                 Заполните эту анкету, чтобы получать рекомендации подходящих питомцев и оценку
-                совместимости.
+                совместимости. Поля отмеченные <span className="text-red-500">*</span> обязательны.
             </p>
 
             {error && (
@@ -172,7 +211,7 @@ petExperience: 'BEGINNER',
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Тип жилья *
+                                Тип жилья <span className="text-red-500">*</span>
                             </label>
                             <select
                                 value={formData.livingSpace}
@@ -189,15 +228,25 @@ petExperience: 'BEGINNER',
                             </select>
                         </div>
 
-                        <Input
-                            id="livingArea"
-                            type="number"
-                            label="Площадь жилья (м²)"
-                            value={formData.livingArea}
-                            onChange={(e) =>
-                                setFormData({ ...formData, livingArea: e.target.value })
-                            }
-                        />
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Площадь жилья (м²) <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="number"
+                                value={formData.livingArea}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, livingArea: e.target.value })
+                                }
+                                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500
+                                    ${validationErrors.livingArea ? 'border-red-500' : 'border-gray-300'}`}
+                            />
+                            {validationErrors.livingArea && (
+                                <p className="mt-1 text-sm text-red-600">
+                                    {validationErrors.livingArea}
+                                </p>
+                            )}
+                        </div>
 
                         <label className="flex items-center">
                             <input
@@ -230,16 +279,26 @@ petExperience: 'BEGINNER',
                         </label>
 
                         {formData.hasChildren && (
-                            <Input
-                                id="childrenAgeMin"
-                                type="number"
-                                label="Минимальный возраст детей"
-                                value={formData.childrenAgeMin}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, childrenAgeMin: e.target.value })
-                                }
-                                placeholder="Например: 3"
-                            />
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Минимальный возраст детей
+                                </label>
+                                <input
+                                    type="number"
+                                    value={formData.childrenAgeMin}
+                                    onChange={(e) =>
+                                        setFormData({ ...formData, childrenAgeMin: e.target.value })
+                                    }
+                                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500
+                                        ${validationErrors.childrenAgeMin ? 'border-red-500' : 'border-gray-300'}`}
+                                    placeholder="Например: 3"
+                                />
+                                {validationErrors.childrenAgeMin && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                        {validationErrors.childrenAgeMin}
+                                    </p>
+                                )}
+                            </div>
                         )}
 
                         <label className="flex items-center">
@@ -315,16 +374,27 @@ petExperience: 'BEGINNER',
                             </select>
                         </div>
 
-                        <Input
-                            id="monthlyBudget"
-                            type="number"
-                            label="Месячный бюджет на питомца (₽)"
-                            value={formData.monthlyBudget}
-                            onChange={(e) =>
-                                setFormData({ ...formData, monthlyBudget: e.target.value })
-                            }
-                            placeholder="Например: 5000"
-                        />
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Месячный бюджет на питомца (₽){' '}
+                                <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="number"
+                                value={formData.monthlyBudget}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, monthlyBudget: e.target.value })
+                                }
+                                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500
+                                    ${validationErrors.monthlyBudget ? 'border-red-500' : 'border-gray-300'}`}
+                                placeholder="Например: 5000"
+                            />
+                            {validationErrors.monthlyBudget && (
+                                <p className="mt-1 text-sm text-red-600">
+                                    {validationErrors.monthlyBudget}
+                                </p>
+                            )}
+                        </div>
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -387,16 +457,20 @@ petExperience: 'BEGINNER',
                             </select>
                         </div>
 
-                        <Input
-                            id="preferredBreed"
-                            type="text"
-                            label="Предпочитаемая порода (необязательно)"
-                            value={formData.preferredBreed}
-                            onChange={(e) =>
-                                setFormData({ ...formData, preferredBreed: e.target.value })
-                            }
-                            placeholder="Например: Мейн-кун, Лабрадор..."
-                        />
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Предпочитаемая порода (необязательно)
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.preferredBreed}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, preferredBreed: e.target.value })
+                                }
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                placeholder="Например: Мейн-кун, Лабрадор..."
+                            />
+                        </div>
                     </div>
                 </section>
 
