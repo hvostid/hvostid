@@ -180,8 +180,8 @@ export default function MyListingsPage() {
         const loadPassports = async () => {
             setPassportsLoading(true);
             try {
-                const data = await getAllMyPassports();
-                setPassports(Array.isArray(data) ? data : []);
+                const data = await getAllMyPassports(0, 100); // page 0, size 100
+                setPassports(data.content || []);
             } catch (error) {
                 console.error('Failed to load passports:', error);
                 setPassports([]);
@@ -240,8 +240,9 @@ export default function MyListingsPage() {
         setError(null);
         try {
             await deletePassport(passportId);
-            const data = await getAllMyPassports();
-            setPassports(Array.isArray(data) ? data : []);
+            // Обновляем список паспортов после удаления
+            const data = await getAllMyPassports(0, 100);
+            setPassports(data.content || []);
             setSuccessMessage(`Паспорт "${passportName}" успешно удалён`);
             setTimeout(() => setSuccessMessage(null), 3000);
         } catch (error) {
