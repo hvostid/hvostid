@@ -200,9 +200,17 @@ public class PassportDocumentService {
     }
 
     public DocumentCleanupResult deleteAllForPassport(Long passportId) {
+        return deleteObjectsForPassport(passportId, storageRefsForPassport(passportId));
+    }
+
+    public List<StorageRef> storageRefsForPassport(Long passportId) {
+        return documentRepository.findAllProjectedByPassportId(passportId);
+    }
+
+    public DocumentCleanupResult deleteObjectsForPassport(Long passportId, List<StorageRef> documents) {
         int cleaned = 0;
         int failed = 0;
-        for (StorageRef document : documentRepository.findAllProjectedByPassportId(passportId)) {
+        for (StorageRef document : documents) {
             String bucket = minioProperties.buckets().forDocumentType(document.getType());
             try {
                 storageService.delete(bucket, document.getStoragePath());

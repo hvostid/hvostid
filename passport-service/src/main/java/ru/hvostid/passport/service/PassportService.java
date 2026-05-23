@@ -15,6 +15,7 @@ import ru.hvostid.passport.dto.UpdatePassportRequest;
 import ru.hvostid.passport.entity.PetPassport;
 import ru.hvostid.passport.exception.PassportInUseException;
 import ru.hvostid.passport.exception.PassportNotFoundException;
+import ru.hvostid.passport.repository.PassportDocumentRepository.StorageRef;
 import ru.hvostid.passport.repository.PetPassportRepository;
 import ru.hvostid.passport.service.PassportDocumentService.DocumentCleanupResult;
 
@@ -116,7 +117,6 @@ public class PassportService {
         return PassportResponse.from(updated);
     }
 
-    @Transactional
     public void deletePassport(Long passportId, Long userId, String requestId) {
         PetPassport passport = accessService.getExistingPassport(passportId);
         accessService.requireOwner(passport, userId, "delete");
@@ -126,8 +126,9 @@ public class PassportService {
                     "Passport is referenced by a published listing; archive or delete the listing first.");
         }
 
-        DocumentCleanupResult cleanup = documentService.deleteAllForPassport(passportId);
+        List<StorageRef> documents = documentService.storageRefsForPassport(passportId);
         passportRepository.delete(passport);
+        DocumentCleanupResult cleanup = documentService.deleteObjectsForPassport(passportId, documents);
         log.info(
                 "Passport deleted id={} sellerId={} documentsCleaned={} documentsFailed={}",
                 passportId,
