@@ -3,7 +3,11 @@ package ru.hvostid.passport.controller;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -15,6 +19,7 @@ import static ru.hvostid.common.security.UserRole.MODERATOR;
 import static ru.hvostid.common.security.UserRole.SELLER;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -23,8 +28,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.hvostid.passport.AbstractPassportIntegrationTest;
+import ru.hvostid.passport.client.ListingServiceClient;
+import ru.hvostid.passport.exception.ListingServiceUnavailableException;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -37,9 +46,17 @@ class PassportControllerTest extends AbstractPassportIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @MockitoBean
+    private ListingServiceClient listingServiceClient;
+
+    @BeforeEach
+    void resetListingClient() {
+        when(listingServiceClient.hasPublishedListingForPassport(any(), any())).thenReturn(false);
+    }
+
     @AfterEach
     void cleanDatabase() {
-        jdbcTemplate.execute("TRUNCATE TABLE vaccinations, pet_passports RESTART IDENTITY CASCADE");
+        jdbcTemplate.execute("TRUNCATE TABLE passport_documents, vaccinations, pet_passports RESTART IDENTITY CASCADE");
     }
 
     private String validRequestBody() {
@@ -234,14 +251,17 @@ class PassportControllerTest extends AbstractPassportIntegrationTest {
     }
 
     @Nested
-    @DisplayName("GET /api/v1/passports")
+    @DisplayName("GET /api/v1/passports/my")
     class ListMyTests {
         @Test
-        @DisplayName("seller with no passports - returns empty list")
+        @DisplayName("seller with no passports - returns empty page")
         void list_noPassports_returnsEmpty() throws Exception {
-            mockMvc.perform(get(PASSPORTS_URL).header(USER_ID, 99L).header(USER_ROLES, SELLER.value()))
+            mockMvc.perform(get(PASSPORTS_URL + "/my").header(USER_ID, 99L).header(USER_ROLES, SELLER.value()))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$", hasSize(0)));
+                    .andExpect(jsonPath("$.content", hasSize(0)))
+                    .andExpect(jsonPath("$.size", is(20)))
+                    .andExpect(jsonPath("$.number", is(0)))
+                    .andExpect(jsonPath("$.totalElements", is(0)));
         }
 
         @Test
@@ -256,16 +276,122 @@ class PassportControllerTest extends AbstractPassportIntegrationTest {
                             .content(validRequestBody()))
                     .andExpect(status().isCreated());
 
-            mockMvc.perform(get(PASSPORTS_URL).header(USER_ID, 10L).header(USER_ROLES, SELLER.value()))
+            mockMvc.perform(get(PASSPORTS_URL + "/my").header(USER_ID, 10L).header(USER_ROLES, SELLER.value()))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$", hasSize(1)))
-                    .andExpect(jsonPath("$[0].sellerId", is(10)));
+                    .andExpect(jsonPath("$.content", hasSize(1)))
+                    .andExpect(jsonPath("$.content[0].sellerId", is(10)))
+                    .andExpect(jsonPath("$.totalElements", is(1)));
+        }
+
+        @Test
+        @DisplayName("seller can page own passports")
+        void list_paged_returnsRequestedPage() throws Exception {
+            createPassport();
+            mockMvc.perform(post(PASSPORTS_URL)
+                            .header(USER_ID, 10L)
+                            .header(USER_ROLES, SELLER.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(validRequestBody().replace("\"name\": \"Rex\"", "\"name\": \"Mia\"")))
+                    .andExpect(status().isCreated());
+
+            mockMvc.perform(get(PASSPORTS_URL + "/my")
+                            .param("page", "0")
+                            .param("size", "1")
+                            .param("sort", "createdAt,desc")
+                            .header(USER_ID, 10L)
+                            .header(USER_ROLES, SELLER.value()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content", hasSize(1)))
+                    .andExpect(jsonPath("$.size", is(1)))
+                    .andExpect(jsonPath("$.totalElements", is(2)));
         }
 
         @Test
         @DisplayName("no user header - returns 401")
         void list_noUserHeader_returns401() throws Exception {
-            mockMvc.perform(get(PASSPORTS_URL).header(USER_ROLES, SELLER.value()))
+            mockMvc.perform(get(PASSPORTS_URL + "/my").header(USER_ROLES, SELLER.value()))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("DELETE /api/v1/passports/{petId}")
+    class DeleteTests {
+        @Test
+        @DisplayName("owner deletes passport - returns 204")
+        void delete_owner_returns204() throws Exception {
+            createPassport();
+
+            mockMvc.perform(delete(PASSPORTS_URL + "/1").header(USER_ID, 10L).header(USER_ROLES, SELLER.value()))
+                    .andExpect(status().isNoContent());
+
+            mockMvc.perform(get(PASSPORTS_URL + "/1").header(USER_ID, 10L).header(USER_ROLES, SELLER.value()))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("owner deletes passport with documents - removes database rows")
+        void delete_ownerWithDocuments_removesDocumentRows() throws Exception {
+            createPassport();
+            uploadPhoto();
+
+            mockMvc.perform(delete(PASSPORTS_URL + "/1").header(USER_ID, 10L).header(USER_ROLES, SELLER.value()))
+                    .andExpect(status().isNoContent());
+
+            Integer documentCount =
+                    jdbcTemplate.queryForObject("SELECT COUNT(*) FROM passport_documents", Integer.class);
+            Integer passportCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM pet_passports", Integer.class);
+            org.assertj.core.api.Assertions.assertThat(documentCount).isZero();
+            org.assertj.core.api.Assertions.assertThat(passportCount).isZero();
+        }
+
+        @Test
+        @DisplayName("different seller cannot delete passport - returns 403")
+        void delete_nonOwner_returns403() throws Exception {
+            createPassport();
+
+            mockMvc.perform(delete(PASSPORTS_URL + "/1").header(USER_ID, 11L).header(USER_ROLES, SELLER.value()))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.status", is(403)));
+        }
+
+        @Test
+        @DisplayName("missing passport - returns 404")
+        void delete_missingPassport_returns404() throws Exception {
+            mockMvc.perform(delete(PASSPORTS_URL + "/999").header(USER_ID, 10L).header(USER_ROLES, SELLER.value()))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.status", is(404)));
+        }
+
+        @Test
+        @DisplayName("published listing reference blocks deletion - returns 409")
+        void delete_publishedListingReference_returns409() throws Exception {
+            createPassport();
+            when(listingServiceClient.hasPublishedListingForPassport(any(), any()))
+                    .thenReturn(true);
+
+            mockMvc.perform(delete(PASSPORTS_URL + "/1").header(USER_ID, 10L).header(USER_ROLES, SELLER.value()))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.status", is(409)))
+                    .andExpect(jsonPath("$.title", is("Passport in use")));
+        }
+
+        @Test
+        @DisplayName("listing-service unavailable - returns 503")
+        void delete_listingServiceUnavailable_returns503() throws Exception {
+            createPassport();
+            when(listingServiceClient.hasPublishedListingForPassport(any(), any()))
+                    .thenThrow(new ListingServiceUnavailableException("upstream down"));
+
+            mockMvc.perform(delete(PASSPORTS_URL + "/1").header(USER_ID, 10L).header(USER_ROLES, SELLER.value()))
+                    .andExpect(status().isServiceUnavailable())
+                    .andExpect(jsonPath("$.status", is(503)));
+        }
+
+        @Test
+        @DisplayName("no user header - returns 401")
+        void delete_noUserHeader_returns401() throws Exception {
+            mockMvc.perform(delete(PASSPORTS_URL + "/1").header(USER_ROLES, SELLER.value()))
                     .andExpect(status().isUnauthorized());
         }
     }
@@ -276,6 +402,15 @@ class PassportControllerTest extends AbstractPassportIntegrationTest {
                         .header(USER_ROLES, SELLER.value())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validRequestBody()))
+                .andExpect(status().isCreated());
+    }
+
+    private void uploadPhoto() throws Exception {
+        mockMvc.perform(multipart(PASSPORTS_URL + "/1/docs")
+                        .file(new MockMultipartFile("file", "photo.jpg", "image/jpeg", "image".getBytes()))
+                        .param("type", "PHOTO")
+                        .header(USER_ID, 10L)
+                        .header(USER_ROLES, SELLER.value()))
                 .andExpect(status().isCreated());
     }
 }

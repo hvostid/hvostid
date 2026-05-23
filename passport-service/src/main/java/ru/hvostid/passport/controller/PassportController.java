@@ -8,12 +8,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -72,20 +76,22 @@ public class PassportController {
 
     @Operation(
             summary = "List passports owned by the authenticated seller",
-            description = "Returns every pet passport whose sellerId matches the caller. Ordered by creation"
-                    + " time, newest first. Each entry includes its vaccination list.")
+            description =
+                    "Returns the authenticated user's own pet passports. Pagination via standard" + " page/size/sort.")
     @ApiResponse(
             responseCode = "200",
-            description = "Passport list",
+            description = "Paged passport list",
             content = @Content(schema = @Schema(implementation = PassportResponse.class)))
     @ApiResponse(responseCode = "401", description = "Missing or invalid authenticated user", content = @Content)
-    @GetMapping
+    @GetMapping("/my")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<PassportResponse>> listMyPassports(
+    public ResponseEntity<Page<PassportResponse>> listMyPassports(
+            @ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
+                    Pageable pageable,
             @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user) {
         long sellerId = GatewayPreAuthentication.currentUserId(user);
-        log.debug("GET /api/v1/passports, sellerId={}", sellerId);
-        return ResponseEntity.ok(passportService.listOwnedBy(sellerId));
+        log.debug("GET /api/v1/passports/my, sellerId={}, pageable={}", sellerId, pageable);
+        return ResponseEntity.ok(passportService.getMyPassports(sellerId, pageable));
     }
 
     @Operation(
@@ -136,6 +142,30 @@ public class PassportController {
 
         PassportResponse response = passportService.updatePassport(petId, request, sellerId);
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Delete a pet passport", description = "Deletes a pet passport owned by the seller.")
+    @ApiResponse(responseCode = "204", description = "Passport deleted", content = @Content)
+    @ApiResponse(responseCode = "401", description = "Missing or invalid authenticated user", content = @Content)
+    @ApiResponse(responseCode = "403", description = "User is not the owner of this passport", content = @Content)
+    @ApiResponse(responseCode = "404", description = "Passport not found", content = @Content)
+    @ApiResponse(
+            responseCode = "409",
+            description = "Passport is referenced by a published listing",
+            content = @Content)
+    @ApiResponse(responseCode = "503", description = "Listing service unavailable", content = @Content)
+    @DeleteMapping("/{petId}")
+    @PreAuthorize("hasRole(T(ru.hvostid.common.security.UserRole).SELLER.value())")
+    public ResponseEntity<Void> deletePassport(
+            @Parameter(description = "Pet passport ID", required = true, example = "1") @PathVariable Long petId,
+            @Parameter(hidden = true) @AuthenticationPrincipal UserDetails user,
+            HttpServletRequest httpRequest) {
+        long sellerId = GatewayPreAuthentication.currentUserId(user);
+        String requestId = httpRequest.getHeader(SecurityHeaders.REQUEST_ID);
+        log.debug("DELETE /api/v1/passports/{}, sellerId={}", petId, sellerId);
+
+        passportService.deletePassport(petId, sellerId, requestId);
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(

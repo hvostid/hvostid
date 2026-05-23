@@ -21,16 +21,24 @@
 
 - `POST /api/v1/passports` -- создать паспорт питомца. `sellerId`
   берётся из `X-User-Id`, пользователь должен иметь роль `SELLER`.
+- `GET /api/v1/passports/my` -- получить пагинированный список паспортов
+  текущего пользователя. Поддерживает `page`, `size` и `sort`.
 - `GET /api/v1/passports/{petId}` -- получить паспорт с прививками,
   доступно владельцу, `MODERATOR` и `ADMIN`.
 - `PUT /api/v1/passports/{petId}` -- частично обновить паспорт,
   доступно только владельцу с ролью `SELLER`.
+- `DELETE /api/v1/passports/{petId}` -- удалить паспорт владельца.
+  Удаление блокируется, пока паспорт связан с опубликованным объявлением.
 - `POST /api/v1/passports/{petId}/docs` -- загрузить фото или документ,
   доступно только владельцу с ролью `SELLER`.
 - `GET /api/v1/passports/{petId}/docs` -- получить список документов,
-  доступно владельцу, `MODERATOR` и `ADMIN`.
-- `GET /api/v1/passports/{petId}/docs/{docId}` -- получить временную
-  ссылку на скачивание, ответ `302 Found`.
+  доступно владельцу, `MODERATOR` и `ADMIN`. Остальные
+  аутентифицированные пользователи видят только `PHOTO`, если паспорт
+  связан с опубликованным объявлением.
+- `GET /api/v1/passports/{petId}/docs/{docId}` -- получить одноразовую
+  временную media-ссылку на содержимое документа.
+- `GET /api/v1/passports/{petId}/cover` -- получить cover-фото для
+  публичного каталога, если паспорт связан с опубликованным объявлением.
 - `DELETE /api/v1/passports/{petId}/docs/{docId}` -- удалить документ,
   доступно только владельцу с ролью `SELLER`.
 
@@ -64,6 +72,8 @@ docker compose up -d postgres minio minio-init
 
 ## Зависимости
 
-- **Обязательно:** PostgreSQL (база `hvostid_passport`), MinIO.
+- **Обязательно:** PostgreSQL (база `hvostid_passport`), MinIO, Redis.
+- **Исходящие зависимости:** Listing Service проверяется перед выдачей
+  публичных фото/trust score и перед удалением паспорта.
 - **Обратные зависимости:** Listing Service и Matching Service оба
   читают данные паспорта через HTTP.

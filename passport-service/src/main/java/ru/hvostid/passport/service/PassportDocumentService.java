@@ -23,6 +23,7 @@ import ru.hvostid.passport.exception.InvalidPassportDocumentException;
 import ru.hvostid.passport.exception.PassportDocumentNotFoundException;
 import ru.hvostid.passport.exception.PassportNotFoundException;
 import ru.hvostid.passport.repository.PassportDocumentRepository;
+import ru.hvostid.passport.repository.PassportDocumentRepository.StorageRef;
 import ru.hvostid.passport.storage.MinioStorageService;
 import ru.hvostid.passport.storage.PassportObjectNameFactory;
 
@@ -197,6 +198,30 @@ public class PassportDocumentService {
         log.info("Passport document deleted id={} passportId={}", documentId, passportId);
         trustScoreService.recalculate(passportId);
     }
+
+    public DocumentCleanupResult deleteAllForPassport(Long passportId) {
+        int cleaned = 0;
+        int failed = 0;
+        for (StorageRef document : documentRepository.findAllProjectedByPassportId(passportId)) {
+            String bucket = minioProperties.buckets().forDocumentType(document.getType());
+            try {
+                storageService.delete(bucket, document.getStoragePath());
+                cleaned++;
+            } catch (RuntimeException ex) {
+                failed++;
+                log.warn(
+                        "Failed to delete passport document object passportId={} documentId={} bucket={} object={}",
+                        passportId,
+                        document.getId(),
+                        bucket,
+                        document.getStoragePath(),
+                        ex);
+            }
+        }
+        return new DocumentCleanupResult(cleaned, failed);
+    }
+
+    public record DocumentCleanupResult(int cleaned, int failed) {}
 
     private PassportDocument getDocument(Long passportId, Long documentId) {
         return documentRepository
