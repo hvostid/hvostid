@@ -17,8 +17,6 @@ public interface PassportDocumentRepository extends JpaRepository<PassportDocume
 
     List<PassportDocument> findByPassportIdOrderByUploadedAtDesc(Long passportId);
 
-    List<PassportDocument> findAllByPassportId(Long passportId);
-
     List<StorageRef> findAllProjectedByPassportId(Long passportId);
 
     Optional<PassportDocument> findByIdAndPassportId(Long id, Long passportId);
