@@ -2,7 +2,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getMyListings, changeListingStatus, deleteListing } from '../api/listings';
-import { getPassport, getAllMyPassports, deletePassport } from '../api/passports';
+import {
+    getPassport,
+    getAllMyPassports,
+    getPassportDocuments,
+    issueDocumentTicket,
+    deletePassport,
+} from '../api/passports';
 import StatusBadge from '../components/StatusBadge';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -113,6 +119,23 @@ const ACTION_BUTTON_STYLES = {
     danger: 'bg-gray-50 text-red-700 hover:bg-red-100 border border-gray-200',
 };
 
+const enrichPassportWithFirstPhoto = async (passport, signal) => {
+    try {
+        const documents = await getPassportDocuments(passport.id, signal);
+        const photo = documents.find((doc) => doc.type === 'PHOTO');
+        if (!photo) {
+            return { ...passport, photoUrl: null };
+        }
+        const { url } = await issueDocumentTicket(passport.id, photo.id, signal);
+        return { ...passport, photoUrl: url };
+    } catch (error) {
+        if (error.name !== 'CanceledError') {
+            console.warn(`Failed to load photo for passport ${passport.id}:`, error);
+        }
+        return { ...passport, photoUrl: null };
+    }
+};
+
 export default function MyListingsPage() {
     const location = useLocation();
     const navigate = useNavigate();
@@ -188,19 +211,36 @@ export default function MyListingsPage() {
 
     // Загрузка всех паспортов
     useEffect(() => {
+        const controller = new AbortController();
+
         const loadPassports = async () => {
             setPassportsLoading(true);
             try {
-                const data = await getAllMyPassports(0, 100); // page 0, size 100
-                setPassports(data.content || []);
+                const data = await getAllMyPassports(0, 100);
+                const passportsWithPhotos = await Promise.all(
+                    (data.content || []).map((passport) =>
+                        enrichPassportWithFirstPhoto(passport, controller.signal)
+                    )
+                );
+                if (!controller.signal.aborted) {
+                    setPassports(passportsWithPhotos);
+                }
             } catch (error) {
-                console.error('Failed to load passports:', error);
-                setPassports([]);
+                if (error.name !== 'CanceledError') {
+                    console.error('Failed to load passports:', error);
+                }
+                if (!controller.signal.aborted) {
+                    setPassports([]);
+                }
             } finally {
-                setPassportsLoading(false);
+                if (!controller.signal.aborted) {
+                    setPassportsLoading(false);
+                }
             }
         };
         loadPassports();
+
+        return () => controller.abort();
     }, []);
 
     const handleStatusChange = async (listingId, newStatus) => {
@@ -251,9 +291,9 @@ export default function MyListingsPage() {
         setError(null);
         try {
             await deletePassport(passportId);
-            // Обновляем список паспортов после удаления
-            const data = await getAllMyPassports(0, 100);
-            setPassports(data.content || []);
+            // Убираем удалённый паспорт из локального списка вместо
+            // полного рефетча с перезагрузкой фото всех паспортов.
+            setPassports((prev) => prev.filter((p) => p.id !== passportId));
             setSuccessMessage(`Паспорт "${passportName}" успешно удалён`);
             setTimeout(() => setSuccessMessage(null), 3000);
         } catch (error) {

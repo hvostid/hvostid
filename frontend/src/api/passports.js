@@ -41,6 +41,11 @@ export const deleteDocument = async (passportId, docId) => {
     await api.delete(`/passports/${passportId}/docs/${docId}`);
 };
 
+export async function getPassportDocuments(passportId, signal) {
+    const response = await api.get(`/passports/${passportId}/docs`, { signal });
+    return response.data;
+}
+
 /**
  * Issues a short-lived ticketed URL for a passport document. The returned
  * `url` works as a plain `<img src>` and is enforced by a single use ticket

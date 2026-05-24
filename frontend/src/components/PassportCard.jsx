@@ -1,5 +1,6 @@
 // components/PassportCard.jsx
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
 
 // Функция для получения иконки вида животного
 const getSpeciesIcon = (species) => {
@@ -13,6 +14,8 @@ const getSpeciesIcon = (species) => {
 };
 
 export default function PassportCard({ passport, listingId, onDelete }) {
+    const [failedPhotoUrl, setFailedPhotoUrl] = useState(null);
+
     // Если нет паспорта, не показываем карточку
     if (!passport) return null;
 
@@ -22,6 +25,9 @@ export default function PassportCard({ passport, listingId, onDelete }) {
     const passportViewUrl = listingId
         ? `/my-listings/${listingId}/passport`
         : `/passports/${passport.id}/edit`;
+    const showPhoto = Boolean(passport.photoUrl) && failedPhotoUrl !== passport.photoUrl;
+    const imageSrc = showPhoto ? passport.photoUrl : getSpeciesIcon(passport.species);
+    const imageClassName = showPhoto ? 'w-full h-full object-cover' : 'w-8 h-8 object-contain';
 
     const handleDeleteClick = (e) => {
         e.preventDefault(); // Предотвращаем переход по ссылке
@@ -38,14 +44,21 @@ export default function PassportCard({ passport, listingId, onDelete }) {
                 className="block bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition-all duration-200 hover:border-indigo-300 group"
             >
                 <div className="flex items-center gap-3">
-                    {/* Иконка вида животного */}
+                    {/* Фото паспорта или fallback-иконка вида животного */}
                     <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
                         <img
-                            src={getSpeciesIcon(passport.species)}
-                            alt={passport.species}
-                            className="w-8 h-8 object-contain"
+                            src={imageSrc}
+                            alt={passport.name || passport.species || 'Питомец'}
+                            className={imageClassName}
                             onError={(e) => {
-                                e.target.src = '/def.svg';
+                                if (showPhoto) {
+                                    setFailedPhotoUrl(passport.photoUrl);
+                                } else {
+                                    // Stop the handler before swapping in the
+                                    // fallback so a missing /def.svg cannot loop.
+                                    e.target.onerror = null;
+                                    e.target.src = '/def.svg';
+                                }
                             }}
                         />
                     </div>
