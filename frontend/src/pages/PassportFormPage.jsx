@@ -20,6 +20,15 @@ const GENDER_OPTIONS = [
     { value: 'FEMALE', label: 'Девочка' },
 ];
 
+const STATUS_LABELS = {
+    DRAFT: 'Черновик',
+    MODERATION: 'На модерации',
+    PUBLISHED: 'Опубликовано',
+    REJECTED: 'Отклонено',
+    ARCHIVED: 'В архиве',
+    SOLD: 'Продано',
+};
+
 export default function PassportFormPage() {
     const { id: listingId, passportId: directPassportId } = useParams();
     const navigate = useNavigate();
@@ -80,24 +89,33 @@ export default function PassportFormPage() {
         return Object.keys(errors).length === 0;
     };
 
-    // Проверка, можно ли редактировать паспорт (только если связан с черновиком или не связан)
+    const getAllListings = async () => {
+        let allListings = [];
+        let page = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+            const data = await getMyListings(null, page, 100);
+            allListings = [...allListings, ...(data.content || [])];
+            hasMore = page + 1 < data.totalPages;
+            page++;
+        }
+
+        return allListings;
+    };
+
     const checkIfCanEdit = async (passportId) => {
         try {
-            // Получаем все объявления пользователя
-            const listingsData = await getMyListings();
-            const listings = listingsData.content || [];
-
-            // Ищем объявление, связанное с этим паспортом
-            const linkedListing = listings.find((l) => String(l.passportId) === String(passportId));
+            const allListings = await getAllListings();
+            const linkedListing = allListings.find(
+                (l) => String(l.passportId) === String(passportId)
+            );
 
             if (linkedListing) {
                 setLinkedListingStatus(linkedListing.status);
-                // Редактировать можно только если объявление в статусе DRAFT
-                const canEditStatus = linkedListing.status === 'DRAFT';
-                setCanEdit(canEditStatus);
-                return canEditStatus;
+                setCanEdit(linkedListing.status === 'DRAFT');
+                return linkedListing.status === 'DRAFT';
             } else {
-                // Паспорт не привязан к объявлению — можно редактировать
                 setCanEdit(true);
                 setLinkedListingStatus(null);
                 return true;
@@ -393,9 +411,10 @@ export default function PassportFormPage() {
 
             {!canEdit && (
                 <div className="mb-6 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-md text-sm">
-                    Этот паспорт привязан к объявлению со статусом «{linkedListingStatus}».
-                    Редактирование паспорта недоступно. Вы можете отредактировать паспорт только для
-                    объявлений в статусе «Черновик».
+                    Этот паспорт привязан к объявлению со статусом «
+                    {STATUS_LABELS[linkedListingStatus] || linkedListingStatus}». Редактирование
+                    паспорта недоступно. Вы можете отредактировать паспорт только для объявлений в
+                    статусе «Черновик».
                 </div>
             )}
 

@@ -107,21 +107,27 @@ export default function QuestionnairePage() {
     const validateForm = () => {
         const errors = {};
 
-        // Валидация площади жилья (обязательное поле, положительное число)
-        if (!formData.livingArea) {
+        if (!formData.livingArea || formData.livingArea === '') {
             errors.livingArea = 'Площадь жилья обязательна для заполнения';
-            errors.livingArea = 'Площадь жилья должна быть больше 0 м²';
-        } else if (parseInt(formData.livingArea, 10) > 1000) {
-            errors.livingArea = 'Площадь жилья не может превышать 1000 м²';
+        } else {
+            const area = Number(formData.livingArea);
+            if (!Number.isFinite(area) || area <= 0) {
+                errors.livingArea = 'Площадь жилья должна быть больше 0 м²';
+            } else if (area > 1000) {
+                errors.livingArea = 'Площадь жилья не может превышать 1000 м²';
+            }
         }
 
-        // Валидация бюджета (обязательное поле, положительное число)
-        if (!formData.monthlyBudget) {
+        // Валидация бюджета
+        if (!formData.monthlyBudget || formData.monthlyBudget === '') {
             errors.monthlyBudget = 'Месячный бюджет обязателен для заполнения';
-        } else if (parseInt(formData.monthlyBudget, 10) < 0) {
-            errors.monthlyBudget = 'Бюджет не может быть отрицательным';
-        } else if (parseInt(formData.monthlyBudget, 10) > 1000000) {
-            errors.monthlyBudget = 'Бюджет не может превышать 1 000 000 ₽';
+        } else {
+            const budget = Number(formData.monthlyBudget);
+            if (!Number.isFinite(budget) || budget < 0) {
+                errors.monthlyBudget = 'Бюджет не может быть отрицательным';
+            } else if (budget > 1000000) {
+                errors.monthlyBudget = 'Бюджет не может превышать 1 000 000 ₽';
+            }
         }
 
         // Валидация возраста детей (если есть дети)
