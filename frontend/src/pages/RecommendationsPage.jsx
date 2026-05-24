@@ -99,7 +99,7 @@ export default function RecommendationsPage() {
     if (error) {
         return (
             <div className="max-w-2xl mx-auto text-center py-12">
-                <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-6 py-4 rounded-lg">
+                <div className="bg-teal-50 border border-indigo-200 text-teal-800 px-6 py-4 rounded-lg">
                     <p className="mb-4">{error}</p>
                     <Link
                         to="/profile/questionnaire"

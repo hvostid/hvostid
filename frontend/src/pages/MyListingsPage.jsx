@@ -1,12 +1,13 @@
 // pages/MyListingsPage.jsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getMyListings, changeListingStatus } from '../api/listings';
+import { getMyListings, changeListingStatus, deleteListing } from '../api/listings';
 import {
     getPassport,
     getAllMyPassports,
     getPassportDocuments,
     issueDocumentTicket,
+    deletePassport,
 } from '../api/passports';
 import StatusBadge from '../components/StatusBadge';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -92,14 +93,22 @@ const STATUS_ACTIONS = {
     ARCHIVED: [
         {
             action: 'DELETE',
-            label: 'Удалить навсегда',
+            label: 'Удалить',
             variant: 'danger',
             confirmTitle: 'Удалить объявление навсегда',
             confirmMessage:
                 'Вы уверены? Это действие нельзя отменить. Объявление будет удалено без возможности восстановления.',
         },
     ],
-    SOLD: [],
+    SOLD: [
+        {
+            action: 'DELETE',
+            label: 'Удалить',
+            variant: 'danger',
+            confirmTitle: 'Удалить объявление',
+            confirmMessage: 'Вы уверены? Это действие нельзя отменить.',
+        },
+    ],
 };
 
 const ACTION_BUTTON_STYLES = {
@@ -110,12 +119,30 @@ const ACTION_BUTTON_STYLES = {
     danger: 'bg-gray-50 text-red-700 hover:bg-red-100 border border-gray-200',
 };
 
+const enrichPassportWithFirstPhoto = async (passport, signal) => {
+    try {
+        const documents = await getPassportDocuments(passport.id, signal);
+        const photo = documents.find((doc) => doc.type === 'PHOTO');
+        if (!photo) {
+            return { ...passport, photoUrl: null };
+        }
+        const { url } = await issueDocumentTicket(passport.id, photo.id, signal);
+        return { ...passport, photoUrl: url };
+    } catch (error) {
+        if (error.name !== 'CanceledError') {
+            console.warn(`Failed to load photo for passport ${passport.id}:`, error);
+        }
+        return { ...passport, photoUrl: null };
+    }
+};
+
 export default function MyListingsPage() {
     const [listings, setListings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeStatus, setActiveStatus] = useState('ALL');
     const [actionLoading, setActionLoading] = useState(null);
     const [error, setError] = useState(null);
+    const [successMessage, setSuccessMessage] = useState(null);
     const [confirmLoading, setConfirmLoading] = useState(false);
 
     const [passports, setPassports] = useState([]);
@@ -130,6 +157,12 @@ export default function MyListingsPage() {
         title: '',
         message: '',
         isDelete: false,
+    });
+
+    const [passportDeleteDialog, setPassportDeleteDialog] = useState({
+        isOpen: false,
+        passportId: null,
+        passportName: '',
     });
 
     // Загрузка объявлений
@@ -169,28 +202,15 @@ export default function MyListingsPage() {
     useEffect(() => {
         const controller = new AbortController();
 
-        const withFirstPhoto = async (passport) => {
-            try {
-                const documents = await getPassportDocuments(passport.id, controller.signal);
-                const photo = documents.find((doc) => doc.type === 'PHOTO');
-                if (!photo) {
-                    return { ...passport, photoUrl: null };
-                }
-                const { url } = await issueDocumentTicket(passport.id, photo.id, controller.signal);
-                return { ...passport, photoUrl: url };
-            } catch (error) {
-                if (error.name !== 'CanceledError') {
-                    console.warn(`Failed to load photo for passport ${passport.id}:`, error);
-                }
-                return { ...passport, photoUrl: null };
-            }
-        };
-
         const loadPassports = async () => {
             setPassportsLoading(true);
             try {
-                const data = await getAllMyPassports();
-                const passportsWithPhotos = await Promise.all(data.map(withFirstPhoto));
+                const data = await getAllMyPassports(0, 100);
+                const passportsWithPhotos = await Promise.all(
+                    (data.content || []).map((passport) =>
+                        enrichPassportWithFirstPhoto(passport, controller.signal)
+                    )
+                );
                 if (!controller.signal.aborted) {
                     setPassports(passportsWithPhotos);
                 }
@@ -228,21 +248,59 @@ export default function MyListingsPage() {
         }
     };
 
+    // Настоящее удаление объявления через API
     const handleDeleteListing = async (listingId) => {
         setConfirmLoading(true);
         setError(null);
         try {
-            await changeListingStatus(listingId, 'ARCHIVED');
-
+            await deleteListing(listingId);
             const status = activeStatus === 'ALL' ? null : activeStatus;
             const data = await getMyListings(status);
             setListings(data.content || []);
         } catch (error) {
             console.error('Failed to delete listing:', error);
-            setError('Не удалось удалить объявление');
+            if (error.response?.status === 409) {
+                setError('Нельзя удалить объявление, находящееся на модерации');
+            } else if (error.response?.status === 403) {
+                setError('У вас нет прав на удаление этого объявления');
+            } else if (error.response?.status === 404) {
+                setError('Объявление не найдено');
+            } else {
+                setError('Не удалось удалить объявление');
+            }
         } finally {
             setConfirmLoading(false);
             setActionLoading(null);
+        }
+    };
+
+    // Удаление паспорта
+    const handleDeletePassport = async (passportId, passportName) => {
+        setConfirmLoading(true);
+        setError(null);
+        try {
+            await deletePassport(passportId);
+            // Обновляем список паспортов после удаления
+            const data = await getAllMyPassports(0, 100);
+            const passportsWithPhotos = await Promise.all(
+                (data.content || []).map((passport) => enrichPassportWithFirstPhoto(passport))
+            );
+            setPassports(passportsWithPhotos);
+            setSuccessMessage(`Паспорт "${passportName}" успешно удалён`);
+            setTimeout(() => setSuccessMessage(null), 3000);
+        } catch (error) {
+            console.error('Failed to delete passport:', error);
+            if (error.response?.status === 409) {
+                setError('Нельзя удалить паспорт, привязанный к опубликованному объявлению');
+            } else if (error.response?.status === 403) {
+                setError('У вас нет прав на удаление этого паспорта');
+            } else if (error.response?.status === 404) {
+                setError('Паспорт не найден');
+            } else {
+                setError('Не удалось удалить паспорт');
+            }
+        } finally {
+            setConfirmLoading(false);
         }
     };
 
@@ -331,6 +389,12 @@ export default function MyListingsPage() {
                     </div>
                 )}
 
+                {successMessage && (
+                    <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm">
+                        {successMessage}
+                    </div>
+                )}
+
                 <div className="border-b border-gray-200 mb-6">
                     <nav className="flex gap-4 overflow-x-auto">
                         {STATUS_TABS.map((tab) => (
@@ -395,8 +459,9 @@ export default function MyListingsPage() {
                                     return (
                                         <tr key={listing.id} className="hover:bg-gray-50">
                                             <td className="px-4 py-3">
-                                                {/* Редактирование доступно для всех, кроме MODERATION */}
-                                                {listing.status !== 'MODERATION' ? (
+                                                {listing.status !== 'MODERATION' &&
+                                                listing.status !== 'PUBLISHED' &&
+                                                listing.status !== 'SOLD' ? (
                                                     <Link
                                                         to={`/my-listings/${listing.id}/edit`}
                                                         className="text-gray-600 hover:text-gray-900 text-sm font-medium"
@@ -457,14 +522,16 @@ export default function MyListingsPage() {
                                             </td>
                                             <td className="px-4 py-3">
                                                 <div className="flex flex-wrap gap-1.5">
-                                                    {listing.status !== 'MODERATION' && (
-                                                        <Link
-                                                            to={`/my-listings/${listing.id}/edit`}
-                                                            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-700 hover:bg-gray-200 border border-indigo-200 transition-colors"
-                                                        >
-                                                            Ред.
-                                                        </Link>
-                                                    )}
+                                                    {listing.status !== 'MODERATION' &&
+                                                        listing.status !== 'PUBLISHED' &&
+                                                        listing.status !== 'SOLD' && (
+                                                            <Link
+                                                                to={`/my-listings/${listing.id}/edit`}
+                                                                className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-700 hover:bg-gray-200 border border-indigo-200 transition-colors"
+                                                            >
+                                                                Ред.
+                                                            </Link>
+                                                        )}
 
                                                     {STATUS_ACTIONS[listing.status]?.map(
                                                         (action) => (
@@ -565,6 +632,13 @@ export default function MyListingsPage() {
                                         key={passport.id}
                                         passport={passport}
                                         listingId={listing?.id}
+                                        onDelete={(id, name) => {
+                                            setPassportDeleteDialog({
+                                                isOpen: true,
+                                                passportId: id,
+                                                passportName: name,
+                                            });
+                                        }}
                                     />
                                 );
                             })
@@ -596,6 +670,23 @@ export default function MyListingsPage() {
                 onConfirm={handleConfirm}
                 title={confirmDialog.title}
                 message={confirmDialog.message}
+                isLoading={confirmLoading}
+            />
+
+            <ConfirmDialog
+                isOpen={passportDeleteDialog.isOpen}
+                onClose={() =>
+                    setPassportDeleteDialog({ isOpen: false, passportId: null, passportName: '' })
+                }
+                onConfirm={() => {
+                    handleDeletePassport(
+                        passportDeleteDialog.passportId,
+                        passportDeleteDialog.passportName
+                    );
+                    setPassportDeleteDialog({ isOpen: false, passportId: null, passportName: '' });
+                }}
+                title="Удалить паспорт"
+                message={`Вы уверены, что хотите удалить паспорт "${passportDeleteDialog.passportName}"? Это действие нельзя отменить.`}
                 isLoading={confirmLoading}
             />
         </div>

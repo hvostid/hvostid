@@ -7,7 +7,17 @@ import ru.hvostid.passport.entity.PassportDocument;
 import ru.hvostid.passport.entity.PassportDocumentType;
 
 public interface PassportDocumentRepository extends JpaRepository<PassportDocument, Long> {
+    interface StorageRef {
+        Long getId();
+
+        PassportDocumentType getType();
+
+        String getStoragePath();
+    }
+
     List<PassportDocument> findByPassportIdOrderByUploadedAtDesc(Long passportId);
+
+    List<StorageRef> findAllProjectedByPassportId(Long passportId);
 
     Optional<PassportDocument> findByIdAndPassportId(Long id, Long passportId);
 
