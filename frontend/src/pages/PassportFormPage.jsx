@@ -14,6 +14,11 @@ import {
 import Input from '../components/Input';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { DOCUMENT_ACCEPT, DOCUMENT_MIME_TYPES } from '../constants/passportDocuments';
+import { extractDetail } from '../utils/format';
+
+const UNSUPPORTED_DOCUMENT_MESSAGE =
+    'Формат файла не поддерживается. Допустимы JPEG, PNG или PDF, до 10 МБ.';
 
 const GENDER_OPTIONS = [
     { value: 'MALE', label: 'Мальчик' },
@@ -321,6 +326,11 @@ export default function PassportFormPage() {
         setTimeout(() => setSuccessMessage(null), 2000);
     };
 
+    const flashUnsupportedFormat = () => {
+        setError(UNSUPPORTED_DOCUMENT_MESSAGE);
+        setTimeout(() => setError(null), 3000);
+    };
+
     const handleFileUpload = async (file) => {
         if (!passportId) {
             setError('Сначала сохраните паспорт');
@@ -331,6 +341,10 @@ export default function PassportFormPage() {
             setError(
                 'Нельзя изменять документы паспорта, привязанного к опубликованному объявлению'
             );
+            return;
+        }
+        if (!DOCUMENT_MIME_TYPES.includes(file.type)) {
+            flashUnsupportedFormat();
             return;
         }
         setUploading(true);
@@ -350,8 +364,8 @@ export default function PassportFormPage() {
             setTimeout(() => setSuccessMessage(null), 2000);
         } catch (err) {
             console.error('Failed to upload file:', err);
-            setError('Ошибка загрузки файла. Попробуйте ещё раз.');
-            setTimeout(() => setError(null), 3000);
+            setError(extractDetail(err, 'Ошибка загрузки файла. Попробуйте ещё раз.'));
+            setTimeout(() => setError(null), 4000);
         } finally {
             setUploading(false);
         }
@@ -740,12 +754,12 @@ export default function PassportFormPage() {
                                                     const file = e.target.files?.[0];
                                                     if (file) handleFileUpload(file);
                                                 }}
-                                                accept="image/*,.pdf"
+                                                accept={DOCUMENT_ACCEPT}
                                             />
                                         </label>
                                     </p>
                                     <p className="text-xs text-gray-400 mt-2">
-                                        Поддерживаются изображения и PDF (до 10 МБ)
+                                        Поддерживаются JPEG, PNG и PDF, до 10 МБ
                                     </p>
                                 </>
                             )}
