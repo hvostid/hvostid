@@ -152,17 +152,14 @@ export default function CreatePassportPage() {
                 }
             }
 
-            if (uploadErrors.length > 0) {
-                setError(
-                    `Паспорт создан, но не удалось загрузить фото: ${uploadErrors.join('; ')}`
-                );
-                setTimeout(() => setError(null), 5000);
-            } else {
-                setError(null);
-            }
-
-            // Переходим на страницу моих объявлений
-            navigate('/my-listings');
+            // Переходим на страницу моих объявлений. Если часть фото не
+            // загрузилась, проносим предупреждение через navigation state -
+            // показать его здесь нельзя, навигация размонтирует компонент.
+            const warning =
+                uploadErrors.length > 0
+                    ? `Паспорт создан, но не удалось загрузить фото: ${uploadErrors.join('; ')}`
+                    : null;
+            navigate('/my-listings', warning ? { state: { warning } } : undefined);
         } catch (err) {
             console.error('Failed to create passport:', err);
 

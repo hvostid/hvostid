@@ -353,7 +353,8 @@ export default function PassportFormPage() {
         setError(null);
 
         try {
-            const doc = await uploadDocument(passportId, file, 'PHOTO');
+            const type = file.type === 'application/pdf' ? 'OTHER' : 'PHOTO';
+            const doc = await uploadDocument(passportId, file, type);
             let downloadUrl = null;
             try {
                 const { url } = await issueDocumentTicket(passportId, doc.id);
