@@ -73,8 +73,6 @@ export async function getAllMyPassports(page = 0, size = 20) {
 
 // Delete a passport. Backend rejects deletion when the passport
 // is referenced by a PUBLISHED listing (409).
-// wait for api in T47
 export const deletePassport = async (petId) => {
-    console.log('Delete passport ', petId);
-    // await api.delete(`/passports/${petId}`);
+    await api.delete(`/passports/${petId}`);
 };
