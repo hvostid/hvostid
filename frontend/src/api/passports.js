@@ -63,10 +63,16 @@ export async function issueDocumentTicket(passportId, docId, signal) {
 export const passportCoverUrl = (passportId) => `/api/v1/passports/${passportId}/cover`;
 
 /**
- * Returns every pet passport whose sellerId matches the authenticated user.
- * Shape: `PassportResponse[]` (newest first).
+ * List passports owned by the authenticated user.
+ * Returns Spring Page shape: { content, totalElements, totalPages, ... }
  */
-export async function getAllMyPassports() {
-    const response = await api.get('/passports');
+export async function getAllMyPassports(page = 0, size = 20) {
+    const response = await api.get(`/passports/my?page=${page}&size=${size}`);
     return response.data;
 }
+
+// Delete a passport. Backend rejects deletion when the passport
+// is referenced by a PUBLISHED listing (409).
+export const deletePassport = async (petId) => {
+    await api.delete(`/passports/${petId}`);
+};

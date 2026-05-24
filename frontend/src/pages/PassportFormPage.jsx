@@ -1,7 +1,7 @@
 // pages/PassportFormPage.jsx
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getListingById } from '../api/listings';
+import { getListingById, getMyListings } from '../api/listings';
 import {
     getPassport,
     createPassport,
@@ -19,6 +19,15 @@ const GENDER_OPTIONS = [
     { value: 'MALE', label: 'Мальчик' },
     { value: 'FEMALE', label: 'Девочка' },
 ];
+
+const STATUS_LABELS = {
+    DRAFT: 'Черновик',
+    MODERATION: 'На модерации',
+    PUBLISHED: 'Опубликовано',
+    REJECTED: 'Отклонено',
+    ARCHIVED: 'В архиве',
+    SOLD: 'Продано',
+};
 
 export default function PassportFormPage() {
     const { id: listingId, passportId: directPassportId } = useParams();
@@ -39,6 +48,9 @@ export default function PassportFormPage() {
     const [successMessage, setSuccessMessage] = useState(null);
     const [passportId, setPassportId] = useState(null);
     const [trustScore, setTrustScore] = useState(null);
+    const [canEdit, setCanEdit] = useState(true);
+    const [linkedListingStatus, setLinkedListingStatus] = useState(null);
+    const [validationErrors, setValidationErrors] = useState({});
     const [formData, setFormData] = useState({
         name: '',
         species: '',
@@ -59,6 +71,62 @@ export default function PassportFormPage() {
     const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, docId: null, docName: null });
     const [imageErrors, setImageErrors] = useState({});
 
+    // Валидация обязательных полей
+    const validateForm = () => {
+        const errors = {};
+
+        if (!formData.name || formData.name.trim() === '') {
+            errors.name = 'Кличка обязательна для заполнения';
+        }
+        if (!formData.species || formData.species.trim() === '') {
+            errors.species = 'Вид животного обязателен для заполнения';
+        }
+        if (!formData.birthDate || formData.birthDate.trim() === '') {
+            errors.birthDate = 'Дата рождения обязательна для заполнения';
+        }
+
+        setValidationErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
+    const getAllListings = async () => {
+        let allListings = [];
+        let page = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+            const data = await getMyListings(null, page, 100);
+            allListings = [...allListings, ...(data.content || [])];
+            hasMore = page + 1 < data.totalPages;
+            page++;
+        }
+
+        return allListings;
+    };
+
+    const checkIfCanEdit = async (passportId) => {
+        try {
+            const allListings = await getAllListings();
+            const linkedListing = allListings.find(
+                (l) => String(l.passportId) === String(passportId)
+            );
+
+            if (linkedListing) {
+                setLinkedListingStatus(linkedListing.status);
+                setCanEdit(linkedListing.status === 'DRAFT');
+                return linkedListing.status === 'DRAFT';
+            } else {
+                setCanEdit(true);
+                setLinkedListingStatus(null);
+                return true;
+            }
+        } catch (err) {
+            console.error('Failed to check listing status:', err);
+            setCanEdit(true);
+            return true;
+        }
+    };
+
     useEffect(() => {
         const load = async () => {
             try {
@@ -66,6 +134,10 @@ export default function PassportFormPage() {
                 if (isDirectPassportAccess && directPassportId) {
                     const passport = await getPassport(directPassportId);
                     setPassportId(passport.id);
+
+                    // Проверяем, можно ли редактировать
+                    await checkIfCanEdit(directPassportId);
+
                     setFormData({
                         name: passport.name ?? '',
                         species: passport.species ?? '',
@@ -80,12 +152,10 @@ export default function PassportFormPage() {
                     });
                     setVaccinations(passport.vaccinations ?? []);
 
-                    // Пытаемся загрузить trust score (может быть недоступен без опубликованного объявления)
                     try {
                         const trust = await getTrustScore(directPassportId);
                         setTrustScore(trust);
                     } catch {
-                        // Trust score недоступен для паспорта без опубликованного объявления
                         console.log('Trust score not available for unlinked passport');
                     }
 
@@ -123,6 +193,10 @@ export default function PassportFormPage() {
                 if (listing.passportId) {
                     const passport = await getPassport(listing.passportId);
                     setPassportId(passport.id);
+
+                    // Проверяем, можно ли редактировать
+                    await checkIfCanEdit(passport.id);
+
                     setFormData({
                         name: passport.name ?? '',
                         species: passport.species ?? listing.species ?? '',
@@ -176,6 +250,18 @@ export default function PassportFormPage() {
     }, [listingId, directPassportId]);
 
     const handleSave = async () => {
+        // Валидация обязательных полей
+        if (!validateForm()) {
+            setError('Пожалуйста, заполните все обязательные поля');
+            setTimeout(() => setError(null), 3000);
+            return;
+        }
+
+        if (!canEdit) {
+            setError('Нельзя редактировать паспорт, привязанный к опубликованному объявлению');
+            return;
+        }
+
         setSaving(true);
         setError(null);
         setSuccessMessage(null);
@@ -187,7 +273,6 @@ export default function PassportFormPage() {
                 : await createPassport(passportData);
             setPassportId(saved.id);
 
-            // Обновляем trust score только если паспорт привязан к опубликованному объявлению
             try {
                 const trust = await getTrustScore(saved.id);
                 setTrustScore(trust);
@@ -240,6 +325,12 @@ export default function PassportFormPage() {
         if (!passportId) {
             setError('Сначала сохраните паспорт');
             setTimeout(() => setError(null), 3000);
+            return;
+        }
+        if (!canEdit) {
+            setError(
+                'Нельзя изменять документы паспорта, привязанного к опубликованному объявлению'
+            );
             return;
         }
         setUploading(true);
@@ -301,6 +392,9 @@ export default function PassportFormPage() {
     const photos = documents.filter((doc) => doc.type === 'PHOTO');
     const otherDocs = documents.filter((doc) => doc.type !== 'PHOTO');
 
+    // Статус блокировки редактирования
+    const isReadOnly = !canEdit;
+
     return (
         <div className="max-w-3xl mx-auto">
             <div className="flex justify-between items-center mb-6">
@@ -314,6 +408,15 @@ export default function PassportFormPage() {
                     </div>
                 )}
             </div>
+
+            {!canEdit && (
+                <div className="mb-6 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-md text-sm">
+                    Этот паспорт привязан к объявлению со статусом «
+                    {STATUS_LABELS[linkedListingStatus] || linkedListingStatus}». Редактирование
+                    паспорта недоступно. Вы можете отредактировать паспорт только для объявлений в
+                    статусе «Черновик».
+                </div>
+            )}
 
             {!trustScore && passportId && (
                 <div className="mb-6 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-md text-sm">
@@ -348,6 +451,9 @@ export default function PassportFormPage() {
                             label="Кличка"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            error={validationErrors.name}
+                            disabled={isReadOnly}
+                            required
                         />
                         <Input
                             id="species"
@@ -356,6 +462,9 @@ export default function PassportFormPage() {
                             label="Вид"
                             value={formData.species}
                             onChange={(e) => setFormData({ ...formData, species: e.target.value })}
+                            error={validationErrors.species}
+                            disabled={isReadOnly}
+                            required
                         />
                         <Input
                             id="breed"
@@ -364,6 +473,7 @@ export default function PassportFormPage() {
                             label="Порода"
                             value={formData.breed}
                             onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
+                            disabled={isReadOnly}
                         />
                         <Input
                             id="birthDate"
@@ -374,6 +484,9 @@ export default function PassportFormPage() {
                             onChange={(e) =>
                                 setFormData({ ...formData, birthDate: e.target.value })
                             }
+                            error={validationErrors.birthDate}
+                            disabled={isReadOnly}
+                            required
                         />
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -391,6 +504,7 @@ export default function PassportFormPage() {
                                                 setFormData({ ...formData, gender: e.target.value })
                                             }
                                             className="mr-2"
+                                            disabled={isReadOnly}
                                         />
                                         {option.label}
                                     </label>
@@ -404,6 +518,7 @@ export default function PassportFormPage() {
                             label="Окрас"
                             value={formData.color}
                             onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                            disabled={isReadOnly}
                         />
                         <Input
                             id="temperament"
@@ -414,6 +529,7 @@ export default function PassportFormPage() {
                             onChange={(e) =>
                                 setFormData({ ...formData, temperament: e.target.value })
                             }
+                            disabled={isReadOnly}
                         />
                         <Input
                             id="specialNeeds"
@@ -424,6 +540,7 @@ export default function PassportFormPage() {
                             onChange={(e) =>
                                 setFormData({ ...formData, specialNeeds: e.target.value })
                             }
+                            disabled={isReadOnly}
                         />
                         <label className="flex items-center">
                             <input
@@ -434,6 +551,7 @@ export default function PassportFormPage() {
                                     setFormData({ ...formData, neutered: e.target.checked })
                                 }
                                 className="mr-2"
+                                disabled={isReadOnly}
                             />
                             <span className="text-sm text-gray-700">Стерилизован/кастрирован</span>
                         </label>
@@ -446,6 +564,7 @@ export default function PassportFormPage() {
                                     setFormData({ ...formData, microchipped: e.target.checked })
                                 }
                                 className="mr-2"
+                                disabled={isReadOnly}
                             />
                             <span className="text-sm text-gray-700">Чипирован</span>
                         </label>
@@ -469,52 +588,70 @@ export default function PassportFormPage() {
                                             {vac.nextDate && `→ следующая: ${vac.nextDate}`}
                                         </p>
                                     </div>
-                                    <button
-                                        onClick={() => removeVaccination(index)}
-                                        className="text-red-600 hover:text-red-800"
-                                    >
-                                        Удалить
-                                    </button>
+                                    {!isReadOnly && (
+                                        <button
+                                            onClick={() => removeVaccination(index)}
+                                            className="text-red-600 hover:text-red-800"
+                                        >
+                                            Удалить
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>
                     )}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <Input
-                            id="vacName"
-                            type="text"
-                            label="Название"
-                            value={newVaccination.name}
-                            onChange={(e) =>
-                                setNewVaccination({ ...newVaccination, name: e.target.value })
-                            }
-                            placeholder="Например: Бешенство"
-                        />
-                        <Input
-                            id="vacDate"
-                            type="date"
-                            label="Дата"
-                            value={newVaccination.date}
-                            onChange={(e) =>
-                                setNewVaccination({ ...newVaccination, date: e.target.value })
-                            }
-                        />
-                        <Input
-                            id="vacNextDate"
-                            type="date"
-                            label="Следующая"
-                            value={newVaccination.nextDate}
-                            onChange={(e) =>
-                                setNewVaccination({ ...newVaccination, nextDate: e.target.value })
-                            }
-                        />
-                    </div>
-                    <button
-                        onClick={addVaccination}
-                        className="mt-3 text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-                    >
-                        + Добавить прививку
-                    </button>
+                    {!isReadOnly && (
+                        <>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <Input
+                                    id="vacName"
+                                    type="text"
+                                    label="Название"
+                                    value={newVaccination.name}
+                                    onChange={(e) =>
+                                        setNewVaccination({
+                                            ...newVaccination,
+                                            name: e.target.value,
+                                        })
+                                    }
+                                    placeholder="Например: Бешенство"
+                                />
+                                <Input
+                                    id="vacDate"
+                                    type="date"
+                                    label="Дата"
+                                    value={newVaccination.date}
+                                    onChange={(e) =>
+                                        setNewVaccination({
+                                            ...newVaccination,
+                                            date: e.target.value,
+                                        })
+                                    }
+                                />
+                                <Input
+                                    id="vacNextDate"
+                                    type="date"
+                                    label="Следующая"
+                                    value={newVaccination.nextDate}
+                                    onChange={(e) =>
+                                        setNewVaccination({
+                                            ...newVaccination,
+                                            nextDate: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                            <button
+                                onClick={addVaccination}
+                                className="mt-3 text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                            >
+                                + Добавить прививку
+                            </button>
+                        </>
+                    )}
+                    {isReadOnly && vaccinations.length === 0 && (
+                        <p className="text-sm text-gray-500">Нет добавленных прививок</p>
+                    )}
                 </section>
 
                 {/* Фото и документы */}
@@ -556,18 +693,20 @@ export default function PassportFormPage() {
                                                 <span className="text-xs">Нет фото</span>
                                             </div>
                                         )}
-                                        <button
-                                            onClick={() =>
-                                                setDeleteDialog({
-                                                    isOpen: true,
-                                                    docId: photo.id,
-                                                    docName: photo.originalFilename,
-                                                })
-                                            }
-                                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                            ×
-                                        </button>
+                                        {!isReadOnly && (
+                                            <button
+                                                onClick={() =>
+                                                    setDeleteDialog({
+                                                        isOpen: true,
+                                                        docId: photo.id,
+                                                        docName: photo.originalFilename,
+                                                    })
+                                                }
+                                                className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                ×
+                                            </button>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -575,41 +714,43 @@ export default function PassportFormPage() {
                     )}
 
                     {/* Drag-and-drop зона для загрузки новых фото */}
-                    <div
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
-                        onDrop={handleDrop}
-                        className={`
-                            border-2 border-dashed rounded-lg p-8 text-center transition-colors
-                            ${dragActive ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 bg-gray-50'}
-                            ${uploading ? 'opacity-50' : ''}
-                        `}
-                    >
-                        {uploading ? (
-                            <LoadingSpinner size="md" />
-                        ) : (
-                            <>
-                                <p className="text-gray-600">
-                                    Перетащите файл сюда или{' '}
-                                    <label className="text-indigo-600 hover:text-indigo-800 cursor-pointer">
-                                        выберите из папки
-                                        <input
-                                            type="file"
-                                            className="hidden"
-                                            onChange={(e) => {
-                                                const file = e.target.files?.[0];
-                                                if (file) handleFileUpload(file);
-                                            }}
-                                            accept="image/*,.pdf"
-                                        />
-                                    </label>
-                                </p>
-                                <p className="text-xs text-gray-400 mt-2">
-                                    Поддерживаются изображения и PDF (до 10 МБ)
-                                </p>
-                            </>
-                        )}
-                    </div>
+                    {!isReadOnly && (
+                        <div
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                            className={`
+                                border-2 border-dashed rounded-lg p-8 text-center transition-colors
+                                ${dragActive ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 bg-gray-50'}
+                                ${uploading ? 'opacity-50' : ''}
+                            `}
+                        >
+                            {uploading ? (
+                                <LoadingSpinner size="md" />
+                            ) : (
+                                <>
+                                    <p className="text-gray-600">
+                                        Перетащите файл сюда или{' '}
+                                        <label className="text-indigo-600 hover:text-indigo-800 cursor-pointer">
+                                            выберите из папки
+                                            <input
+                                                type="file"
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) handleFileUpload(file);
+                                                }}
+                                                accept="image/*,.pdf"
+                                            />
+                                        </label>
+                                    </p>
+                                    <p className="text-xs text-gray-400 mt-2">
+                                        Поддерживаются изображения и PDF (до 10 МБ)
+                                    </p>
+                                </>
+                            )}
+                        </div>
+                    )}
 
                     {/* Другие документы (не фото) */}
                     {otherDocs.length > 0 && (
@@ -638,18 +779,20 @@ export default function PassportFormPage() {
                                             {doc.originalFilename}
                                         </span>
                                     </div>
-                                    <button
-                                        onClick={() =>
-                                            setDeleteDialog({
-                                                isOpen: true,
-                                                docId: doc.id,
-                                                docName: doc.originalFilename,
-                                            })
-                                        }
-                                        className="text-red-600 hover:text-red-800 text-sm"
-                                    >
-                                        Удалить
-                                    </button>
+                                    {!isReadOnly && (
+                                        <button
+                                            onClick={() =>
+                                                setDeleteDialog({
+                                                    isOpen: true,
+                                                    docId: doc.id,
+                                                    docName: doc.originalFilename,
+                                                })
+                                            }
+                                            className="text-red-600 hover:text-red-800 text-sm"
+                                        >
+                                            Удалить
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -663,13 +806,15 @@ export default function PassportFormPage() {
                     >
                         Отмена
                     </button>
-                    <button
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
-                    >
-                        {saving ? 'Сохранение...' : 'Сохранить паспорт'}
-                    </button>
+                    {!isReadOnly && (
+                        <button
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                            {saving ? 'Сохранение...' : 'Сохранить паспорт'}
+                        </button>
+                    )}
                 </div>
             </div>
 

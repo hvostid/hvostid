@@ -1,9 +1,8 @@
 // pages/CreateListingPage.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { createListing } from '../api/listings';
+import { createListing, getMyListings } from '../api/listings';
 import { getAllMyPassports, getPassport } from '../api/passports';
-import { getMyListings } from '../api/listings';
 import ListingForm from '../components/ListingForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -39,10 +38,10 @@ export default function CreateListingPage() {
         setLoadingPassports(true);
         try {
             const [passportsData, listingsData] = await Promise.all([
-                getAllMyPassports(),
+                getAllMyPassports(0, 100),
                 getMyListings(),
             ]);
-            setPassports(Array.isArray(passportsData) ? passportsData : []);
+            setPassports(passportsData.content || []);
             setListings(listingsData.content || []);
         } catch (err) {
             console.error('Failed to load data:', err);
@@ -157,7 +156,6 @@ export default function CreateListingPage() {
 
     // Создать новый паспорт — переходим на отдельную страницу
     const handleCreateNewPassport = () => {
-        // Сохраняем данные формы в sessionStorage
         if (formData) {
             sessionStorage.setItem('pendingListingData', JSON.stringify(formData));
         }

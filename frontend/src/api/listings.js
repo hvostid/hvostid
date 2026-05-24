@@ -2,7 +2,7 @@
 import api from './client';
 
 // Get my listings (with optional status filter)
-export const getMyListings = async (status = null, page = 0, size = 20) => {
+export const getMyListings = async (status = null, page = 0, size = 100) => {
     let url = `/listings/my?page=${page}&size=${size}`;
     if (status && status !== 'ALL') {
         url += `&status=${status}`;
@@ -33,4 +33,10 @@ export const updateListing = async (id, listingData) => {
 export const changeListingStatus = async (id, status, comment = null) => {
     const response = await api.patch(`/listings/${id}/status`, { status, comment });
     return response.data;
+};
+
+// Delete listing (hard delete, owner only).
+// Backend rejects deletion of listings under moderation with 409.
+export const deleteListing = async (id) => {
+    await api.delete(`/listings/${id}`);
 };
