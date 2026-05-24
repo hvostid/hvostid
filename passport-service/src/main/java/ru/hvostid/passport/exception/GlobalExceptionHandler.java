@@ -25,6 +25,7 @@ public class GlobalExceptionHandler {
     private static final String UPLOAD_TYPE = "urn:problem-type:upload-too-large";
     private static final String UNSUPPORTED_TYPE = "urn:problem-type:unsupported-media-type";
     private static final String UPSTREAM_TYPE = "urn:problem-type:upstream-unavailable";
+    private static final String PASSPORT_IN_USE_TYPE = "urn:problem-type:passport-in-use";
 
     @ExceptionHandler(PassportNotFoundException.class)
     public ResponseEntity<ProblemDetails> handleNotFound(PassportNotFoundException ex, HttpServletRequest request) {
@@ -51,6 +52,13 @@ public class GlobalExceptionHandler {
                 "Passport document not found",
                 ex.getMessage(),
                 request);
+    }
+
+    @ExceptionHandler(PassportInUseException.class)
+    public ResponseEntity<ProblemDetails> handlePassportInUse(PassportInUseException ex, HttpServletRequest request) {
+        log.warn("Passport in use: {}", ex.getMessage());
+        return ProblemDetailsFactory.problem(
+                HttpStatus.CONFLICT, PASSPORT_IN_USE_TYPE, "Passport in use", ex.getMessage(), request);
     }
 
     @ExceptionHandler(PassportAccessDeniedException.class)

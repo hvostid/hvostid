@@ -21,16 +21,25 @@ Spec is served at http://localhost:8083/swagger-ui.html.
 
 - `POST /api/v1/passports` -- create a pet passport. `sellerId` is read
   from `X-User-Id`; the user must have the `SELLER` role.
+- `GET /api/v1/passports/my` -- get the authenticated user's passports
+  as a paginated response. Supports `page`, `size`, and `sort`.
 - `GET /api/v1/passports/{petId}` -- get a passport with vaccinations,
   available to the owner, `MODERATOR`, and `ADMIN`.
 - `PUT /api/v1/passports/{petId}` -- partially update a passport,
   available only to its owner with the `SELLER` role.
+- `DELETE /api/v1/passports/{petId}` -- delete a passport owned by the
+  seller. Deletion is blocked while the passport is referenced by a
+  published listing.
 - `POST /api/v1/passports/{petId}/docs` -- upload a photo or document,
   available only to the owner with the `SELLER` role.
 - `GET /api/v1/passports/{petId}/docs` -- list document metadata,
-  available to the owner, `MODERATOR`, and `ADMIN`.
+  available to the owner, `MODERATOR`, and `ADMIN`. Other authenticated
+  users see only `PHOTO` entries when the passport is referenced by a
+  published listing.
 - `GET /api/v1/passports/{petId}/docs/{docId}` -- get a temporary
-  download URL, returned as `302 Found`.
+  single use media URL for the document content.
+- `GET /api/v1/passports/{petId}/cover` -- stream the public catalog
+  cover photo for a passport referenced by a published listing.
 - `DELETE /api/v1/passports/{petId}/docs/{docId}` -- delete a document,
   available only to the owner with the `SELLER` role.
 
@@ -64,6 +73,8 @@ docker compose up -d postgres minio minio-init
 
 ## Dependencies
 
-- **Required:** PostgreSQL (`hvostid_passport` database), MinIO.
-- **Reverse dependencies:** Listing Service and Matching Service both
-  read passport data via HTTP.
+- **Required:** PostgreSQL (`hvostid_passport` database), MinIO, Redis.
+- **Outbound dependencies:** Listing Service is queried before exposing
+  public photos/trust score and before deleting a passport.
+- **Reverse dependencies:** Listing Service and Matching Service both read
+  passport data via HTTP.
