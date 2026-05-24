@@ -3,6 +3,7 @@ package ru.hvostid.listing.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import ru.hvostid.listing.ListingConstants;
 
 @Schema(description = "Filters for listing search")
 public record ListingFilterRequest(
@@ -12,10 +13,14 @@ public record ListingFilterRequest(
         @Schema(description = "Breed (case-insensitive partial match)", example = "labrador")
         String breed,
 
-        @Min(0) @Max(5000) @Schema(description = "Minimum age in months", example = "1")
+        @Min(ListingConstants.MIN_AGE)
+        @Max(ListingConstants.MAX_AGE_MONTHS)
+        @Schema(description = "Minimum age in months", example = "1")
         Integer ageMin,
 
-        @Min(0) @Max(5000) @Schema(description = "Maximum age in months", example = "60")
+        @Min(ListingConstants.MIN_AGE)
+        @Max(ListingConstants.MAX_AGE_MONTHS)
+        @Schema(description = "Maximum age in months", example = "60")
         Integer ageMax,
 
         @Min(0) @Max(999999999) @Schema(description = "Minimum price in rubles", example = "5000")

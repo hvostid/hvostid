@@ -94,6 +94,21 @@ class ListingControllerTest extends AbstractPostgresContainerTest {
         }
 
         @Test
+        @DisplayName("create listing age over max -> 400")
+        void create_ageExceedsMax_returns400() throws Exception {
+            ListingRequest request =
+                    new ListingRequest("Old Tortoise", "Desc", "tortoise", "Galapagos", 5001, 10000, "Moscow", "1");
+
+            mockMvc.perform(post(LISTINGS_URL)
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errors[?(@.field == 'age')].message").exists());
+        }
+
+        @Test
         void create_invalidUserId_returns401() throws Exception {
             ListingRequest request = new ListingRequest("Test", "Desc", "dog", "Labrador", 3, 10000, "Moscow", "1");
 

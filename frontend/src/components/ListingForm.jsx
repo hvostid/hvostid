@@ -56,8 +56,8 @@ export default function ListingForm({
             const ageNum = Number(formData.age);
             if (isNaN(ageNum)) {
                 newErrors.age = 'Возраст должен быть числом';
-            } else if (ageNum < 0 || ageNum > 50) {
-                newErrors.age = 'Возраст должен быть от 0 до 50 месяцев';
+            } else if (ageNum < 0 || ageNum > 5000) {
+                newErrors.age = 'Возраст должен быть от 0 до 5000 месяцев';
             }
         }
 
@@ -154,6 +154,8 @@ export default function ListingForm({
                     onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                     error={getFieldError('age')}
                     placeholder="Например: 4"
+                    min={0}
+                    max={5000}
                 />
 
                 <Input

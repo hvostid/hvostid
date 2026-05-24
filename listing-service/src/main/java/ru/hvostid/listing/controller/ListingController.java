@@ -166,8 +166,10 @@ public class ListingController {
                     String species,
             @RequestParam(required = false) @Size(max = 100, message = "Breed too long, max 100 characters")
                     String breed,
-            @RequestParam(required = false) @Min(0) @Max(5000) Integer ageMin,
-            @RequestParam(required = false) @Min(0) @Max(5000) Integer ageMax,
+            @RequestParam(required = false) @Min(ListingConstants.MIN_AGE) @Max(ListingConstants.MAX_AGE_MONTHS)
+                    Integer ageMin,
+            @RequestParam(required = false) @Min(ListingConstants.MIN_AGE) @Max(ListingConstants.MAX_AGE_MONTHS)
+                    Integer ageMax,
             @RequestParam(required = false) @Min(0) @Max(999999999) Integer priceMin,
             @RequestParam(required = false) @Min(0) @Max(999999999) Integer priceMax,
             @RequestParam(required = false) @Size(max = 100, message = "City too long, max 100 characters") String city,
