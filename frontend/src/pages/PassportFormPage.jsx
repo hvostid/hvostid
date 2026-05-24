@@ -7,6 +7,7 @@ import {
     createPassport,
     updatePassport,
     getTrustScore,
+    getPassportDocuments,
     uploadDocument,
     deleteDocument,
     issueDocumentTicket,
@@ -19,6 +20,26 @@ import { extractDetail, todayIso } from '../utils/format';
 
 const UNSUPPORTED_DOCUMENT_MESSAGE =
     'Формат файла не поддерживается. Допустимы JPEG, PNG или PDF, до 10 МБ.';
+
+// Fetch a passport's documents and resolve a short-TTL <img src> ticket for
+// each PHOTO so the grid can render them. Non-photo docs are returned as-is.
+const loadDocumentsWithPhotos = async (passportId) => {
+    const docs = await getPassportDocuments(passportId);
+    return Promise.all(
+        docs.map(async (doc) => {
+            if (doc.type !== 'PHOTO') {
+                return doc;
+            }
+            try {
+                const { url } = await issueDocumentTicket(passportId, doc.id);
+                return { ...doc, downloadUrl: url };
+            } catch (err) {
+                console.warn(`Failed to load URL for document ${doc.id}:`, err);
+                return { ...doc, downloadUrl: null };
+            }
+        })
+    );
+};
 
 const GENDER_OPTIONS = [
     { value: 'MALE', label: 'Мальчик' },
@@ -166,30 +187,10 @@ export default function PassportFormPage() {
                         console.log('Trust score not available for unlinked passport');
                     }
 
-                    if (passport.documents && passport.documents.length > 0) {
-                        const docsWithUrls = await Promise.all(
-                            passport.documents.map(async (doc) => {
-                                if (doc.type === 'PHOTO') {
-                                    try {
-                                        const { url } = await issueDocumentTicket(
-                                            passport.id,
-                                            doc.id
-                                        );
-                                        return { ...doc, downloadUrl: url };
-                                    } catch (err) {
-                                        console.warn(
-                                            `Failed to load URL for document ${doc.id}:`,
-                                            err
-                                        );
-                                        return { ...doc, downloadUrl: null };
-                                    }
-                                }
-                                return doc;
-                            })
-                        );
-                        setDocuments(docsWithUrls);
-                    } else if (passport.documents) {
-                        setDocuments(passport.documents);
+                    try {
+                        setDocuments(await loadDocumentsWithPhotos(passport.id));
+                    } catch (err) {
+                        console.warn('Failed to load passport documents:', err);
                     }
                     setLoading(false);
                     return;
@@ -220,30 +221,10 @@ export default function PassportFormPage() {
                     const trust = await getTrustScore(listing.passportId);
                     setTrustScore(trust);
 
-                    if (passport.documents && passport.documents.length > 0) {
-                        const docsWithUrls = await Promise.all(
-                            passport.documents.map(async (doc) => {
-                                if (doc.type === 'PHOTO') {
-                                    try {
-                                        const { url } = await issueDocumentTicket(
-                                            passport.id,
-                                            doc.id
-                                        );
-                                        return { ...doc, downloadUrl: url };
-                                    } catch (err) {
-                                        console.warn(
-                                            `Failed to load URL for document ${doc.id}:`,
-                                            err
-                                        );
-                                        return { ...doc, downloadUrl: null };
-                                    }
-                                }
-                                return doc;
-                            })
-                        );
-                        setDocuments(docsWithUrls);
-                    } else if (passport.documents) {
-                        setDocuments(passport.documents);
+                    try {
+                        setDocuments(await loadDocumentsWithPhotos(passport.id));
+                    } catch (err) {
+                        console.warn('Failed to load passport documents:', err);
                     }
                 }
             } catch (err) {
