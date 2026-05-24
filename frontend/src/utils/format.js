@@ -9,6 +9,16 @@ export function extractDetail(err, fallback) {
 }
 
 /**
+ * Today's date as a local "YYYY-MM-DD" string. Suitable for the `max` attribute
+ * of <input type="date"> and for comparing against form values. Uses the local
+ * timezone so a pet born today is not flagged as future near the UTC boundary.
+ */
+export function todayIso() {
+    const now = new Date();
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+/**
  * Format an ISO-8601 string with the user's locale. Returns "—" for nullish
  * values and falls back to the raw input if `Date` cannot parse it.
  */

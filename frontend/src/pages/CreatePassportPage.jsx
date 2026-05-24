@@ -6,7 +6,7 @@ import Input from '../components/Input';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { PHOTO_ACCEPT, PHOTO_MIME_TYPES } from '../constants/passportDocuments';
-import { extractDetail } from '../utils/format';
+import { extractDetail, todayIso } from '../utils/format';
 
 const UNSUPPORTED_PHOTO_MESSAGE =
     'Формат файла не поддерживается. Допустимы JPEG или PNG, до 10 МБ.';
@@ -117,6 +117,11 @@ export default function CreatePassportPage() {
         }
         if (!formData.birthDate || !formData.birthDate.trim()) {
             setError('Дата рождения обязательна для заполнения');
+            setTimeout(() => setError(null), 3000);
+            return;
+        }
+        if (formData.birthDate > todayIso()) {
+            setError('Дата рождения не может быть в будущем');
             setTimeout(() => setError(null), 3000);
             return;
         }
@@ -236,6 +241,7 @@ export default function CreatePassportPage() {
                             onChange={(e) =>
                                 setFormData({ ...formData, birthDate: e.target.value })
                             }
+                            max={todayIso()}
                             required
                         />
                         <div>

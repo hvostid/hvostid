@@ -15,7 +15,7 @@ import Input from '../components/Input';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { DOCUMENT_ACCEPT, DOCUMENT_MIME_TYPES } from '../constants/passportDocuments';
-import { extractDetail } from '../utils/format';
+import { extractDetail, todayIso } from '../utils/format';
 
 const UNSUPPORTED_DOCUMENT_MESSAGE =
     'Формат файла не поддерживается. Допустимы JPEG, PNG или PDF, до 10 МБ.';
@@ -88,6 +88,8 @@ export default function PassportFormPage() {
         }
         if (!formData.birthDate || formData.birthDate.trim() === '') {
             errors.birthDate = 'Дата рождения обязательна для заполнения';
+        } else if (formData.birthDate > todayIso()) {
+            errors.birthDate = 'Дата рождения не может быть в будущем';
         }
 
         setValidationErrors(errors);
@@ -499,6 +501,7 @@ export default function PassportFormPage() {
                                 setFormData({ ...formData, birthDate: e.target.value })
                             }
                             error={validationErrors.birthDate}
+                            max={todayIso()}
                             disabled={isReadOnly}
                             required
                         />
