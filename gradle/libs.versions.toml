@@ -31,7 +31,11 @@ junit = "6.1.0"
 postgres-image = "postgres:18-alpine"
 minio-image = "minio/minio:RELEASE.2025-09-07T16-13-09Z"
 redis-image = "redis:8-alpine"
-resilience4j = "2.4.0"
+# Pinned to 2.2.0: resilience4j-spring-boot3 2.4.0 ships SpringBoot3Verifier,
+# which refuses to start under Spring Boot 4 and throws
+# IncompatibleSpringBootVersionException on context load. Bump again only
+# after upstream ships a Spring Boot 4 compatible artifact.
+resilience4j = "2.2.0"
 caffeine = "3.2.4"
 logstash-logback-encoder = "9.0"
 
