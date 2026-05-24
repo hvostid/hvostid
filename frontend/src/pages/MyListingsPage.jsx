@@ -291,12 +291,9 @@ export default function MyListingsPage() {
         setError(null);
         try {
             await deletePassport(passportId);
-            // Обновляем список паспортов после удаления
-            const data = await getAllMyPassports(0, 100);
-            const passportsWithPhotos = await Promise.all(
-                (data.content || []).map((passport) => enrichPassportWithFirstPhoto(passport))
-            );
-            setPassports(passportsWithPhotos);
+            // Убираем удалённый паспорт из локального списка вместо
+            // полного рефетча с перезагрузкой фото всех паспортов.
+            setPassports((prev) => prev.filter((p) => p.id !== passportId));
             setSuccessMessage(`Паспорт "${passportName}" успешно удалён`);
             setTimeout(() => setSuccessMessage(null), 3000);
         } catch (error) {

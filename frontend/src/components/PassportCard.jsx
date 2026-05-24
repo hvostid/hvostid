@@ -54,6 +54,9 @@ export default function PassportCard({ passport, listingId, onDelete }) {
                                 if (showPhoto) {
                                     setFailedPhotoUrl(passport.photoUrl);
                                 } else {
+                                    // Stop the handler before swapping in the
+                                    // fallback so a missing /def.svg cannot loop.
+                                    e.target.onerror = null;
                                     e.target.src = '/def.svg';
                                 }
                             }}
