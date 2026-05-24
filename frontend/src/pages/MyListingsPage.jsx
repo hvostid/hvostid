@@ -1,6 +1,6 @@
 // pages/MyListingsPage.jsx
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getMyListings, changeListingStatus, deleteListing } from '../api/listings';
 import {
     getPassport,
@@ -137,13 +137,24 @@ const enrichPassportWithFirstPhoto = async (passport, signal) => {
 };
 
 export default function MyListingsPage() {
+    const location = useLocation();
+    const navigate = useNavigate();
     const [listings, setListings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeStatus, setActiveStatus] = useState('ALL');
     const [actionLoading, setActionLoading] = useState(null);
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
+    const [warning, setWarning] = useState(location.state?.warning ?? null);
     const [confirmLoading, setConfirmLoading] = useState(false);
+
+    // Drop the one-shot warning out of history so a refresh or back-nav
+    // does not resurface it.
+    useEffect(() => {
+        if (location.state?.warning) {
+            navigate(location.pathname, { replace: true, state: null });
+        }
+    }, [location.pathname, location.state, navigate]);
 
     const [passports, setPassports] = useState([]);
     const [passportsLoading, setPassportsLoading] = useState(true);
@@ -392,6 +403,18 @@ export default function MyListingsPage() {
                 {successMessage && (
                     <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm">
                         {successMessage}
+                    </div>
+                )}
+
+                {warning && (
+                    <div className="mb-6 flex items-start justify-between gap-4 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-md text-sm">
+                        <span>{warning}</span>
+                        <button
+                            onClick={() => setWarning(null)}
+                            className="text-amber-700 hover:text-amber-900 font-medium"
+                        >
+                            ×
+                        </button>
                     </div>
                 )}
 

@@ -1,10 +1,12 @@
 package ru.hvostid.listing.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
+import ru.hvostid.listing.ListingConstants;
 
 @Schema(description = "Payload to create a new animal listing in DRAFT status")
 public record ListingRequest(
@@ -25,7 +27,9 @@ public record ListingRequest(
         @Schema(description = "Breed (optional, free-form)", example = "Domestic shorthair")
         String breed,
 
-        @PositiveOrZero(message = "Age must be positive") @Schema(description = "Age in months", example = "4")
+        @PositiveOrZero(message = "Age must be positive")
+        @Max(value = ListingConstants.MAX_AGE_MONTHS, message = "Age must not exceed {value} months")
+        @Schema(description = "Age in months", example = "4")
         Integer age,
 
         @PositiveOrZero(message = "Price must be positive")

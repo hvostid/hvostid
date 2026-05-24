@@ -5,6 +5,11 @@ import { createPassport, uploadDocument } from '../api/passports';
 import Input from '../components/Input';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { PHOTO_ACCEPT, PHOTO_MIME_TYPES } from '../constants/passportDocuments';
+import { extractDetail, todayIso } from '../utils/format';
+
+const UNSUPPORTED_PHOTO_MESSAGE =
+    'Формат файла не поддерживается. Допустимы JPEG или PNG, до 10 МБ.';
 
 const GENDER_OPTIONS = [
     { value: 'MALE', label: 'Мальчик' },
@@ -52,16 +57,21 @@ export default function CreatePassportPage() {
         setUploading(false);
     };
 
+    const flashUnsupportedFormat = () => {
+        setError(UNSUPPORTED_PHOTO_MESSAGE);
+        setTimeout(() => setError(null), 3000);
+    };
+
     // Drag-and-drop handlers
     const handleDrop = (e) => {
         e.preventDefault();
         setDragActive(false);
         const file = e.dataTransfer.files?.[0];
-        if (file && file.type.startsWith('image/')) {
+        if (!file) return;
+        if (PHOTO_MIME_TYPES.includes(file.type)) {
             handleFileUpload(file);
-        } else if (file) {
-            setError('Пожалуйста, загружайте только изображения');
-            setTimeout(() => setError(null), 3000);
+        } else {
+            flashUnsupportedFormat();
         }
     };
 
@@ -77,11 +87,11 @@ export default function CreatePassportPage() {
 
     const handleFileSelect = (e) => {
         const file = e.target.files?.[0];
-        if (file && file.type.startsWith('image/')) {
+        if (!file) return;
+        if (PHOTO_MIME_TYPES.includes(file.type)) {
             handleFileUpload(file);
-        } else if (file) {
-            setError('Пожалуйста, загружайте только изображения');
-            setTimeout(() => setError(null), 3000);
+        } else {
+            flashUnsupportedFormat();
         }
     };
 
@@ -110,6 +120,11 @@ export default function CreatePassportPage() {
             setTimeout(() => setError(null), 3000);
             return;
         }
+        if (formData.birthDate > todayIso()) {
+            setError('Дата рождения не может быть в будущем');
+            setTimeout(() => setError(null), 3000);
+            return;
+        }
 
         setSaving(true);
         setError(null);
@@ -131,22 +146,20 @@ export default function CreatePassportPage() {
                         await uploadDocument(passportId, doc.file, 'PHOTO');
                     } catch (err) {
                         console.error('Failed to upload photo:', err);
-                        uploadErrors.push(doc.originalFilename);
+                        const reason = extractDetail(err, 'неизвестная ошибка');
+                        uploadErrors.push(`${doc.originalFilename} (${reason})`);
                     }
                 }
             }
 
-            if (uploadErrors.length > 0) {
-                setError(
-                    `Паспорт создан, но не удалось загрузить фото: ${uploadErrors.join(', ')}`
-                );
-                setTimeout(() => setError(null), 5000);
-            } else {
-                setError(null);
-            }
-
-            // Переходим на страницу моих объявлений
-            navigate('/my-listings');
+            // Переходим на страницу моих объявлений. Если часть фото не
+            // загрузилась, проносим предупреждение через navigation state -
+            // показать его здесь нельзя, навигация размонтирует компонент.
+            const warning =
+                uploadErrors.length > 0
+                    ? `Паспорт создан, но не удалось загрузить фото: ${uploadErrors.join('; ')}`
+                    : null;
+            navigate('/my-listings', warning ? { state: { warning } } : undefined);
         } catch (err) {
             console.error('Failed to create passport:', err);
 
@@ -225,6 +238,7 @@ export default function CreatePassportPage() {
                             onChange={(e) =>
                                 setFormData({ ...formData, birthDate: e.target.value })
                             }
+                            max={todayIso()}
                             required
                         />
                         <div>
@@ -330,12 +344,12 @@ export default function CreatePassportPage() {
                                             type="file"
                                             className="hidden"
                                             onChange={handleFileSelect}
-                                            accept="image/*"
+                                            accept={PHOTO_ACCEPT}
                                         />
                                     </label>
                                 </p>
                                 <p className="text-xs text-gray-400 mt-2">
-                                    Поддерживаются изображения до 10 МБ
+                                    Поддерживаются JPEG и PNG, до 10 МБ
                                 </p>
                             </>
                         )}
