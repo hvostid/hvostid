@@ -41,6 +41,11 @@ export const deleteDocument = async (passportId, docId) => {
     await api.delete(`/passports/${passportId}/docs/${docId}`);
 };
 
+export async function getPassportDocuments(passportId, signal) {
+    const response = await api.get(`/passports/${passportId}/docs`, { signal });
+    return response.data;
+}
+
 /**
  * Issues a short-lived ticketed URL for a passport document. The returned
  * `url` works as a plain `<img src>` and is enforced by a single use ticket
@@ -63,10 +68,10 @@ export async function issueDocumentTicket(passportId, docId, signal) {
 export const passportCoverUrl = (passportId) => `/api/v1/passports/${passportId}/cover`;
 
 /**
- * Returns every pet passport whose sellerId matches the authenticated user.
- * Shape: `PassportResponse[]` (newest first).
+ * Returns the authenticated user's pet passports from the paginated `/my`
+ * endpoint. Shape returned to callers: `PassportResponse[]`.
  */
 export async function getAllMyPassports() {
-    const response = await api.get('/passports');
-    return response.data;
+    const response = await api.get('/passports/my');
+    return response.data?.content || [];
 }

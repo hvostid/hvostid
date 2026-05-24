@@ -2,7 +2,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getMyListings, changeListingStatus } from '../api/listings';
-import { getPassport, getAllMyPassports } from '../api/passports';
+import {
+    getPassport,
+    getAllMyPassports,
+    getPassportDocuments,
+    issueDocumentTicket,
+} from '../api/passports';
 import StatusBadge from '../components/StatusBadge';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -162,19 +167,49 @@ export default function MyListingsPage() {
 
     // Загрузка всех паспортов
     useEffect(() => {
+        const controller = new AbortController();
+
+        const withFirstPhoto = async (passport) => {
+            try {
+                const documents = await getPassportDocuments(passport.id, controller.signal);
+                const photo = documents.find((doc) => doc.type === 'PHOTO');
+                if (!photo) {
+                    return { ...passport, photoUrl: null };
+                }
+                const { url } = await issueDocumentTicket(passport.id, photo.id, controller.signal);
+                return { ...passport, photoUrl: url };
+            } catch (error) {
+                if (error.name !== 'CanceledError') {
+                    console.warn(`Failed to load photo for passport ${passport.id}:`, error);
+                }
+                return { ...passport, photoUrl: null };
+            }
+        };
+
         const loadPassports = async () => {
             setPassportsLoading(true);
             try {
                 const data = await getAllMyPassports();
-                setPassports(Array.isArray(data) ? data : []);
+                const passportsWithPhotos = await Promise.all(data.map(withFirstPhoto));
+                if (!controller.signal.aborted) {
+                    setPassports(passportsWithPhotos);
+                }
             } catch (error) {
-                console.error('Failed to load passports:', error);
-                setPassports([]);
+                if (error.name !== 'CanceledError') {
+                    console.error('Failed to load passports:', error);
+                }
+                if (!controller.signal.aborted) {
+                    setPassports([]);
+                }
             } finally {
-                setPassportsLoading(false);
+                if (!controller.signal.aborted) {
+                    setPassportsLoading(false);
+                }
             }
         };
         loadPassports();
+
+        return () => controller.abort();
     }, []);
 
     const handleStatusChange = async (listingId, newStatus) => {
