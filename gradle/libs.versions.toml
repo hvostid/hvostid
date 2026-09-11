@@ -16,7 +16,7 @@ swagger-ui = "5.32.5"
 tomcat = "11.0.22"
 
 # Plugins
-owasp-dependency-check = "12.2.2"
+owasp-dependency-check = "13.0.0"
 sonarqube = "7.3.0.8198"
 spotless = "8.5.1"
 palantir-java-format = "2.90.0"
