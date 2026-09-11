@@ -38,7 +38,7 @@ jobs:
 
         steps:
             -   name: Checkout code
-                uses: actions/checkout@v6
+                uses: actions/checkout@v7
 
             -   name: Detect changed paths
                 id: filter
@@ -117,7 +117,7 @@ jobs:
 
         steps:
             -   name: Checkout code
-                uses: actions/checkout@v6
+                uses: actions/checkout@v7
 
             -   name: Set up Java and Gradle
                 uses: ./.github/actions/setup-java-gradle
@@ -163,7 +163,7 @@ jobs:
 
         steps:
             -   name: Checkout code
-                uses: actions/checkout@v6
+                uses: actions/checkout@v7
 
             -   name: Set up Docker BuildX
                 uses: docker/setup-buildx-action@v4
@@ -191,7 +191,7 @@ jobs:
 
         steps:
             -   name: Checkout code
-                uses: actions/checkout@v6
+                uses: actions/checkout@v7
 
             -   name: Set up Docker BuildX
                 uses: docker/setup-buildx-action@v4
@@ -217,7 +217,7 @@ jobs:
 
         steps:
             -   name: Checkout code
-                uses: actions/checkout@v6
+                uses: actions/checkout@v7
 
             -   name: Set up Docker BuildX
                 uses: docker/setup-buildx-action@v4
