@@ -203,10 +203,11 @@ public class ListingController {
             throw new IllegalArgumentException("priceMin must be less than or equal to priceMax");
         }
 
-        Pageable effectivePageable = pageable;
-        if (!hasKeyword) {
-            effectivePageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), parseSort(sort));
-        }
+        // The native search query owns relevance ordering. Spring's pageable resolver
+        // also reads 'sort', so discard its ordering before executing keyword search.
+        Pageable effectivePageable = hasKeyword
+                ? PageRequest.of(pageable.getPageNumber(), pageable.getPageSize())
+                : PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), parseSort(sort));
 
         Page<ListingResponse> responses = hasKeyword
                 ? listingService.searchWithFilters(keyword, filters, effectivePageable)

@@ -1,5 +1,6 @@
 package ru.hvostid.listing.repository;
 
+import java.util.Collection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,7 +21,7 @@ public interface ListingRepository extends JpaRepository<Listing, Long>, JpaSpec
 
     boolean existsBySellerIdAndTitleAndStatusNot(Long sellerId, String title, ListingStatus status);
 
-    boolean existsByPassportIdAndStatus(String passportId, ListingStatus status);
+    boolean existsByPassportIdInAndStatusIn(Collection<String> passportIds, Collection<ListingStatus> statuses);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Listing l SET l.status = :newStatus WHERE l.id = :id AND l.status = :expectedStatus")
@@ -46,7 +47,7 @@ public interface ListingRepository extends JpaRepository<Listing, Long>, JpaSpec
             ORDER BY GREATEST(
                 ts_rank(l.search_vector_ru, plainto_tsquery('russian', :keyword)),
                 ts_rank(l.search_vector_en, plainto_tsquery('simple', :keyword))
-            ) DESC
+            ) DESC, l.id DESC
             """, countQuery = """
             SELECT count(*) FROM listings l
             WHERE l.status = :status

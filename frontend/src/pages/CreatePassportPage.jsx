@@ -1,6 +1,6 @@
 // pages/CreatePassportPage.jsx
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createPassport, uploadDocument } from '../api/passports';
 import Input from '../components/Input';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -18,6 +18,8 @@ const GENDER_OPTIONS = [
 
 export default function CreatePassportPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const fromListing = searchParams.get('from') === 'listing';
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState(null);
@@ -152,14 +154,15 @@ export default function CreatePassportPage() {
                 }
             }
 
-            // Переходим на страницу моих объявлений. Если часть фото не
-            // загрузилась, проносим предупреждение через navigation state -
-            // показать его здесь нельзя, навигация размонтирует компонент.
+            // Return to the saved listing form when passport creation is part of that flow.
             const warning =
                 uploadErrors.length > 0
                     ? `Паспорт создан, но не удалось загрузить фото: ${uploadErrors.join('; ')}`
                     : null;
-            navigate('/my-listings', warning ? { state: { warning } } : undefined);
+            navigate(
+                fromListing ? `/my-listings/new?passportId=${passportId}` : '/my-listings',
+                warning ? { state: { warning } } : undefined
+            );
         } catch (err) {
             console.error('Failed to create passport:', err);
 
@@ -384,7 +387,7 @@ export default function CreatePassportPage() {
 
                 <div className="flex justify-end gap-3 pt-4 border-t">
                     <button
-                        onClick={() => navigate('/my-listings')}
+                        onClick={() => navigate(fromListing ? '/my-listings/new' : '/my-listings')}
                         className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                     >
                         Отмена

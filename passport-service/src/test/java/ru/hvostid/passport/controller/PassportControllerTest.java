@@ -364,28 +364,38 @@ class PassportControllerTest extends AbstractPassportIntegrationTest {
         }
 
         @Test
-        @DisplayName("published listing reference blocks deletion - returns 409")
-        void delete_publishedListingReference_returns409() throws Exception {
+        @DisplayName("published or moderation listing reference blocks deletion - returns 409")
+        void delete_activeListingReference_returns409() throws Exception {
             createPassport();
-            when(listingServiceClient.hasPublishedListingForPassport(any(), any()))
-                    .thenReturn(true);
+            uploadPhoto();
+            when(listingServiceClient.hasActiveListingForPassport(any(), any())).thenReturn(true);
 
             mockMvc.perform(delete(PASSPORTS_URL + "/1").header(USER_ID, 10L).header(USER_ROLES, SELLER.value()))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.status", is(409)))
                     .andExpect(jsonPath("$.title", is("Passport in use")));
+
+            org.assertj.core.api.Assertions.assertThat(
+                            jdbcTemplate.queryForObject("SELECT COUNT(*) FROM pet_passports", Integer.class))
+                    .isEqualTo(1);
+            org.assertj.core.api.Assertions.assertThat(
+                            jdbcTemplate.queryForObject("SELECT COUNT(*) FROM passport_documents", Integer.class))
+                    .isEqualTo(1);
         }
 
         @Test
         @DisplayName("listing-service unavailable - returns 503")
         void delete_listingServiceUnavailable_returns503() throws Exception {
             createPassport();
-            when(listingServiceClient.hasPublishedListingForPassport(any(), any()))
+            when(listingServiceClient.hasActiveListingForPassport(any(), any()))
                     .thenThrow(new ListingServiceUnavailableException("upstream down"));
 
             mockMvc.perform(delete(PASSPORTS_URL + "/1").header(USER_ID, 10L).header(USER_ROLES, SELLER.value()))
                     .andExpect(status().isServiceUnavailable())
                     .andExpect(jsonPath("$.status", is(503)));
+
+            mockMvc.perform(get(PASSPORTS_URL + "/1").header(USER_ID, 10L).header(USER_ROLES, SELLER.value()))
+                    .andExpect(status().isOk());
         }
 
         @Test

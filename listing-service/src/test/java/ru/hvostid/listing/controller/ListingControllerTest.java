@@ -11,6 +11,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -177,6 +179,24 @@ class ListingControllerTest extends AbstractPostgresContainerTest {
                     .andExpect(jsonPath("$.content", hasSize(1)))
                     .andExpect(jsonPath("$.totalElements").value(2))
                     .andExpect(jsonPath("$.totalPages").value(2));
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"created_desc", "price_asc", "price_desc"})
+        void keywordSearchWithSort_keepsPagination(String sort) throws Exception {
+            for (int page = 0; page < 2; page++) {
+                mockMvc.perform(get(LISTINGS_URL)
+                                .param("q", "Pub")
+                                .param("sort", sort)
+                                .param("city", "Moscow")
+                                .param("page", String.valueOf(page))
+                                .param("size", "1"))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.content", hasSize(1)))
+                        .andExpect(jsonPath("$.content[0].title").value("Pub " + (1 - page)))
+                        .andExpect(jsonPath("$.totalElements").value(2))
+                        .andExpect(jsonPath("$.totalPages").value(2));
+            }
         }
     }
 

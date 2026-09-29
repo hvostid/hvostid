@@ -23,8 +23,8 @@ export default function ListingForm({
         description: initialData?.description || '',
         species: initialData?.species || 'CAT',
         breed: initialData?.breed || '',
-        age: initialData?.age || '',
-        price: initialData?.price || '',
+        age: initialData?.age ?? '',
+        price: initialData?.price ?? '',
         city: initialData?.city || '',
     });
     const [errors, setErrors] = useState({});

@@ -299,7 +299,9 @@ export default function MyListingsPage() {
         } catch (error) {
             console.error('Failed to delete passport:', error);
             if (error.response?.status === 409) {
-                setError('Нельзя удалить паспорт, привязанный к опубликованному объявлению');
+                setError(
+                    'Нельзя удалить паспорт, привязанный к опубликованному объявлению или объявлению на модерации'
+                );
             } else if (error.response?.status === 403) {
                 setError('У вас нет прав на удаление этого паспорта');
             } else if (error.response?.status === 404) {

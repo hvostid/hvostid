@@ -1,13 +1,25 @@
 // pages/CreateListingPage.jsx
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { createListing, getMyListings } from '../api/listings';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { createListing, getMyListings, getListingDraft, saveListingDraft } from '../api/listings';
 import { getAllMyPassports, getPassport } from '../api/passports';
 import ListingForm from '../components/ListingForm';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { extractDetail } from '../utils/format';
+
+const toDraft = (data) => ({
+    title: data.title.trim(),
+    description: data.description?.trim() || null,
+    species: data.species,
+    breed: data.breed?.trim() || null,
+    age: data.age === '' || data.age == null ? null : Number(data.age),
+    price: data.price === '' || data.price == null ? null : Number(data.price),
+    city: data.city.trim(),
+});
 
 export default function CreateListingPage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const [searchParams] = useSearchParams();
     const passportIdFromUrl = searchParams.get('passportId');
 
@@ -16,22 +28,13 @@ export default function CreateListingPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [preloadedPassport, setPreloadedPassport] = useState(null);
-    const [loadingPreload, setLoadingPreload] = useState(false);
+    const [loadingPreload, setLoadingPreload] = useState(true);
+    const [loadFailed, setLoadFailed] = useState(false);
 
     const [passports, setPassports] = useState([]);
     const [loadingPassports, setLoadingPassports] = useState(false);
     const [selectedPassportId, setSelectedPassportId] = useState('');
     const [listings, setListings] = useState([]);
-
-    // Восстановление данных формы после возврата с CreatePassportPage
-    useEffect(() => {
-        const savedData = sessionStorage.getItem('pendingListingData');
-        if (savedData && !formData) {
-            const parsedData = JSON.parse(savedData);
-            setFormData(parsedData);
-            sessionStorage.removeItem('pendingListingData');
-        }
-    }, []);
 
     // Загрузка паспортов и объявлений (для проверки используемых паспортов)
     const loadPassportsAndListings = async () => {
@@ -47,6 +50,7 @@ export default function CreateListingPage() {
             console.error('Failed to load data:', err);
             setPassports([]);
             setListings([]);
+            throw err;
         } finally {
             setLoadingPassports(false);
         }
@@ -57,44 +61,69 @@ export default function CreateListingPage() {
         return listings.some((l) => String(l.passportId) === String(passportId));
     };
 
-    // Если есть passportId из URL (создали паспорт отдельно), загружаем его
+    // Restore the server draft before rendering the form or applying passport defaults.
     useEffect(() => {
-        if (passportIdFromUrl) {
-            const loadPreloadedPassport = async () => {
-                setLoadingPreload(true);
-                try {
-                    const passport = await getPassport(passportIdFromUrl);
-                    setPreloadedPassport(passport);
-                    setSelectedPassportId(passportIdFromUrl);
-
-                    setFormData({
-                        title: '',
-                        description: '',
-                        species: passport.species || '',
-                        breed: passport.breed || '',
-                        age: '',
-                        price: '',
-                        city: '',
-                    });
-
-                    setStep('passportChoice');
-                    await loadPassportsAndListings();
-                } catch (err) {
-                    console.error('Failed to load preloaded passport:', err);
-                    setError('Не удалось загрузить созданный паспорт');
-                } finally {
-                    setLoadingPreload(false);
+        let cancelled = false;
+        const restore = async () => {
+            setLoadingPreload(true);
+            setLoadFailed(false);
+            try {
+                const [draft, passport] = await Promise.all([
+                    getListingDraft(),
+                    passportIdFromUrl ? getPassport(passportIdFromUrl) : null,
+                ]);
+                const [passportsData, listingsData] = passport
+                    ? await Promise.all([getAllMyPassports(0, 100), getMyListings()])
+                    : [null, null];
+                if (cancelled) return;
+                setFormData(
+                    draft ||
+                        (passport
+                            ? {
+                                  title: '',
+                                  description: '',
+                                  species: passport.species || '',
+                                  breed: passport.breed || '',
+                                  age: '',
+                                  price: '',
+                                  city: '',
+                              }
+                            : null)
+                );
+                setPreloadedPassport(passport);
+                setSelectedPassportId(passportIdFromUrl || '');
+                setPassports(passportsData?.content || []);
+                setListings(listingsData?.content || []);
+                setStep(draft && passport ? 'passportChoice' : 'form');
+            } catch (err) {
+                if (!cancelled) {
+                    setError(extractDetail(err, 'Не удалось восстановить форму объявления'));
+                    setLoadFailed(true);
                 }
-            };
-            loadPreloadedPassport();
-        }
+            } finally {
+                if (!cancelled) setLoadingPreload(false);
+            }
+        };
+        restore();
+        return () => {
+            cancelled = true;
+        };
     }, [passportIdFromUrl]);
 
     // Когда пользователь заполнил форму
     const handleFormSubmit = async (data) => {
         setFormData(data);
-        await loadPassportsAndListings();
-        setStep('passportChoice');
+        setIsSubmitting(true);
+        setError('');
+        try {
+            await saveListingDraft(toDraft(data));
+            await loadPassportsAndListings();
+            setStep('passportChoice');
+        } catch (err) {
+            setError(extractDetail(err, 'Не удалось сохранить форму объявления'));
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     // Использовать существующий паспорт
@@ -115,30 +144,9 @@ export default function CreateListingPage() {
 
         try {
             const listingData = {
-                title: formData.title.trim(),
-                description: formData.description.trim(),
-                species: formData.species,
-                city: formData.city.trim(),
+                ...toDraft(formData),
                 passportId: String(selectedPassportId),
             };
-
-            if (formData.breed?.trim()) {
-                listingData.breed = formData.breed.trim();
-            }
-
-            if (formData.age && String(formData.age).trim()) {
-                const ageNum = parseInt(formData.age, 10);
-                if (!isNaN(ageNum) && ageNum >= 0) {
-                    listingData.age = ageNum;
-                }
-            }
-
-            if (formData.price && String(formData.price).trim()) {
-                const priceNum = parseInt(formData.price, 10);
-                if (!isNaN(priceNum) && priceNum >= 0) {
-                    listingData.price = priceNum;
-                }
-            }
 
             await createListing(listingData);
             navigate('/my-listings');
@@ -147,7 +155,7 @@ export default function CreateListingPage() {
             if (err.response?.status === 409) {
                 setError('Этот паспорт уже используется в другом объявлении');
             } else {
-                setError(err.response?.data?.message || 'Не удалось создать объявление');
+                setError(extractDetail(err, 'Не удалось создать объявление'));
             }
         } finally {
             setIsSubmitting(false);
@@ -156,16 +164,12 @@ export default function CreateListingPage() {
 
     // Создать новый паспорт — переходим на отдельную страницу
     const handleCreateNewPassport = () => {
-        if (formData) {
-            sessionStorage.setItem('pendingListingData', JSON.stringify(formData));
-        }
-        navigate('/passports/new');
+        navigate('/passports/new?from=listing');
     };
 
     const handleBackToForm = () => {
         setStep('form');
         setError('');
-        setSelectedPassportId('');
     };
 
     if (loadingPreload) {
@@ -174,6 +178,10 @@ export default function CreateListingPage() {
                 <LoadingSpinner size="lg" />
             </div>
         );
+    }
+
+    if (loadFailed) {
+        return <div className="text-red-600 py-12">{error}</div>;
     }
 
     if (step === 'form') {
@@ -189,6 +197,7 @@ export default function CreateListingPage() {
 
                 <div className="bg-white rounded-lg shadow p-6">
                     <ListingForm
+                        initialData={formData}
                         onSubmit={handleFormSubmit}
                         isSubmitting={isSubmitting}
                         submitLabel="Далее →"
@@ -204,6 +213,12 @@ export default function CreateListingPage() {
             <p className="text-gray-600 mb-4">
                 У питомца уже есть паспорт? Выберите его из списка или создайте новый.
             </p>
+
+            {location.state?.warning && (
+                <div role="alert" className="mb-6 bg-yellow-50 text-yellow-800 p-4 rounded-md">
+                    {location.state.warning}
+                </div>
+            )}
 
             {preloadedPassport && (
                 <div className="mb-6 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">

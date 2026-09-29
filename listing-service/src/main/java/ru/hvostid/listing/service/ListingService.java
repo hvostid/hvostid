@@ -1,6 +1,7 @@
 package ru.hvostid.listing.service;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,14 +34,17 @@ public class ListingService {
     private final ListingFlagRepository flagRepository;
     private final ListingRepository listingRepository;
     private final ListingStatusHistoryRepository historyRepository;
+    private final ListingDraftService draftService;
 
     public ListingService(
             ListingFlagRepository flagRepository,
             ListingRepository listingRepository,
-            ListingStatusHistoryRepository historyRepository) {
+            ListingStatusHistoryRepository historyRepository,
+            ListingDraftService draftService) {
         this.flagRepository = flagRepository;
         this.listingRepository = listingRepository;
         this.historyRepository = historyRepository;
+        this.draftService = draftService;
     }
 
     /**
@@ -72,6 +76,7 @@ public class ListingService {
                 .build();
 
         Listing saved = listingRepository.save(listing);
+        draftService.deleteDraft(sellerId);
         log.info("Listing created id={} sellerId={}", saved.getId(), saved.getSellerId());
 
         return ListingResponse.from(saved);
@@ -143,7 +148,16 @@ public class ListingService {
         if (passportId == null || passportId.isBlank()) {
             return false;
         }
-        return listingRepository.existsByPassportIdAndStatus(passportId.trim(), ListingStatus.PUBLISHED);
+        String id = passportId.trim().replaceFirst("^passport-", "");
+        return listingRepository.existsByPassportIdInAndStatusIn(
+                List.of(id, "passport-" + id), Set.of(ListingStatus.PUBLISHED));
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasActiveListingForPassport(Long passportId) {
+        return listingRepository.existsByPassportIdInAndStatusIn(
+                List.of(passportId.toString(), "passport-" + passportId),
+                Set.of(ListingStatus.MODERATION, ListingStatus.PUBLISHED));
     }
 
     @Transactional(readOnly = true)

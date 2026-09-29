@@ -1,6 +1,15 @@
 // api/listings.js
 import api from './client';
 
+export const getListingDraft = async () => {
+    const response = await api.get('/listings/draft');
+    return response.status === 204 ? null : response.data;
+};
+
+export const saveListingDraft = async (draft) => {
+    await api.put('/listings/draft', draft);
+};
+
 // Get my listings (with optional status filter)
 export const getMyListings = async (status = null, page = 0, size = 100) => {
     let url = `/listings/my?page=${page}&size=${size}`;

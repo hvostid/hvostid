@@ -19,11 +19,22 @@
 | GET    | `/api/v1/listings`           | bearer       | Поиск + фильтры через query-параметры |
 | GET    | `/api/v1/listings/{id}`      | bearer       |                                     |
 | POST   | `/api/v1/listings`           | seller       |                                     |
+| GET    | `/api/v1/listings/draft`     | seller       | Восстановить свою форму; 204, если её нет |
+| PUT    | `/api/v1/listings/draft`     | seller       | Сохранить свою форму без паспорта |
 | PATCH  | `/api/v1/listings/{id}`      | seller       | Только владелец                     |
 | DELETE | `/api/v1/listings/{id}`      | seller/admin      | Только владелец                     |
 
 
 Полная спецификация: http://localhost:8082/swagger-ui.html.
+
+Для каждого продавца хранится одна незавершённая форма отдельно от объявлений.
+Она сохраняется при переходе к созданию паспорта и перезагрузке страницы.
+Успешное создание объявления удаляет форму в той же транзакции; ошибка сохраняет её.
+
+Внутренний `GET /internal/listings/passports/{passportId}/has-active` проверяет
+связи с объявлениями в MODERATION и PUBLISHED перед удалением паспорта, включая
+старые ID с префиксом `passport-`. Публичный `has-published` по-прежнему проверяет
+только PUBLISHED. Gateway не маршрутизирует внутренние эндпоинты.
 
 ## Переменные окружения
 

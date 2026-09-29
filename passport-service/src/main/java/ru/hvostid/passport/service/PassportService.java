@@ -121,9 +121,10 @@ public class PassportService {
         PetPassport passport = accessService.getExistingPassport(passportId);
         accessService.requireOwner(passport, userId, "delete");
 
-        if (listingServiceClient.hasPublishedListingForPassport(passportId, requestId)) {
+        if (listingServiceClient.hasActiveListingForPassport(passportId, requestId)) {
             throw new PassportInUseException(
-                    "Passport is referenced by a published listing; archive or delete the listing first.");
+                    "Passport is referenced by a published listing or a listing under moderation; "
+                            + "archive or delete the listing first.");
         }
 
         List<StorageRef> documents = documentService.storageRefsForPassport(passportId);

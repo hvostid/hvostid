@@ -154,12 +154,12 @@ export default function MatchResultPage() {
                 <div className="bg-white rounded-lg shadow p-6 mb-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">Детальный анализ</h2>
                     <div className="space-y-4">
-                        {result.factors.map((factor, index) => {
+                        {result.factors.map((factor) => {
                             const percent = (factor.score / factor.maxScore) * 100;
                             const factorName = FACTOR_LABELS[factor.name] || factor.name;
 
                             return (
-<div key={factor.name}>
+                                <div key={factor.name}>
                                     <div className="flex justify-between text-sm mb-1">
                                         <span className="text-gray-700">{factorName}</span>
                                         <span className="text-gray-500">

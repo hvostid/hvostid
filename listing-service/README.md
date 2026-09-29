@@ -18,11 +18,22 @@ Owns pet listings: create, update, search, filter.
 | GET    | `/api/v1/listings`           | bearer       | Search + filter via query params    |
 | GET    | `/api/v1/listings/{id}`      | bearer       |                                     |
 | POST   | `/api/v1/listings`           | seller       |                                     |
+| GET    | `/api/v1/listings/draft`     | seller       | Restore own creation form; 204 if absent |
+| PUT    | `/api/v1/listings/draft`     | seller       | Save own creation form without a passport |
 | PATCH  | `/api/v1/listings/{id}`      | seller       | Owner only                          |
 | DELETE | `/api/v1/listings/{id}`      | seller/admin      | Owner only                          |
 
 
 Full spec at http://localhost:8082/swagger-ui.html.
+
+Each seller has one saved creation form, stored separately from listings. It
+survives navigation to passport creation and page reloads and is removed in the
+same transaction as successful listing creation. Failed creation preserves it.
+
+`GET /internal/listings/passports/{passportId}/has-active` is an internal-only
+deletion guard for passport-service. It checks MODERATION and PUBLISHED listings,
+including legacy `passport-` identifiers. The public `has-published` endpoint
+continues to check PUBLISHED only. Internal endpoints are not routed by the gateway.
 
 ## Environment variables
 

@@ -29,7 +29,8 @@ Spec is served at http://localhost:8083/swagger-ui.html.
   available only to its owner with the `SELLER` role.
 - `DELETE /api/v1/passports/{petId}` -- delete a passport owned by the
   seller. Deletion is blocked while the passport is referenced by a
-  published listing.
+  published listing or a listing under moderation. An unavailable or invalid
+  listing-service response returns 503 and leaves the passport intact.
 - `POST /api/v1/passports/{petId}/docs` -- upload a photo or document,
   available only to the owner with the `SELLER` role.
 - `GET /api/v1/passports/{petId}/docs` -- list document metadata,
