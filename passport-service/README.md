@@ -74,6 +74,12 @@ docker compose up -d postgres minio minio-init
 
 ## Dependencies
 
+Integration tests build MinIO from pinned upstream source through
+`:passport-service:prepareMinioTestImage`; `./gradlew check` and `./gradlew build`
+include this automatically. Docker must be running. See
+[`docker/minio-test`](../docker/minio-test/README.md) for the source revision and
+cache behavior.
+
 - **Required:** PostgreSQL (`hvostid_passport` database), MinIO, Redis.
 - **Outbound dependencies:** Listing Service is queried before exposing
   public photos/trust score and before deleting a passport.

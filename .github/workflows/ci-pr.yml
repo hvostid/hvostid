@@ -69,6 +69,7 @@ jobs:
                             - 'listing-service/**'
                         passport-service:
                             - 'passport-service/**'
+                            - 'docker/minio-test/**'
                         matching-service:
                             - 'matching-service/**'
                         frontend:
