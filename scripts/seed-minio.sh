@@ -42,7 +42,7 @@ run_mc() {
     docker run --rm --network "${MINIO_NETWORK}" \
         -e "MC_HOST_hvostid_seed=${MC_HOST_VALUE}" \
         -v "${SEED_DATA_DIR}:/seed-data:ro" \
-        --entrypoint mc hvostid/minio:2025-09-07-mc2025-08-13 "$@"
+        --entrypoint mc hvostid/minio:security-2026-09-30 "$@"
 }
 
 mc_path_for_local_file() {
@@ -63,13 +63,13 @@ for _ in $(seq 1 30); do
     if curl -sf "${health_url}" >/dev/null 2>&1; then
         break
     fi
-    if [[ "${USE_DOCKER_MC}" == true ]] && docker run --rm --network "${MINIO_NETWORK}" --entrypoint wget hvostid/minio:2025-09-07-mc2025-08-13 -qO- "http://minio:9000/minio/health/live" >/dev/null 2>&1; then
+    if [[ "${USE_DOCKER_MC}" == true ]] && docker run --rm --network "${MINIO_NETWORK}" --entrypoint wget hvostid/minio:security-2026-09-30 -qO- "http://minio:9000/minio/health/live" >/dev/null 2>&1; then
         break
     fi
     sleep 2
 done
 if ! curl -sf "${health_url}" >/dev/null 2>&1 \
-    && ! { [[ "${USE_DOCKER_MC}" == true ]] && docker run --rm --network "${MINIO_NETWORK}" --entrypoint wget hvostid/minio:2025-09-07-mc2025-08-13 -qO- "http://minio:9000/minio/health/live" >/dev/null 2>&1; }; then
+    && ! { [[ "${USE_DOCKER_MC}" == true ]] && docker run --rm --network "${MINIO_NETWORK}" --entrypoint wget hvostid/minio:security-2026-09-30 -qO- "http://minio:9000/minio/health/live" >/dev/null 2>&1; }; then
     echo "Error: MinIO is not ready at ${MINIO_ENDPOINT}" >&2
     exit 1
 fi

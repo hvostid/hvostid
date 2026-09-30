@@ -142,7 +142,11 @@ Once everything is healthy:
 | Passport Swagger UI | http://localhost:8083/swagger-ui.html        |
 | Matching Swagger UI | http://localhost:8084/swagger-ui.html        |
 | PostgreSQL          | localhost:5432 (4 databases auto-created)    |
-| MinIO Console       | http://localhost:9001 (`minioadmin` default) |
+| MinIO S3 API        | http://localhost:9000                        |
+
+Object storage uses a patched standalone MinIO build with static S3 credentials.
+The browser console, STS, replication and S3 Select are disabled. See the
+[storage security boundary](docker/minio/README.md) before changing its deployment.
 
 **Demo data.** Load a realistic dataset (users, listings, passports,
 questionnaires, MinIO photos) with:

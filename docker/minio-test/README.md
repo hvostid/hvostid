@@ -1,25 +1,16 @@
 # MinIO integration-test image
 
-MinIO's community images are no longer available from Docker Hub or Quay.
-This Dockerfile compiles the previously tested release directly from upstream:
-
-- Release: `RELEASE.2025-09-07T16-13-09Z`
-- Commit: `07c3a429bfed433e49018cb0f78a52145d4bedeb`
-- Source: https://github.com/minio/minio/tree/07c3a429bfed433e49018cb0f78a52145d4bedeb
-- License: AGPL-3.0; the upstream license is included at `/licenses/minio/LICENSE`.
-
-`:passport-service:prepareMinioTestImage` builds the image before passport tests.
-Run `./gradlew check` or `./gradlew build` as usual with Docker running. The first
-build downloads the Go toolchain image and upstream modules; subsequent builds
-reuse Docker's layer cache. No local image override or registry login is needed.
-
-The local image name is configured by `minio-image` in
-`gradle/libs.versions.toml`. Testcontainers marks it as compatible with
-`minio/minio` so the standard MinIO fixture can use it. Changes to this build
-context invalidate the passport test task and trigger the corresponding CI job.
-
-To build just the image:
+Integration tests build the same restricted, dependency-patched image used in
+production. Its only build context is [`../minio`](../minio/README.md); this
+directory intentionally has no separate Dockerfile.
 
 ```sh
 ./gradlew :passport-service:prepareMinioTestImage
 ```
+
+The task builds `hvostid/minio-test:security-2026-09-30` before passport tests.
+The tag is pinned in `gradle/libs.versions.toml`, and Testcontainers declares
+compatibility with `minio/minio`. Docker must be running. Source, toolchain,
+dependency checksums, restrictions, licenses, and audit/smoke commands are
+documented in the canonical image README. Context changes invalidate the test
+image build and trigger the passport CI job.

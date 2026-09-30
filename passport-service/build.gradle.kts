@@ -3,10 +3,10 @@ plugins {
     alias(libs.plugins.spring.dependency.management)
 }
 
-val minioTestContext = rootProject.layout.projectDirectory.dir("docker/minio-test")
+val minioTestContext = rootProject.layout.projectDirectory.dir("docker/minio")
 val prepareMinioTestImage by tasks.registering(Exec::class) {
     group = "verification"
-    description = "Build the pinned MinIO test image from upstream source using Docker's layer cache."
+    description = "Build the patched production MinIO source as the test image using Docker's layer cache."
     commandLine(
         "docker", "build", "--tag", rootProject.libs.versions.minio.image.get(),
         minioTestContext.asFile.absolutePath

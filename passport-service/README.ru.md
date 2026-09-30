@@ -78,7 +78,7 @@ docker compose up -d postgres minio minio-init
 задачей `:passport-service:prepareMinioTestImage`. Она автоматически входит в
 `./gradlew check` и `./gradlew build`; Docker должен быть запущен.
 Версия исходников и использование кэша описаны в
-[`docker/minio-test`](../docker/minio-test/README.md).
+[`docker/minio`](../docker/minio/README.md).
 
 - **Обязательно:** PostgreSQL (база `hvostid_passport`), MinIO, Redis.
 - **Исходящие зависимости:** Listing Service проверяется перед выдачей

@@ -85,7 +85,7 @@ OpenTelemetry traces в Tempo. Dashboard и alert rules версионируют
 уведомлений настраиваются оператором. В обычном запуске OTLP export выключен.
 
 MinIO server и mc собираются из фиксированных commit в `docker/minio/`. Тестовый
-source-build образ находится в `docker/minio-test/`. Критичные образы фиксируются
+образ использует тот же контекст сборки, патчи и зависимости, что и production. Критичные образы фиксируются
 digest, Gradle — lockfiles. PR CI проверяет backend, frontend lint/test/build/audit,
 браузерные регрессии, новый Compose со сквозными API/загрузками и восстановление в
 отдельное пустое окружение. CD сначала публикует SHA-кандидат и проверяет его, затем

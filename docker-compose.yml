@@ -23,16 +23,15 @@ services:
             retries: 5
 
     minio:
-        image: hvostid/minio:2025-09-07-mc2025-08-13
+        image: hvostid/minio:security-2026-09-30
         pull_policy: build
         build: ./docker/minio
-        command: server /data --console-address ":9001"
+        command: server /data
         environment:
             MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
             MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
         ports:
             - "9000:9000"
-            - "9001:9001"
         volumes:
             - minio-data:/data
         healthcheck:
@@ -42,7 +41,7 @@ services:
             retries: 5
 
     minio-init:
-        image: hvostid/minio:2025-09-07-mc2025-08-13
+        image: hvostid/minio:security-2026-09-30
         pull_policy: build
         build: ./docker/minio
         depends_on:

@@ -282,6 +282,19 @@ jobs:
                     username: ${{ github.actor }}
                     password: ${{ secrets.GITHUB_TOKEN }}
 
+            -   name: Set up Node
+                uses: actions/setup-node@v6
+                with:
+                    node-version: 24
+
+            -   name: Check storage upstream security boundary
+                timeout-minutes: 5
+                env:
+                    GH_TOKEN: ${{ github.token }}
+                run: |
+                    node --test docker/minio/audit-upstream.test.mjs
+                    node docker/minio/audit-upstream.mjs
+
             -   name: Pull and start services
                 env:
                     IMAGE_TAG: ${{ needs.prepare.outputs.short-sha }}
@@ -342,13 +355,22 @@ jobs:
                     echo ""
                     echo "All health checks passed."
 
-            -   name: Set up Node
-                uses: actions/setup-node@v6
-                with:
-                    node-version: 24
-
             -   name: Exercise frontend and application flows
                 run: node scripts/smoke-api.mjs
+
+            -   name: Check storage protocol compatibility and guards
+                timeout-minutes: 5
+                run: node docker/minio/security-smoke.mjs
+
+            -   name: Upload storage security reports
+                if: always()
+                uses: actions/upload-artifact@v7
+                with:
+                    name: storage-security-release
+                    path: |
+                        build/reports/minio-upstream.json
+                        build/reports/minio-smoke.json
+                    if-no-files-found: warn
 
             -   name: Tear down
                 if: always()

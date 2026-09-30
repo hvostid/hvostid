@@ -144,7 +144,11 @@ Dockerfile (общий неизменяемый слой зависимосте�
 | Passport Swagger UI | http://localhost:8083/swagger-ui.html                  |
 | Matching Swagger UI | http://localhost:8084/swagger-ui.html                  |
 | PostgreSQL          | localhost:5432 (4 базы данных создаются автоматически) |
-| MinIO Console       | http://localhost:9001 (`minioadmin` по умолчанию)      |
+| MinIO S3 API        | http://localhost:9000                                  |
+
+Хранилище использует исправленную standalone-сборку MinIO со статическими ключами S3.
+Браузерная консоль, STS, репликация и S3 Select отключены. Ограничения сборки описаны
+в [документации безопасности хранилища](docker/minio/README.md).
 
 **Демо-данные.** Загрузите реалистичный набор данных (пользователи,
 объявления, паспорта, анкеты, фото в MinIO):

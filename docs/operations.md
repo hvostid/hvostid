@@ -17,6 +17,13 @@ MinIO and mc are built locally from immutable upstream commits, not unavailable
 Docker Hub community tags. Source revisions and AGPL license files are preserved
 in `docker/minio/Dockerfile`. Keep build network access available on first deployment,
 or publish that exact source build in your controlled registry before deployment.
+Both upstream community repositories are archived. This build applies pinned
+dependency updates and local guards for a standalone S3 deployment. The browser
+console, STS, replication, unsigned-trailer uploads and S3 Select are disabled;
+administration uses the bundled `mc` and static credentials. Read
+[`docker/minio/README.md`](../docker/minio/README.md) before enabling additional
+features or changing the deployment topology. CI separately checks upstream
+advisories and the compiled Go binaries on every security run.
 
 Domain services, PostgreSQL, Redis and object storage must stay private. Internal
 user headers are trusted at that boundary. Production gateway port 8080 is bound

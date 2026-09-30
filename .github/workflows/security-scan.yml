@@ -8,7 +8,9 @@ on:
             - "**/build.gradle.kts"
             - "**/gradle.lockfile"
             - "settings.gradle.kts"
-            - "scripts/audit-jvm-dependencies.mjs"
+            - "scripts/audit-jvm-dependencies*.mjs"
+            - "docker/minio/**"
+            - "docker/minio-test/**"
             - "dependency-check-suppressions.xml"
             - ".github/workflows/security-scan.yml"
     schedule:
@@ -22,9 +24,14 @@ on:
         paths:
             - "gradle/libs.versions.toml"
             - "gradle/wrapper/gradle-wrapper.properties"
+            - "**/gradle.lockfile"
             - "**/build.gradle.kts"
             - "settings.gradle.kts"
             - "dependency-check-suppressions.xml"
+            - "scripts/audit-jvm-dependencies*.mjs"
+            - "docker/minio/**"
+            - "docker/minio-test/**"
+            - ".github/workflows/security-scan.yml"
 
 concurrency:
     group: security-scan-${{ github.ref }}
@@ -36,6 +43,77 @@ permissions:
     actions: read
 
 jobs:
+    minio-security:
+        runs-on: ubuntu-latest
+        timeout-minutes: 40
+        permissions:
+            contents: read
+            actions: read
+        steps:
+            -   name: Checkout code
+                uses: actions/checkout@v6
+
+            -   name: Set up Node for upstream advisory checks
+                uses: actions/setup-node@v6
+                with:
+                    node-version: 24
+
+            -   name: Check pinned upstream MinIO and mc advisories
+                timeout-minutes: 5
+                env:
+                    GH_TOKEN: ${{ github.token }}
+                    MINIO_AUDIT_REPORT: build/reports/minio-upstream.json
+                run: |
+                    node --test docker/minio/audit-upstream.test.mjs
+                    node docker/minio/audit-upstream.mjs
+
+            -   name: Set up Docker BuildX
+                uses: docker/setup-buildx-action@v4
+                with:
+                    buildkitd-config-inline: |
+                        [worker.oci]
+                          max-parallelism = 2
+
+            # Reuse compilation layers, never a previous vulnerability scan.
+            # Both the Go database and the separate main-module inventory are
+            # consulted on every run; either failed check keeps this job red.
+            -   name: Audit the linked MinIO and mc binaries
+                uses: docker/build-push-action@v7
+                with:
+                    context: ./docker/minio
+                    target: audit-reports
+                    no-cache-filters: audit
+                    outputs: type=local,dest=build/reports/minio-binary
+                    cache-from: type=gha,scope=minio-security-build
+                    cache-to: type=gha,mode=max,scope=minio-security-build
+
+            -   name: Load the audited runtime image for protocol checks
+                uses: docker/build-push-action@v7
+                with:
+                    context: ./docker/minio
+                    target: runtime
+                    load: true
+                    tags: hvostid/minio:security-ci
+
+            -   name: Check S3 compatibility and disabled vulnerable features
+                timeout-minutes: 5
+                env:
+                    MINIO_IMAGE: hvostid/minio:security-ci
+                    MINIO_SMOKE_REPORT: build/reports/minio-smoke.json
+                run: node docker/minio/security-smoke.mjs
+
+            -   name: Upload MinIO security reports
+                if: always()
+                uses: actions/upload-artifact@v7
+                with:
+                    name: minio-security-report
+                    path: |
+                        build/reports/minio-upstream.json
+                        build/reports/minio-binary/
+                        build/reports/minio-smoke.json
+                    retention-days: 30
+                    if-no-files-found: warn
+
     dependency-check:
         runs-on: ubuntu-latest
         # Cold NVD imports have exceeded 45 minutes on hosted runners.
@@ -78,6 +156,7 @@ jobs:
             -   name: Check production JVM dependencies against OSV
                 run: |
                     mkdir -p build/reports
+                    node --test scripts/audit-jvm-dependencies.test.mjs
                     node scripts/audit-jvm-dependencies.mjs
 
             -   name: Update NVD database

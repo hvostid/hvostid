@@ -91,7 +91,7 @@ versioned; notification receivers require operator configuration. OTLP export is
 disabled outside the observability profile.
 
 MinIO server and client are built from pinned upstream commits in `docker/minio/`.
-The matching source-build test image remains under `docker/minio-test/`.
+The test image uses the same patched build context and dependency manifests as production.
 Critical base images use immutable digests and Gradle dependencies use lockfiles.
 PR CI runs backend checks, frontend lint/tests/build/audit, browser regressions,
 a fresh Compose business smoke (including uploads through Nginx), and an isolated

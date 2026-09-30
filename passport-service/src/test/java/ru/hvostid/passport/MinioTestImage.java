@@ -7,7 +7,7 @@ import org.testcontainers.utility.DockerImageName;
  * from the {@code testcontainers.minio.image} system property. The root
  * {@code build.gradle.kts} injects the property from
  * {@code libs.versions.toml#minio-image}. Gradle builds the image from the
- * pinned upstream source in {@code docker/minio-test} before running tests.
+ * patched production source in {@code docker/minio} before running tests.
  */
 public final class MinioTestImage {
     private static final String IMAGE_PROPERTY = "testcontainers.minio.image";
