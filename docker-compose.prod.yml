@@ -251,3 +251,4 @@ networks:
         ipam:
             config:
                 - subnet: ${HVOSTID_SUBNET:-172.30.44.0/24}
+                  ip_range: ${HVOSTID_DYNAMIC_RANGE:-172.30.44.128/25}

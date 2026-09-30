@@ -110,7 +110,7 @@ Detailed diagrams (sequence, deployment) and design notes live in
 
 **Requirements**
 
-- Docker 24+ and Docker Compose v2
+- Docker 24+ and Docker Compose v2.24.4+
 - Optional for local IDE work: JDK 25, Node.js 24+
 
 **Bring up the whole platform**
@@ -119,11 +119,15 @@ Detailed diagrams (sequence, deployment) and design notes live in
 git clone https://github.com/hvostid/hvostid.git
 cd hvostid
 cp .env.example .env
-docker compose up --build
+docker compose pull --ignore-buildable
+for service in minio api-gateway auth-service listing-service passport-service matching-service frontend; do
+  docker compose build "$service"
+done
+docker compose up -d --wait --wait-timeout 300
 ```
 
 Each backend service builds from source via a multi-stage Dockerfile
-(BuildKit cache mount reuses Gradle dependencies between rebuilds), so
+(a shared immutable dependency layer is reused between rebuilds), so
 no local `./gradlew build` is required first.
 
 Once everything is healthy:
@@ -191,6 +195,9 @@ Seed runs only when the `demo` Spring profile is active. Production
 deploys (`SPRING_PROFILES_ACTIVE=prod`) do not load `db/seed` migrations.
 The catalog, listing details, seller editor and recommendations are available in
 the SPA. Seeded listings appear after `./scripts/seed-all.sh`.
+
+The seed script requires Python 3; set `PYTHON_BIN` if its executable has another
+name. All manifest fixtures are validated before object uploads.
 
 ## Production demo
 

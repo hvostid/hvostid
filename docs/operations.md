@@ -27,7 +27,9 @@ For TLS, set `PUBLIC_HOST` to a hostname whose DNS points at the server, then ad
 `-f docker-compose.tls.yml` to the production command. Caddy obtains and renews the
 certificate and retains it in its own volume. Port 80/443 must be reachable for
 certificate issuance. Nginx trusts the edge at 172.30.44.11; gateway trusts frontend
-at 172.30.44.10. If changing subnet/IPs, change the explicit Nginx trust rule too.
+at 172.30.44.10. Dynamic containers use `HVOSTID_DYNAMIC_RANGE=172.30.44.128/25`, reserving
+those trusted static addresses. If changing subnet/IPs, change the DHCP range
+and explicit Nginx trust rule too.
 SMTP is disabled by default; enable it after configuring a working provider and a
 correct `AUTH_PUBLIC_BASE_URL`. Set `AUTH_MAIL_ENCRYPTION_KEY` to a randomly generated
 32-byte base64 key; the durable mail outbox stores encrypted payloads. Back up the

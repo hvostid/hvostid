@@ -68,7 +68,11 @@ else
 fi
 
 echo "==> Starting stack (build)..."
-docker compose up -d --build
+docker compose pull --ignore-buildable
+for service in minio api-gateway auth-service listing-service passport-service matching-service frontend; do
+  docker compose build "$service"
+done
+docker compose up -d --wait --wait-timeout 300
 
 echo "==> Waiting for core services to become healthy..."
 wait_for_url() {

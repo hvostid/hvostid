@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SEED_DATA_DIR="${ROOT_DIR}/scripts/seed-data"
 MANIFEST="${SEED_DATA_DIR}/manifest.json"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY:-minioadmin}"
 MINIO_SECRET_KEY="${MINIO_SECRET_KEY:-minioadmin}"
@@ -73,20 +74,20 @@ if ! curl -sf "${health_url}" >/dev/null 2>&1 \
     exit 1
 fi
 
+manifest_entries="$("${PYTHON_BIN}" -c "import json,sys; [print(f\"{x['bucket']}\t{x['objectKey']}\t{x['localFile']}\") for x in json.load(sys.stdin)]" < "${MANIFEST}")"
+manifest_entries="${manifest_entries//$'\r'/}"
+[[ -n "$manifest_entries" ]] || { echo "Error: seed manifest is empty" >&2; exit 1; }
+# Validate the complete fixture set before uploading any object.
+while IFS=$'\t' read -r bucket object_key local_file; do
+    [[ -f "${SEED_DATA_DIR}/${local_file}" ]] || { echo "Error: missing seed file ${SEED_DATA_DIR}/${local_file}" >&2; exit 1; }
+done <<< "$manifest_entries"
+
 count=0
-# One python invocation extracts every (bucket, objectKey, localFile) tuple and
-# emits them tab-separated, so we don't spawn three python processes per entry.
 while IFS=$'\t' read -r bucket object_key local_file; do
     source_path="$(mc_path_for_local_file "${local_file}")"
-
-    if [[ "${USE_DOCKER_MC}" == false ]] && [[ ! -f "${SEED_DATA_DIR}/${local_file}" ]]; then
-        echo "Error: missing seed file ${SEED_DATA_DIR}/${local_file}" >&2
-        exit 1
-    fi
-
     run_mc mb --ignore-existing "hvostid_seed/${bucket}" >/dev/null
     run_mc cp "${source_path}" "hvostid_seed/${bucket}/${object_key}"
     count=$((count + 1))
-done < <(python3 -c "import json; [print(f\"{x['bucket']}\t{x['objectKey']}\t{x['localFile']}\") for x in json.load(open('${MANIFEST}'))]")
+done <<< "$manifest_entries"
 
 echo "Uploaded ${count} objects to MinIO."

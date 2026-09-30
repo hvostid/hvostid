@@ -112,7 +112,7 @@ flowchart TB
 
 **Требования**
 
-- Docker 24+ и Docker Compose v2
+- Docker 24+ и Docker Compose v2.24.4+
 - Опционально для локальной разработки в IDE: JDK 25, Node.js 24+
 
 **Запустить всю платформу**
@@ -121,12 +121,16 @@ flowchart TB
 git clone https://github.com/hvostid/hvostid.git
 cd hvostid
 cp .env.example .env
-docker compose up --build
+docker compose pull --ignore-buildable
+for service in minio api-gateway auth-service listing-service passport-service matching-service frontend; do
+  docker compose build "$service"
+done
+docker compose up -d --wait --wait-timeout 300
 ```
 
 Каждый бэкенд-сервис собирается из исходников через многоступенчатый
-Dockerfile (BuildKit cache mount переиспользует Gradle-зависимости
-между пересборками), поэтому локальный `./gradlew build` не нужен.
+Dockerfile (общий неизменяемый слой зависимостей переиспользуется при
+пересборках), поэтому локальный `./gradlew build` не нужен.
 
 Когда всё стало healthy:
 
@@ -193,6 +197,9 @@ Seed загружается только при профиле `demo`. В produc
 (`SPRING_PROFILES_ACTIVE=prod`) миграции из `db/seed` не подключаются.
 Каталог, карточки объявлений, редактор продавца и рекомендации доступны
 во фронтенде после `./scripts/seed-all.sh`.
+
+Скрипту сида нужен Python 3; путь к интерпретатору можно задать через `PYTHON_BIN`.
+Перед загрузкой объектов проверяются все файлы из manifest.
 
 ## Production demo
 
