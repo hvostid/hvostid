@@ -33,10 +33,6 @@ on:
             - "docker/minio-test/**"
             - ".github/workflows/security-scan.yml"
 
-concurrency:
-    group: security-scan-${{ github.ref }}
-    cancel-in-progress: false
-
 permissions:
     contents: read
     security-events: write
@@ -44,6 +40,9 @@ permissions:
 
 jobs:
     minio-security:
+        concurrency:
+            group: minio-security-${{ github.ref }}
+            cancel-in-progress: true
         runs-on: ubuntu-latest
         timeout-minutes: 40
         permissions:
@@ -115,6 +114,11 @@ jobs:
                     if-no-files-found: warn
 
     dependency-check:
+        # Let a cold NVD import finish and save its cache without holding up
+        # the independent storage audit on newer commits.
+        concurrency:
+            group: security-scan-${{ github.ref }}
+            cancel-in-progress: false
         runs-on: ubuntu-latest
         # Cold NVD imports have exceeded 45 minutes on hosted runners.
         timeout-minutes: 90
