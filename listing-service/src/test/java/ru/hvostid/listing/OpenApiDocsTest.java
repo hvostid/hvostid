@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
-import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
 import ru.hvostid.common.testfixtures.OpenApiDocsExporter;
 
 /**
@@ -19,7 +18,7 @@ import ru.hvostid.common.testfixtures.OpenApiDocsExporter;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-class OpenApiDocsTest extends AbstractPostgresContainerTest {
+class OpenApiDocsTest extends ListingIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 

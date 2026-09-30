@@ -31,16 +31,12 @@ public class PassportServiceClient {
                     .retrieve()
                     .body(PassportApiResponse.class);
             if (response == null) {
-                log.warn("Passport service returned empty body for id={} requestId={}", passportId, requestId);
-                return Optional.empty();
+                throw new RestClientException("Passport service returned an empty body");
             }
             return Optional.of(new PassportSnapshot(
                     response.species(), response.breed(), response.temperament(), response.specialNeeds()));
         } catch (HttpClientErrorException.NotFound _) {
             log.warn("Passport not found id={} requestId={}", passportId, requestId);
-            return Optional.empty();
-        } catch (RestClientException ex) {
-            log.warn("Passport service unavailable for id={} requestId={}", passportId, requestId, ex);
             return Optional.empty();
         }
     }

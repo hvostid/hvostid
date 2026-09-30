@@ -22,6 +22,16 @@ import ru.hvostid.common.exception.UnauthorizedException;
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ProblemDetails> handleDataConflict(HttpServletRequest request) {
+        return ProblemDetailsFactory.problem(
+                HttpStatus.CONFLICT,
+                ConflictException.PROBLEM_TYPE,
+                "Account conflict",
+                "Account data conflicts with an existing record",
+                request);
+    }
+
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ResponseEntity<ProblemDetails> handleEmailAlreadyExists(
             EmailAlreadyExistsException ex, HttpServletRequest request) {

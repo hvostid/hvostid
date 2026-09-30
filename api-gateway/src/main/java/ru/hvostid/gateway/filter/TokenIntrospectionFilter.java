@@ -25,6 +25,7 @@ import ru.hvostid.common.contract.auth.IntrospectResponse;
 import ru.hvostid.common.dto.ErrorResponse;
 import ru.hvostid.common.http.SecurityHeaders;
 import ru.hvostid.gateway.client.IntrospectionClient;
+import ru.hvostid.gateway.client.IntrospectionUnavailableException;
 import ru.hvostid.gateway.config.AuthProperties;
 import tools.jackson.databind.ObjectMapper;
 
@@ -36,9 +37,9 @@ import tools.jackson.databind.ObjectMapper;
  * 2. Calls Auth Service introspection endpoint via {@link IntrospectionClient}
  * 3. On success (active=true): injects {@link SecurityHeaders#USER_ID}
  * and {@link SecurityHeaders#USER_ROLES} into the request
- * 4. On failure (missing/invalid token or introspection error): returns 401
+ * 4. Missing/inactive credentials return 401; introspection outages return 503
  * <p>
- * Public paths (login, register, actuator) bypass this filter entirely.
+ * Public paths bypass introspection after IdentityHeaderFilter removes untrusted identity.
  * <p>
  * Ordered after {@link RequestIdFilter} so that Request ID is available in logs.
  */
@@ -145,7 +146,13 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
 
         String token = authHeader.substring(BEARER_PREFIX.length());
 
-        Optional<IntrospectResponse> result = introspectionClient.introspect(token);
+        Optional<IntrospectResponse> result;
+        try {
+            result = introspectionClient.introspect(token);
+        } catch (IntrospectionUnavailableException ex) {
+            writeError(request, response, HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+            return;
+        }
 
         if (result.isEmpty() || !result.get().active()) {
             log.debug("Token introspection failed or inactive for {}", request.getRequestURI());
@@ -166,12 +173,17 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
 
     private void writeUnauthorized(HttpServletRequest request, HttpServletResponse response, String message)
             throws IOException {
-        response.setStatus(HttpStatus.UNAUTHORIZED.value());
+        writeError(request, response, HttpStatus.UNAUTHORIZED, message);
+    }
+
+    private void writeError(HttpServletRequest request, HttpServletResponse response, HttpStatus status, String message)
+            throws IOException {
+        response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
         ErrorResponse error = new ErrorResponse(
-                HttpStatus.UNAUTHORIZED.value(),
-                HttpStatus.UNAUTHORIZED.getReasonPhrase(),
+                status.value(),
+                status.getReasonPhrase(),
                 message,
                 request.getRequestURI(),
                 request.getHeader(REQUEST_ID));

@@ -1,0 +1,19 @@
+services:
+    frontend:
+        ports: !reset []
+    edge:
+        image: caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+        ports: ["80:80", "443:443", "443:443/udp"]
+        environment:
+            PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST with DNS pointing at this host}
+        volumes:
+            - ./docker/tls/Caddyfile:/etc/caddy/Caddyfile:ro
+            - caddy-data:/data
+            - caddy-config:/config
+        depends_on: [frontend]
+        networks:
+            default:
+                ipv4_address: 172.30.44.11
+volumes:
+    caddy-data:
+    caddy-config:

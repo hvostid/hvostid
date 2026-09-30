@@ -62,7 +62,7 @@ flowchart TB
     GW --> PASS
     GW --> MATCH
     GW -. token introspect .-> AUTH
-    LIST -->|enrich with passport| PASS
+    LIST -->|validate ownership and reserve references| PASS
     MATCH -->|read listings| LIST
     MATCH -->|read passports| PASS
     AUTH --> PG
@@ -93,11 +93,11 @@ flowchart TB
 - Gradle multi-module (Kotlin DSL) с version catalog
 - PostgreSQL 18, миграции Flyway
 - MinIO (S3-совместимый)
-- Spotless + palantir-java-format, JUnit 5, Testcontainers
+- Spotless + palantir-java-format, JUnit 6, Testcontainers
 
 **Фронтенд**
 
-- React 18, Vite, React Router 6
+- React 19, Vite, React Router 7
 - Tailwind CSS, Axios
 - ESLint 9 (flat config) + Prettier
 
@@ -112,7 +112,7 @@ flowchart TB
 
 **Требования**
 
-- Docker 24+ и Docker Compose v2
+- Docker 24+ и Docker Compose v2.24.4+
 - Опционально для локальной разработки в IDE: JDK 25, Node.js 24+
 
 **Запустить всю платформу**
@@ -121,12 +121,16 @@ flowchart TB
 git clone https://github.com/hvostid/hvostid.git
 cd hvostid
 cp .env.example .env
-docker compose up --build
+docker compose pull --ignore-buildable
+for service in minio api-gateway auth-service listing-service passport-service matching-service frontend; do
+  docker compose build "$service"
+done
+docker compose up -d --wait --wait-timeout 300
 ```
 
 Каждый бэкенд-сервис собирается из исходников через многоступенчатый
-Dockerfile (BuildKit cache mount переиспользует Gradle-зависимости
-между пересборками), поэтому локальный `./gradlew build` не нужен.
+Dockerfile (общий неизменяемый слой зависимостей переиспользуется при
+пересборках), поэтому локальный `./gradlew build` не нужен.
 
 Когда всё стало healthy:
 
@@ -140,7 +144,11 @@ Dockerfile (BuildKit cache mount переиспользует Gradle-завис�
 | Passport Swagger UI | http://localhost:8083/swagger-ui.html                  |
 | Matching Swagger UI | http://localhost:8084/swagger-ui.html                  |
 | PostgreSQL          | localhost:5432 (4 базы данных создаются автоматически) |
-| MinIO Console       | http://localhost:9001 (`minioadmin` по умолчанию)      |
+| MinIO S3 API        | http://localhost:9000                                  |
+
+Хранилище использует исправленную standalone-сборку MinIO со статическими ключами S3.
+Браузерная консоль, STS, репликация и S3 Select отключены. Ограничения сборки описаны
+в [документации безопасности хранилища](docker/minio/README.md).
 
 **Демо-данные.** Загрузите реалистичный набор данных (пользователи,
 объявления, паспорта, анкеты, фото в MinIO):
@@ -191,8 +199,11 @@ curl -s http://localhost:8080/api/v1/listings \
 
 Seed загружается только при профиле `demo`. В production
 (`SPRING_PROFILES_ACTIVE=prod`) миграции из `db/seed` не подключаются.
-Страница каталога на фронтенде - в T30; объявления доступны через API
-сразу после `./scripts/seed-all.sh`.
+Каталог, карточки объявлений, редактор продавца и рекомендации доступны
+во фронтенде после `./scripts/seed-all.sh`.
+
+Скрипту сида нужен Python 3; путь к интерпретатору можно задать через `PYTHON_BIN`.
+Перед загрузкой объектов проверяются все файлы из manifest.
 
 ## Production demo
 
@@ -205,13 +216,13 @@ Seed загружается только при профиле `demo`. В produc
 
 ```bash
 cp .env.prod.example .env.prod
-# Заполните .env.prod: DB_PASSWORD, MINIO_ACCESS_KEY, MINIO_SECRET_KEY,
+# Заполните .env.prod: DB_PASSWORD и каждый *_DB_PASSWORD, MINIO_ACCESS_KEY, MINIO_SECRET_KEY,
 # IMAGE_TAG (например latest или short SHA с main), GHCR_OWNER.
 
 docker login ghcr.io   # если образы приватные
 
-docker compose --env-file .env.prod -f docker-compose.prod.yml pull
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull --ignore-buildable
+docker compose --env-file .env.prod -f docker-compose.prod.yml up --build -d --wait
 ```
 
 | Что        | URL                      |
@@ -350,36 +361,30 @@ npm install --prefix frontend  # eslint + prettier + lint-staged для pre-comm
 
 ## CI/CD
 
-Три workflow GitHub Actions лежат в [`.github/workflows`](./.github/workflows):
+- [Проверки PR](./.github/workflows/ci-pr.yml): форматирование, тесты Gradle и
+  порог покрытия критичных классов; lint, Vitest, Playwright, сборка и npm audit
+  фронтенда; API/media smoke полного Compose и изолированное восстановление.
+- [Релиз main](./.github/workflows/cd-main.yml): публикация образов с SHA-тегом,
+  Trivy и реальный сценарий регистрации, объявления и документов. Тег
+  `latest` получает только успешно проверенный кандидат.
+- [Безопасность зависимостей](./.github/workflows/security-scan.yml): OSV для
+  runtime-зависимостей и OWASP/NVD на PR зависимостей, изменениях main и ежедневно.
+  Отсутствующий NVD API key завершает проверку ошибкой, а не зелёным результатом.
 
-- [`ci-pr.yml`](./.github/workflows/ci-pr.yml) запускается на каждый
-  pull request: `./gradlew check` (Spotless, JUnit, JaCoCo),
-  опциональный сканер SonarQube, сборка Docker-образов бэкенда и
-  фронтенда.
-- [`cd-main.yml`](./.github/workflows/cd-main.yml) запускается при
-  мерже в `main`: пересобирает и пушит образы каждого сервиса в
-  GitHub Container Registry (параллельная matrix), сканирует каждый
-  образ через Trivy (результаты SARIF видны во вкладке Security при
-  включённом GHAS, JSON-отчёты загружаются в DefectDojo, если он
-  настроен), затем запускает smoke-тест, поднимающий весь стек через
-  Compose и ожидающий 200 от `/actuator/health` каждого сервиса.
-- [`security-scan.yml`](./.github/workflows/security-scan.yml)
-  запускается ежедневно и при изменении файлов зависимостей в `main`:
-  `./gradlew dependencyCheckAggregate` строит отчёт OWASP Dependency
-  Check; SARIF уезжает в GitHub Code Scanning, XML-отчёт
-  переотправляется в DefectDojo, если он настроен.
-
-Теги образов: `ghcr.io/hvostid/hvostid-<service>:<short-sha>` и
-`latest`.
+Production Compose использует отдельные учётные записи БД и MinIO, собранный
+из закреплённых исходников. [Руководство эксплуатации](./docs/operations.md)
+описывает миграцию существующих БД, резервирование и восстановление, откат по SHA,
+опциональный TLS, Prometheus, Grafana и OTLP. Для публичного TLS и доставки
+уведомлений нужна конфигурация конкретного развёртывания.
 
 ## Тестирование
 
-- **Unit-тесты** -- JUnit 5 + Mockito + Spring `WebMvcTest`. Запуск
+- **Unit-тесты** -- JUnit 6 + Mockito + Spring `WebMvcTest`. Запуск
   через `./gradlew test` или `./gradlew :auth-service:test`.
 - **Интеграционные тесты** -- Testcontainers поднимает контейнер
-  PostgreSQL на тестовый класс через общий
-  `common.testfixtures.AbstractPostgresContainerTest`. Отслеживается в
-  T22.
+  PostgreSQL общий для тестовой JVM через
+  `common.testfixtures.AbstractPostgresContainerTest`. Объектное хранилище
+  проверяется на MinIO, собранном из закреплённого исходного кода.
 - **Покрытие** -- JaCoCo XML-отчёты в
   `<module>/build/reports/jacoco/test/jacocoTestReport.xml`,
   собираются SonarQube.

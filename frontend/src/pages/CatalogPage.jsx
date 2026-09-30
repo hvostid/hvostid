@@ -1,3 +1,4 @@
+import { CATALOG_SPECIES } from '../constants/petSpecies';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../api/client';
@@ -15,14 +16,7 @@ const SORT_OPTIONS = [
     { value: 'price_desc', label: 'Price: high to low' },
 ];
 
-const SPECIES_OPTIONS = [
-    { value: '', label: 'Any species' },
-    { value: 'dog', label: 'Dog' },
-    { value: 'cat', label: 'Cat' },
-    { value: 'bird', label: 'Bird' },
-    { value: 'rabbit', label: 'Rabbit' },
-    { value: 'other', label: 'Other' },
-];
+const SPECIES_OPTIONS = CATALOG_SPECIES;
 
 // Mirror filter state in the URL so links are shareable. Empty values are
 // stripped so the query string stays clean (`?` shows only what the user set).
@@ -58,92 +52,66 @@ export default function CatalogPage() {
     // mirrored in the URL. `searchInput` is the uncontrolled value of the
     // search box: debouncing pushes it into `filters.q` after 300 ms so
     // every keystroke does not fire a request.
-    const [filters, setFilters] = useState(() => readInitialFilters(searchParams));
+    const filters = useMemo(() => readInitialFilters(searchParams), [searchParams]);
+    const parsedPage = Number(searchParams.get('page') || 0);
+    const page = Number.isSafeInteger(parsedPage) && parsedPage >= 0 ? parsedPage : 0;
     const [searchInput, setSearchInput] = useState(filters.q);
-    const [page, setPage] = useState(() => {
-        const parsed = parseInt(searchParams.get('page') ?? '0', 10);
-        return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
-    });
-
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Debounce the search field. Each keystroke restarts a 300 ms timer; only
-    // the last value reaches `filters.q`, and only that change triggers a fetch.
     useEffect(() => {
+        // Browser navigation owns the query; typing remains local until the debounce completes.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSearchInput(filters.q);
+    }, [filters.q]);
+
+    useEffect(() => {
+        if (searchInput === filters.q) return undefined;
         const timer = setTimeout(() => {
-            setFilters((prev) => (prev.q === searchInput ? prev : { ...prev, q: searchInput }));
-            setPage((prev) => (prev === 0 ? prev : 0));
+            setSearchParams((previous) =>
+                paramsFromFilters({ ...readInitialFilters(previous), q: searchInput }, 0)
+            );
         }, SEARCH_DEBOUNCE_MS);
         return () => clearTimeout(timer);
-    }, [searchInput]);
+    }, [searchInput, filters.q, setSearchParams]);
 
-    // Keep URL in sync with filters + page. Using `replace` so back-button
-    // history is not flooded with every filter tweak.
-    useEffect(() => {
-        const params = paramsFromFilters(filters, page);
-        setSearchParams(params, { replace: true });
-    }, [filters, page, setSearchParams]);
-
-    // Fetch on every filter / page change. The `loading` flag is the visible
-    // state of "is a request in flight"; flipping it inside the effect is
-    // the natural place since the request starts here. The
-    // react-hooks/set-state-in-effect rule fires on the synchronous flip,
-    // but the alternative patterns (useTransition, suspense) need a richer
-    // data layer than this page warrants right now.
     useEffect(() => {
         const controller = new AbortController();
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setLoading(true);
         setError(null);
-
-        const params = paramsFromFilters(filters, 0);
-        params.set('page', String(page));
+        const params = paramsFromFilters(filters, page);
         params.set('size', String(PAGE_SIZE));
-
-        api.get(`/listings?${params.toString()}`, { signal: controller.signal })
-            .then((res) => setData(res.data))
+        api.get(`/listings?${params}`, { signal: controller.signal })
+            .then((res) => {
+                if (!controller.signal.aborted) setData(res.data);
+            })
             .catch((err) => {
-                if (err.name === 'CanceledError') return;
-                // problem+json `detail` may also arrive as an object/array (e.g. when the
-                // server bundles field errors). Always coerce to a string so React never
-                // tries to render a raw object.
-                const raw = err.response?.data?.detail ?? err.message;
-                const message = typeof raw === 'string' && raw ? raw : 'Failed to load listings';
-                setError(message);
+                if (controller.signal.aborted) return;
+                const detail = err.response?.data?.detail;
+                setError(typeof detail === 'string' ? detail : 'Failed to load listings');
                 setData(null);
             })
             .finally(() => {
-                // Skip the flip when the request was aborted by a follow-up filter change:
-                // otherwise the previous request's `finally` clears the loading state while
-                // the new one is still in flight, causing a spinner flicker.
                 if (!controller.signal.aborted) setLoading(false);
             });
-
         return () => controller.abort();
     }, [filters, page]);
 
-    const updateFilter = useCallback((key, value) => {
-        setFilters((prev) => (prev[key] === value ? prev : { ...prev, [key]: value }));
-        setPage(0);
-    }, []);
-
-    const resetFilters = useCallback(() => {
+    const setPage = (next) => setSearchParams(paramsFromFilters(filters, next));
+    const updateFilter = useCallback(
+        (key, value) => {
+            setSearchParams((previous) =>
+                paramsFromFilters({ ...readInitialFilters(previous), [key]: value }, 0)
+            );
+        },
+        [setSearchParams]
+    );
+    const resetFilters = () => {
         setSearchInput('');
-        setFilters({
-            q: '',
-            species: '',
-            breed: '',
-            ageMin: '',
-            ageMax: '',
-            priceMin: '',
-            priceMax: '',
-            city: '',
-            sort: 'created_desc',
-        });
-        setPage(0);
-    }, []);
+        setSearchParams({});
+    };
 
     const listings = data?.content ?? [];
     const totalPages = data?.totalPages ?? 0;
@@ -299,7 +267,6 @@ export default function CatalogPage() {
                                 >
                                     <ListingCard listing={listing} />
 
-                                    {/* Лёгкое затемнение при наведении */}
                                     <div
                                         className={`
                                             absolute inset-0 bg-black/10 rounded-lg flex items-center justify-center transition-all duration-300 ease-out opacity-0 group-hover:opacity-70 pointer-events-none

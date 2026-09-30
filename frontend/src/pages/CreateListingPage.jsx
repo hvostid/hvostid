@@ -1,310 +1,345 @@
-// pages/CreateListingPage.jsx
-import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { createListing, getMyListings } from '../api/listings';
-import { getAllMyPassports, getPassport } from '../api/passports';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+    createListing,
+    getOwnedListings,
+    getListingDraft,
+    saveListingDraft,
+    deleteListingDraft,
+} from '../api/listings';
+import { getOwnedPassports } from '../api/passports';
+import { useAuth } from '../context/useAuth';
 import ListingForm from '../components/ListingForm';
-import LoadingSpinner from '../components/LoadingSpinner';
+import { canonicalPassportId } from '../utils/passportId';
+import { extractDetail } from '../utils/format';
+
+const empty = {
+    title: '',
+    description: '',
+    species: 'CAT',
+    breed: '',
+    age: '',
+    price: '',
+    city: '',
+    passportId: '',
+};
+const toRequest = (data) => ({
+    title: data.title,
+    description: data.description,
+    species: data.species,
+    breed: data.breed,
+    city: data.city,
+    age: data.age === '' || data.age == null ? null : Number(data.age),
+    price: data.price === '' || data.price == null ? null : Number(data.price),
+    passportId: canonicalPassportId(data.passportId),
+});
 
 export default function CreateListingPage() {
+    const { user } = useAuth();
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    const passportIdFromUrl = searchParams.get('passportId');
-
-    const [step, setStep] = useState('form');
-    const [formData, setFormData] = useState(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState('');
-    const [preloadedPassport, setPreloadedPassport] = useState(null);
-    const [loadingPreload, setLoadingPreload] = useState(false);
-
+    const location = useLocation();
+    const [warning, setWarning] = useState(location.state?.warning || '');
+    const [params] = useSearchParams();
+    const activeKey = `listing-form:${user.id}`;
+    const [formId] = useState(() => {
+        const supplied = params.get('formId');
+        const existing = sessionStorage.getItem(activeKey);
+        const id = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            supplied || existing || ''
+        )
+            ? supplied || existing
+            : crypto.randomUUID();
+        sessionStorage.setItem(activeKey, id);
+        return id;
+    });
+    const storageKey = `${activeKey}:${formId}`;
+    const [data, setData] = useState(null);
     const [passports, setPassports] = useState([]);
-    const [loadingPassports, setLoadingPassports] = useState(false);
-    const [selectedPassportId, setSelectedPassportId] = useState('');
-    const [listings, setListings] = useState([]);
+    const [inUse, setInUse] = useState(() => new Set());
+    const [step, setStep] = useState('form');
+    const [error, setError] = useState('');
+    const [saveState, setSaveState] = useState('Loading saved draft...');
+    const [busy, setBusy] = useState(false);
+    const [conflict, setConflict] = useState(false);
+    const [formRevision, setFormRevision] = useState(0);
+    const [loadAttempt, setLoadAttempt] = useState(0);
+    const versionRef = useRef(0);
+    const latestRef = useRef(null);
+    const queueRef = useRef(Promise.resolve());
+    const loadedRef = useRef(false);
+    const publishedRef = useRef(false);
+    const conflictRef = useRef(false);
 
-    // Восстановление данных формы после возврата с CreatePassportPage
+    const remember = useCallback(
+        (value) => {
+            latestRef.current = value;
+            sessionStorage.setItem(
+                storageKey,
+                JSON.stringify({ data: value, version: versionRef.current })
+            );
+            setData(value);
+            setSaveState('Unsaved changes');
+        },
+        [storageKey]
+    );
+
     useEffect(() => {
-        const savedData = sessionStorage.getItem('pendingListingData');
-        if (savedData && !formData) {
-            const parsedData = JSON.parse(savedData);
-            setFormData(parsedData);
-            sessionStorage.removeItem('pendingListingData');
-        }
-    }, []);
-
-    // Загрузка паспортов и объявлений (для проверки используемых паспортов)
-    const loadPassportsAndListings = async () => {
-        setLoadingPassports(true);
-        try {
-            const [passportsData, listingsData] = await Promise.all([
-                getAllMyPassports(0, 100),
-                getMyListings(),
-            ]);
-            setPassports(passportsData.content || []);
-            setListings(listingsData.content || []);
-        } catch (err) {
-            console.error('Failed to load data:', err);
-            setPassports([]);
-            setListings([]);
-        } finally {
-            setLoadingPassports(false);
-        }
-    };
-
-    // Проверка, используется ли паспорт в каком-либо объявлении
-    const isPassportInUse = (passportId) => {
-        return listings.some((l) => String(l.passportId) === String(passportId));
-    };
-
-    // Если есть passportId из URL (создали паспорт отдельно), загружаем его
-    useEffect(() => {
-        if (passportIdFromUrl) {
-            const loadPreloadedPassport = async () => {
-                setLoadingPreload(true);
+        const controller = new AbortController();
+        const load = async () => {
+            try {
+                const [draft, owned, listings] = await Promise.all([
+                    getListingDraft(formId, controller.signal),
+                    getOwnedPassports(controller.signal),
+                    getOwnedListings(null, controller.signal),
+                ]);
+                if (controller.signal.aborted) return;
+                let local;
                 try {
-                    const passport = await getPassport(passportIdFromUrl);
-                    setPreloadedPassport(passport);
-                    setSelectedPassportId(passportIdFromUrl);
-
-                    setFormData({
-                        title: '',
-                        description: '',
-                        species: passport.species || '',
-                        breed: passport.breed || '',
-                        age: '',
-                        price: '',
-                        city: '',
-                    });
-
-                    setStep('passportChoice');
-                    await loadPassportsAndListings();
-                } catch (err) {
-                    console.error('Failed to load preloaded passport:', err);
-                    setError('Не удалось загрузить созданный паспорт');
-                } finally {
-                    setLoadingPreload(false);
+                    local = JSON.parse(sessionStorage.getItem(storageKey));
+                } catch {
+                    local = null;
                 }
-            };
-            loadPreloadedPassport();
-        }
-    }, [passportIdFromUrl]);
+                const savedVersion = draft?.version || 0;
+                const isConflict = local && local.version !== savedVersion;
+                versionRef.current = isConflict ? local.version : savedVersion;
+                conflictRef.current = Boolean(isConflict);
+                setConflict(Boolean(isConflict));
+                setError(
+                    isConflict
+                        ? 'This form changed in another tab. Your unsaved fields are preserved; reload the saved version before continuing.'
+                        : ''
+                );
+                const restored = {
+                    ...empty,
+                    ...(local?.data || draft),
+                    passportId:
+                        params.get('passportId') ||
+                        local?.data?.passportId ||
+                        draft?.passportId ||
+                        '',
+                };
+                latestRef.current = restored;
+                setData(restored);
+                setPassports(owned);
+                setInUse(
+                    new Set(
+                        listings
+                            .filter((item) => !['ARCHIVED', 'SOLD'].includes(item.status))
+                            .map((item) => canonicalPassportId(item.passportId))
+                    )
+                );
+                loadedRef.current = true;
+                setSaveState(local ? 'Unsaved changes' : 'Saved');
+            } catch (failure) {
+                if (!controller.signal.aborted)
+                    setError(
+                        extractDetail(failure, 'Unable to load the draft. Retry before editing.')
+                    );
+            }
+        };
+        void load();
+        return () => controller.abort();
+    }, [formId, storageKey, params, loadAttempt]);
 
-    // Когда пользователь заполнил форму
-    const handleFormSubmit = async (data) => {
-        setFormData(data);
-        await loadPassportsAndListings();
-        setStep('passportChoice');
-    };
+    const persist = useCallback(
+        (value) => {
+            queueRef.current = queueRef.current
+                .catch(() => {})
+                .then(async () => {
+                    if (conflictRef.current)
+                        throw new Error('Reload the saved version before continuing.');
+                    if (publishedRef.current) return;
+                    setSaveState('Saving...');
+                    try {
+                        const saved = await saveListingDraft(formId, {
+                            ...toRequest(value),
+                            version: versionRef.current,
+                        });
+                        versionRef.current = saved.version;
+                        sessionStorage.setItem(
+                            storageKey,
+                            JSON.stringify({ data: latestRef.current, version: saved.version })
+                        );
+                        setSaveState(latestRef.current === value ? 'Saved' : 'Unsaved changes');
+                    } catch (failure) {
+                        if (failure.response?.status === 409) {
+                            conflictRef.current = true;
+                            setConflict(true);
+                        }
+                        setSaveState('Not saved');
+                        setError(
+                            extractDetail(
+                                failure,
+                                'Draft could not be saved. Your changes remain in this tab.'
+                            )
+                        );
+                        throw failure;
+                    }
+                });
+            return queueRef.current;
+        },
+        [formId, storageKey]
+    );
 
-    // Использовать существующий паспорт
-    const handleUseExistingPassport = async () => {
-        if (!selectedPassportId) {
-            setError('Пожалуйста, выберите паспорт');
-            return;
-        }
+    useEffect(() => {
+        if (!data || !loadedRef.current || conflict) return undefined;
+        const timer = setTimeout(() => {
+            void persist(data).catch(() => {});
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [data, persist, conflict]);
 
-        // Проверка, не используется ли уже паспорт
-        if (isPassportInUse(selectedPassportId)) {
-            setError('Этот паспорт уже используется в другом объявлении');
-            return;
-        }
-
-        setIsSubmitting(true);
-        setError('');
-
+    const continueToPassport = async (value) => {
+        remember({ ...latestRef.current, ...value });
+        setBusy(true);
         try {
-            const listingData = {
-                title: formData.title.trim(),
-                description: formData.description.trim(),
-                species: formData.species,
-                city: formData.city.trim(),
-                passportId: String(selectedPassportId),
-            };
-
-            if (formData.breed?.trim()) {
-                listingData.breed = formData.breed.trim();
-            }
-
-            if (formData.age && String(formData.age).trim()) {
-                const ageNum = parseInt(formData.age, 10);
-                if (!isNaN(ageNum) && ageNum >= 0) {
-                    listingData.age = ageNum;
-                }
-            }
-
-            if (formData.price && String(formData.price).trim()) {
-                const priceNum = parseInt(formData.price, 10);
-                if (!isNaN(priceNum) && priceNum >= 0) {
-                    listingData.price = priceNum;
-                }
-            }
-
-            await createListing(listingData);
-            navigate('/my-listings');
-        } catch (err) {
-            console.error('Failed to create listing:', err);
-            if (err.response?.status === 409) {
-                setError('Этот паспорт уже используется в другом объявлении');
-            } else {
-                setError(err.response?.data?.message || 'Не удалось создать объявление');
-            }
+            await persist(latestRef.current);
+            setStep('passport');
+            setError('');
+        } catch {
+            /* The form remains editable and the save error is shown. */
         } finally {
-            setIsSubmitting(false);
+            setBusy(false);
         }
     };
-
-    // Создать новый паспорт — переходим на отдельную страницу
-    const handleCreateNewPassport = () => {
-        if (formData) {
-            sessionStorage.setItem('pendingListingData', JSON.stringify(formData));
-        }
-        navigate('/passports/new');
-    };
-
-    const handleBackToForm = () => {
-        setStep('form');
+    const create = async () => {
+        if (!data.passportId || conflict) return;
+        setBusy(true);
         setError('');
-        setSelectedPassportId('');
+        try {
+            await persist(latestRef.current);
+            publishedRef.current = true;
+            await createListing(toRequest(latestRef.current));
+            await queueRef.current.catch(() => {});
+            sessionStorage.removeItem(storageKey);
+            sessionStorage.removeItem(activeKey);
+            // Creating the listing succeeded even if cleanup needs a retry later.
+            await deleteListingDraft(formId, versionRef.current).catch(() => {});
+            navigate('/my-listings');
+        } catch (failure) {
+            publishedRef.current = false;
+            setError(extractDetail(failure, 'Unable to create the listing.'));
+        } finally {
+            setBusy(false);
+        }
     };
-
-    if (loadingPreload) {
-        return (
-            <div className="flex justify-center py-12">
-                <LoadingSpinner size="lg" />
-            </div>
-        );
-    }
-
-    if (step === 'form') {
-        return (
-            <div className="max-w-2xl mx-auto">
-                <h1 className="text-2xl font-bold text-gray-900 mb-6">Создание объявления</h1>
-
-                {error && (
-                    <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
-                        {error}
-                    </div>
-                )}
-
-                <div className="bg-white rounded-lg shadow p-6">
-                    <ListingForm
-                        onSubmit={handleFormSubmit}
-                        isSubmitting={isSubmitting}
-                        submitLabel="Далее →"
-                    />
-                </div>
-            </div>
-        );
-    }
+    const newPassport = async () => {
+        setBusy(true);
+        try {
+            await persist(latestRef.current);
+            navigate(`/passports/new?from=listing&formId=${formId}`);
+        } catch {
+            /* Save failure is already visible. */
+        } finally {
+            setBusy(false);
+        }
+    };
+    const reloadSaved = () => {
+        sessionStorage.removeItem(storageKey);
+        conflictRef.current = false;
+        setConflict(false);
+        setData(null);
+        setFormRevision((n) => n + 1);
+        setLoadAttempt((n) => n + 1);
+    };
 
     return (
         <div className="max-w-2xl mx-auto">
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">Выбор паспорта</h1>
-            <p className="text-gray-600 mb-4">
-                У питомца уже есть паспорт? Выберите его из списка или создайте новый.
-            </p>
-
-            {preloadedPassport && (
-                <div className="mb-6 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md">
-                    <p className="font-medium">✅ Паспорт создан!</p>
-                    <p className="text-sm mt-1">
-                        {preloadedPassport.name || 'Без имени'} — {preloadedPassport.species}
-                        {preloadedPassport.breed ? ` (${preloadedPassport.breed})` : ''}
-                    </p>
-                </div>
-            )}
-
-            {error && (
-                <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
-                    {error}
-                </div>
-            )}
-
-            <div className="bg-white rounded-lg shadow p-6">
-                <button
-                    onClick={handleBackToForm}
-                    className="mb-6 text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+            <h1 className="text-2xl font-bold mb-4">Create listing</h1>
+            {warning && (
+                <div
+                    role="alert"
+                    className="mb-4 rounded border border-amber-200 bg-amber-50 p-4 text-amber-900"
                 >
-                    ← Назад к форме
-                </button>
-
-                {loadingPassports ? (
-                    <div className="flex justify-center py-8">
-                        <LoadingSpinner size="md" />
-                    </div>
-                ) : (
-                    <>
-                        {passports.length > 0 && !preloadedPassport && (
-                            <div className="mb-6">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Мои паспорта
-                                </label>
-                                <select
-                                    value={selectedPassportId}
-                                    onChange={(e) => setSelectedPassportId(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                >
-                                    <option value="">-- Выберите паспорт --</option>
-                                    {passports.map((passport) => {
-                                        const inUse = isPassportInUse(passport.id);
-                                        return (
-                                            <option
-                                                key={passport.id}
-                                                value={passport.id}
-                                                disabled={inUse}
-                                                className={inUse ? 'text-gray-400' : ''}
-                                            >
-                                                {passport.name || 'Без имени'} — {passport.species}
-                                                {passport.breed ? ` (${passport.breed})` : ''}
-                                                {inUse ? ' (уже используется)' : ''}
-                                            </option>
-                                        );
-                                    })}
-                                </select>
-                            </div>
-                        )}
-
-                        {preloadedPassport && (
-                            <div className="mb-6 p-3 bg-gray-50 rounded-md border border-gray-200">
-                                <p className="text-sm text-gray-600 mb-2">Выбран паспорт:</p>
-                                <p className="font-medium">
-                                    {preloadedPassport.name || 'Без имени'} —{' '}
-                                    {preloadedPassport.species}
-                                    {preloadedPassport.breed ? ` (${preloadedPassport.breed})` : ''}
-                                </p>
-                            </div>
-                        )}
-
-                        <div className="flex flex-col gap-3">
-                            {(selectedPassportId || preloadedPassport) && (
-                                <button
-                                    onClick={handleUseExistingPassport}
-                                    disabled={
-                                        isSubmitting ||
-                                        (selectedPassportId && isPassportInUse(selectedPassportId))
-                                    }
-                                    className="w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-                                >
-                                    {isSubmitting
-                                        ? 'Создание...'
-                                        : 'Использовать выбранный паспорт'}
-                                </button>
-                            )}
-
-                            {!preloadedPassport && (
-                                <button
-                                    onClick={handleCreateNewPassport}
-                                    disabled={isSubmitting}
-                                    className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50 transition-colors"
-                                >
-                                    {isSubmitting ? 'Создание...' : '+ Создать новый паспорт'}
-                                </button>
-                            )}
-                        </div>
-                    </>
-                )}
-            </div>
+                    {warning}
+                    <button
+                        className="ml-4 underline"
+                        onClick={() => {
+                            setWarning('');
+                            navigate(location.pathname + location.search, {
+                                replace: true,
+                                state: null,
+                            });
+                        }}
+                    >
+                        Dismiss
+                    </button>
+                </div>
+            )}
+            <p role="status" className="text-sm text-gray-600 mb-4">
+                {saveState}
+            </p>
+            {error && (
+                <div role="alert" className="text-red-700 mb-4">
+                    {error}
+                    {!data && <button onClick={() => setLoadAttempt((n) => n + 1)}>Retry</button>}
+                    {conflict && (
+                        <button onClick={reloadSaved}>
+                            Use saved version (replace these fields)
+                        </button>
+                    )}
+                </div>
+            )}
+            {data && step === 'form' && (
+                <ListingForm
+                    key={formRevision}
+                    initialData={data}
+                    onChange={(value) => remember({ ...latestRef.current, ...value })}
+                    onSubmit={continueToPassport}
+                    isSubmitting={busy || conflict}
+                    submitLabel="Choose passport"
+                />
+            )}
+            {data && step === 'passport' && (
+                <section className="bg-white p-6 rounded-lg space-y-4">
+                    <button onClick={() => setStep('form')}>Back to listing</button>
+                    <label className="block" htmlFor="selected-passport">
+                        Pet passport
+                    </label>
+                    <select
+                        id="selected-passport"
+                        className="w-full border p-2 rounded"
+                        value={data.passportId}
+                        onChange={(event) => remember({ ...data, passportId: event.target.value })}
+                    >
+                        <option value="">Choose a passport</option>
+                        {passports.map((passport) => (
+                            <option
+                                key={passport.id}
+                                value={passport.id}
+                                disabled={inUse.has(canonicalPassportId(passport.id))}
+                            >
+                                {passport.name} ({passport.species})
+                                {inUse.has(canonicalPassportId(passport.id))
+                                    ? ' - already in use'
+                                    : ''}
+                            </option>
+                        ))}
+                    </select>
+                    <button
+                        className="bg-indigo-600 text-white px-4 py-2 rounded disabled:opacity-50"
+                        onClick={create}
+                        disabled={
+                            busy ||
+                            conflict ||
+                            !data.passportId ||
+                            inUse.has(canonicalPassportId(data.passportId))
+                        }
+                    >
+                        {busy ? 'Saving...' : 'Create listing'}
+                    </button>
+                    <button
+                        className="block text-indigo-600"
+                        onClick={newPassport}
+                        disabled={busy || conflict}
+                    >
+                        Create new passport
+                    </button>
+                </section>
+            )}
+            <Link to="/my-listings" className="block mt-4 text-indigo-600">
+                My listings
+            </Link>
         </div>
     );
 }

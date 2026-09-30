@@ -59,6 +59,7 @@ public class PetPassport {
 
     @OneToMany(mappedBy = "passport", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("date DESC")
+    @org.hibernate.annotations.BatchSize(size = 100)
     private List<Vaccination> vaccinations = new ArrayList<>();
 
     protected PetPassport() {}

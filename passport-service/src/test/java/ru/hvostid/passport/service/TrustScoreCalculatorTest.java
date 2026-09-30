@@ -21,7 +21,7 @@ class TrustScoreCalculatorTest {
         passport.setBreed(null);
         passport.setColor(null);
 
-        TrustScoreBreakdown breakdown = calculator.compute(passport, List.of(), SellerSignals.empty());
+        TrustScoreBreakdown breakdown = calculator.compute(passport, List.of());
 
         assertThat(breakdown.total()).isZero();
         assertThat(breakdown.profileComplete()).isZero();
@@ -40,9 +40,9 @@ class TrustScoreCalculatorTest {
         passport.setBreed("Husky");
         passport.setColor("grey");
 
-        TrustScoreBreakdown breakdown = calculator.compute(passport, List.of(), SellerSignals.empty());
+        TrustScoreBreakdown breakdown = calculator.compute(passport, List.of());
 
-        assertThat(breakdown.profileComplete()).isEqualTo(20);
+        assertThat(breakdown.profileComplete()).isEqualTo(25);
     }
 
     @Test
@@ -51,7 +51,7 @@ class TrustScoreCalculatorTest {
         passport.setBreed("  ");
         passport.setColor("grey");
 
-        TrustScoreBreakdown breakdown = calculator.compute(passport, List.of(), SellerSignals.empty());
+        TrustScoreBreakdown breakdown = calculator.compute(passport, List.of());
 
         assertThat(breakdown.profileComplete()).isZero();
     }
@@ -65,10 +65,10 @@ class TrustScoreCalculatorTest {
                 document(passport, PassportDocumentType.PHOTO),
                 document(passport, PassportDocumentType.VACCINATION_CERT));
 
-        TrustScoreBreakdown breakdown = calculator.compute(passport, documents, SellerSignals.empty());
+        TrustScoreBreakdown breakdown = calculator.compute(passport, documents);
 
-        assertThat(breakdown.hasPhoto()).isEqualTo(15);
-        assertThat(breakdown.hasVaccinationCert()).isEqualTo(15);
+        assertThat(breakdown.hasPhoto()).isEqualTo(20);
+        assertThat(breakdown.hasVaccinationCert()).isEqualTo(20);
         assertThat(breakdown.hasVetRecord()).isZero();
     }
 
@@ -78,28 +78,26 @@ class TrustScoreCalculatorTest {
         Vaccination v = new Vaccination(passport, "Rabies", LocalDate.of(2026, 1, 1), null, true);
         passport.getVaccinations().add(v);
 
-        TrustScoreBreakdown breakdown = calculator.compute(passport, List.of(), SellerSignals.empty());
+        TrustScoreBreakdown breakdown = calculator.compute(passport, List.of());
 
-        assertThat(breakdown.vaccinationsDated()).isEqualTo(10);
+        assertThat(breakdown.vaccinationsDated()).isEqualTo(15);
     }
 
     @Test
-    void sellerRatingAndSalesAwardedWhenAboveThresholds() {
+    void unavailableSellerSignalsDoNotAffectScore() {
         PetPassport passport = passport(false);
-        SellerSignals signals = new SellerSignals(4.2, 5);
 
-        TrustScoreBreakdown breakdown = calculator.compute(passport, List.of(), signals);
+        TrustScoreBreakdown breakdown = calculator.compute(passport, List.of());
 
-        assertThat(breakdown.sellerRating()).isEqualTo(10);
-        assertThat(breakdown.sellerSales()).isEqualTo(10);
+        assertThat(breakdown.sellerRating()).isZero();
+        assertThat(breakdown.sellerSales()).isZero();
     }
 
     @Test
     void sellerRatingAndSalesNotAwardedBelowOrAtThresholds() {
         PetPassport passport = passport(false);
-        SellerSignals signals = new SellerSignals(3.9, 3);
 
-        TrustScoreBreakdown breakdown = calculator.compute(passport, List.of(), signals);
+        TrustScoreBreakdown breakdown = calculator.compute(passport, List.of());
 
         assertThat(breakdown.sellerRating()).isZero();
         assertThat(breakdown.sellerSales()).isZero();
@@ -109,7 +107,7 @@ class TrustScoreCalculatorTest {
     void moderatedPassportAddsFivePoints() {
         PetPassport passport = passport(true);
 
-        TrustScoreBreakdown breakdown = calculator.compute(passport, List.of(), SellerSignals.empty());
+        TrustScoreBreakdown breakdown = calculator.compute(passport, List.of());
 
         assertThat(breakdown.moderated()).isEqualTo(5);
     }
@@ -124,9 +122,8 @@ class TrustScoreCalculatorTest {
                 document(passport, PassportDocumentType.PHOTO),
                 document(passport, PassportDocumentType.VACCINATION_CERT),
                 document(passport, PassportDocumentType.VET_RECORD));
-        SellerSignals signals = new SellerSignals(4.5, 10);
 
-        TrustScoreBreakdown breakdown = calculator.compute(passport, documents, signals);
+        TrustScoreBreakdown breakdown = calculator.compute(passport, documents);
 
         assertThat(breakdown.total()).isEqualTo(100);
     }

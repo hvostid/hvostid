@@ -2,165 +2,98 @@
 
 # Architecture
 
-This document expands on the high-level diagram in the
-[root README](../README.md#architecture). It covers service
-responsibilities, the request lifecycle, persistence boundaries, and
-the cross-service contracts that hold the platform together.
+Five Spring Boot services sit behind a Spring Cloud Gateway MVC gateway and a
+React SPA served by Nginx. Each domain owns a separate PostgreSQL database and
+application role. Passport documents live in MinIO; Redis stores short-lived
+media tickets. See the [operations runbook](./operations.md) for deployment,
+backups, restore drills, metrics, alerting and TLS.
 
-## Contents
+| Service | Responsibilities | Remote dependencies |
+|---|---|---|
+| API Gateway | Identity header sanitization, token introspection, routing and bounded rate limiting | Auth |
+| Auth | Accounts, hashed opaque tokens, profiles, roles, sessions and account recovery | Configured SMTP |
+| Listing | Catalog, seller drafts, moderation, flags and passport references | Passport |
+| Passport | Animal records, vaccinations, documents, trust score and reference/deletion guards | Listing, MinIO, Redis |
+| Matching | Buyer questionnaires, compatibility explanations and recommendations | Listing, Passport |
 
-- [Services](#services)
-- [Request lifecycle](#request-lifecycle)
-- [Authentication and authorization](#authentication-and-authorization)
-- [Persistence](#persistence)
-- [Cross-service calls](#cross-service-calls)
-- [Observability](#observability)
-- [Deployment topology](#deployment-topology)
-
-## Services
-
-| Service          | Owns                                                            | Talks to                       |
-|------------------|-----------------------------------------------------------------|--------------------------------|
-| API Gateway      | Routing, token introspection, rate limiting, request id         | Auth (introspection)           |
-| Auth Service     | Users, sessions, opaque access/refresh tokens, profile, roles   | --                             |
-| Listing Service  | Pet listings (CRUD, search)                                     | Passport (read-only enrich)    |
-| Passport Service | Pet passports, document uploads, trust score                    | MinIO                          |
-| Matching Service | Buyer questionnaire, compatibility score                        | Listing, Passport (read-only)  |
-
-`common/` is a shared Java module: DTOs (`IntrospectRequest`,
-`IntrospectResponse`, `ErrorResponse`), the `SecurityHeaders` and
-`UserRole` constants, OpenAPI security-scheme helpers, and a
-Testcontainers PostgreSQL fixture under `testFixtures`.
+The `common` module contains shared security headers, role names, ProblemDetails,
+error handling and test fixtures. It does not share domain entities or database tables.
 
 ## Request lifecycle
 
-Every browser request goes to the Gateway on `:8080`. The Gateway is a
-Spring Cloud Gateway server-MVC instance that runs three filters in
-order:
+1. `RequestIdFilter` establishes request correlation.
+2. `IdentityHeaderFilter` removes incoming identity headers from every request,
+   including public and optional-auth routes.
+3. `RateLimitFilter` applies a bounded per-client token bucket before authentication
+   work (60 tokens/second, burst 120; auth endpoints 1/second, burst 10). Client
+   entries expire after 15 minutes and are capped at 10,000. Limits are per gateway
+   process; use a shared edge limiter before horizontally scaling the gateway.
+4. `TokenIntrospectionFilter` follows configured public/optional-auth policies,
+   validates bearer tokens with Auth and writes trusted `X-User-Id` and
+   `X-User-Roles` only after successful introspection. Auth unavailability returns
+   a retryable availability error, not an invalid-token response.
+5. Domain services enforce permissions and ownership with Spring Security and
+   service-level checks. Internal endpoints are not exposed by gateway routes.
 
-1. **`RequestIdFilter`** -- attaches an `X-Request-Id` header (generated
-   if absent) and binds it to the SLF4J MDC so all log lines for the
-   request share an id.
-2. **`TokenIntrospectionFilter`** -- skipped for `publicPaths`
-   (`/api/v1/auth/login`, `/api/v1/auth/register`, `/actuator/**`). For
-   every other path it extracts the `Bearer` token, calls Auth Service
-   `POST /internal/auth/introspect`, and on success injects two headers
-   into the upstream request:
-    - `X-User-Id` -- numeric user id
-    - `X-User-Roles` -- comma-separated role list
-3. **`RateLimitFilter`** -- token-bucket per client IP
-   (`replenish-rate=20`, `burst-capacity=40`).
+Nginx overwrites X-Forwarded-For with the verified client address. The gateway
+trusts forwarded addresses only from the configured frontend IP. The optional TLS
+edge has its own explicitly trusted address in Nginx. Never expose domain service
+ports to the Internet: the service identity headers rely on this private network
+boundary, not on cryptographic service identity.
 
-Downstream services trust those two headers because the introspection
-endpoint is internal-only (not routed through the Gateway). They
-construct a Spring Security `GatewayPreAuthentication` from the
-headers, which is what `@PreAuthorize` checks against.
+## Authentication
 
-```mermaid
-sequenceDiagram
-    participant FE as Frontend
-    participant GW as Gateway
-    participant AUTH as Auth Service
-    participant SVC as Downstream Service
+Auth returns opaque access tokens (30-minute default) and rotating refresh tokens
+(7-day default). Only SHA-256 token digests are stored in PostgreSQL. Refresh,
+password reset and revoke-all synchronize against the account to avoid concurrent
+rotation races. Cleanup uses refresh expiry, so an expired access token does not
+prematurely delete a refreshable session. Public authentication and optional catalog
+routes are defined in `api-gateway/src/main/resources/application.yml`.
 
-    FE->>GW: GET /api/v1/listings (Bearer xyz)
-    GW->>GW: RequestIdFilter
-    GW->>AUTH: POST /internal/auth/introspect {token: "xyz"}
-    AUTH-->>GW: {active: true, userId: 42, roles: ["BUYER"]}
-    GW->>GW: RateLimitFilter
-    GW->>SVC: GET /api/v1/listings (X-User-Id: 42, X-User-Roles: BUYER)
-    SVC-->>GW: 200 OK + body
-    GW-->>FE: 200 OK + body
-```
+## Persistence and cross-service consistency
 
-## Authentication and authorization
+`docker/init-databases.sh` creates four databases and distinct least-privilege roles:
+`hvostid_auth`, `hvostid_listing`, `hvostid_passport`, `hvostid_matching`. Application
+services do not use the PostgreSQL administrator. Upgrades of existing volumes use
+`scripts/migrate-db-roles.sh` with application writers stopped. Flyway migrations
+remain owned by each service and Hibernate validates schema compatibility.
 
-- **Tokens are opaque.** The Auth Service issues random strings and
-  stores them in `sessions` keyed by user id. There is no JWT, no
-  signing key, and no client-side token verification -- every request
-  introspects.
-- **Two-token flow.** Login returns an access token (default 30m TTL)
-  and a refresh token (default 7d TTL). The refresh endpoint accepts a
-  refresh token and returns a new pair, rotating the old refresh token
-  out.
-- **Roles** live in the `user_roles` table and are returned by
-  introspection. Downstream services check them with Spring Security
-  `@PreAuthorize("hasRole('SELLER')")`.
-- **Public paths** are configured in
-  [`api-gateway/src/main/resources/application.yml`](../api-gateway/src/main/resources/application.yml)
-  under `hvostid.auth.public-paths`. Only login, register, and actuator
-  health endpoints currently bypass introspection.
+| Database | Main tables |
+|---|---|
+| Auth | users, user_roles, sessions, account recovery tokens |
+| Listing | listings, listing_drafts, listing_flags, listing_status_history |
+| Passport | pet_passports, vaccinations, passport_documents, passport references and durable cleanup jobs |
+| Matching | buyer_questionnaire |
 
-## Persistence
+Listing validates canonical passport ownership and maintains a durable reference
+with Passport. Passport locks mutations against active references, protecting
+moderated/published animals from edits and deletion. Failed remote synchronization
+and object cleanup are retried durably. These are inter-service HTTP contracts;
+there are no cross-database joins or distributed SQL transactions.
 
-Every backend service owns its own PostgreSQL schema. There is no
-cross-service SQL -- if Listing needs passport data, it makes an HTTP
-call. The shared PostgreSQL instance creates four databases on first
-startup via [`docker/init-databases.sql`](../docker/init-databases.sql):
+RestClient instances use the auto-configured builder for trace propagation and
+explicit connect/read timeouts. Matching uses Resilience4j circuit breakers:
+passport failures are recorded before fallback; a missing passport can yield a
+marked degraded score. Errors use ProblemDetails. Recommendations filter species
+and breed, coalesce only active calculations for an immutable questionnaire revision,
+and read current remote data on subsequent requests. Shared workers, admission,
+10,000 scanned-listing and 30-second budgets prevent unbounded fan-out. Exceeded
+budgets return 503 without a silently partial ranking.
 
-| Database           | Owner            | Notable tables                       |
-|--------------------|------------------|--------------------------------------|
-| `hvostid_auth`     | Auth Service     | `users`, `sessions`, `user_roles`    |
-| `hvostid_listing`  | Listing Service  | `listings`                           |
-| `hvostid_passport` | Passport Service | (schema created via Flyway, T19/T20) |
-| `hvostid_matching` | Matching Service | `buyer_questionnaires`               |
+## Deployment and operations
 
-Migrations live next to the service that owns them, in
-`<service>/src/main/resources/db/migration`, and Flyway runs them on
-boot. JPA is configured with `ddl-auto: validate`, so any drift
-between entities and the schema fails the application start.
+Development exposes service ports for local tools. Production exposes the frontend
+and binds the gateway diagnostic port to loopback; domain services and storage stay
+private. `docker-compose.tls.yml` provides an optional Caddy TLS edge.
+`docker-compose.observability.yml` enables private Prometheus scraping, Grafana,
+Alertmanager and OpenTelemetry traces in Tempo. Dashboards and alert rules are
+versioned; notification receivers require operator configuration. OTLP export is
+disabled outside the observability profile.
 
-MinIO holds passport documents in the `pet-documents` bucket
-(auto-created by the `minio-init` Compose service). The Passport
-Service is the only service that talks to MinIO.
-
-## Cross-service calls
-
-Service-to-service calls use plain HTTP through `RestClient`, with the
-target host injected from the environment so the same code works
-locally and in Compose.
-
-| From            | To       | Purpose                                                      | Property                       |
-|-----------------|----------|--------------------------------------------------------------|--------------------------------|
-| Gateway         | Auth     | Token introspection                                          | `hvostid.auth.introspect-url`  |
-| Passport        | Listing  | Check if a passport backs a PUBLISHED listing (buyer gate)   | `hvostid.listing-service.url`  |
-| Matching        | Listing  | Read listings for compatibility scoring                      | `hvostid.listing-service.url`  |
-| Matching        | Passport | Read passports for compatibility scoring                     | `hvostid.passport-service.url` |
-
-There is no service mesh and no circuit breaker; failures surface as
-plain HTTP errors and are mapped to `ErrorResponse` by each service's
-`GlobalExceptionHandler`.
-
-## Observability
-
-- **Health.** Each service exposes `/actuator/health` (used by Compose
-  healthchecks and the CD smoke test).
-- **Logs.** SLF4J + Logback at `INFO` root and `DEBUG` for
-  `ru.hvostid.*`. Request id propagates via MDC.
-- **Metrics.** `actuator/info` is exposed; Prometheus scrape is not
-  wired up yet.
-- **Code quality.** SonarQube via the `quality` Compose profile; CI
-  runs `./gradlew sonar` only when `SONAR_TOKEN` is configured as a
-  GitHub Actions secret.
-- **Load.** k6 scripts under [`k6/`](../k6) drive synthetic load
-  against the gateway. (T24)
-
-## Deployment topology
-
-In production the entire stack runs as Docker images. The CD workflow
-([`.github/workflows/cd-main.yml`](../.github/workflows/cd-main.yml))
-publishes per-service images to GitHub Container Registry under
-`ghcr.io/hvostid/hvostid-<service>:<short-sha>` (and `:latest`).
-
-Locally, the same images run via
-[`docker-compose.yml`](../docker-compose.yml). The compose stack
-contains:
-
-- 1 Postgres container (4 logical databases)
-- 1 MinIO container + 1 init container that creates the bucket
-- 5 Spring Boot services
-- 1 Nginx-served frontend
-- (optional, `quality` profile) 1 SonarQube container
-
-Compose `depends_on` with `condition: service_healthy` enforces the
-boot order: Postgres and MinIO come up first, then Auth, then the rest.
+MinIO server and client are built from pinned upstream commits in `docker/minio/`.
+The test image uses the same patched build context and dependency manifests as production.
+Critical base images use immutable digests and Gradle dependencies use lockfiles.
+PR CI runs backend checks, frontend lint/tests/build/audit, browser regressions,
+a fresh Compose business smoke (including uploads through Nginx), and an isolated
+PostgreSQL/object restore drill. CD publishes a SHA candidate, scans and smoke-tests
+it, then promotes `latest`; a failed validation never promotes the candidate.

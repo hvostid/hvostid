@@ -7,4 +7,20 @@ public record TrustScoreResponse(
         @Schema(description = "Aggregated trust score, 0-100", example = "75")
         int score,
 
-        @Schema(description = "Component contributions") TrustScoreBreakdown breakdown) {}
+        @Schema(description = "Component contributions") TrustScoreBreakdown breakdown,
+        int maximum,
+        java.util.List<String> availableComponents) {
+    public TrustScoreResponse(int score, TrustScoreBreakdown breakdown) {
+        this(
+                score,
+                breakdown,
+                100,
+                java.util.List.of(
+                        "profileComplete",
+                        "hasPhoto",
+                        "hasVaccinationCert",
+                        "hasVetRecord",
+                        "vaccinationsDated",
+                        "moderated"));
+    }
+}

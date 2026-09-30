@@ -1,8 +1,8 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 
 export default function ProtectedRoute({ children, requiredRole }) {
-    const { isAuthenticated, hasRole, loading } = useAuth();
+    const { isAuthenticated, hasRole, loading, authError, reloadProfile } = useAuth();
     const location = useLocation();
 
     if (loading) {
@@ -13,8 +13,24 @@ export default function ProtectedRoute({ children, requiredRole }) {
         );
     }
 
+    if (authError) {
+        return (
+            <div role="alert" className="text-center p-8">
+                <p>{authError}</p>
+                <button onClick={reloadProfile} className="mt-4 text-indigo-600">
+                    Retry
+                </button>
+            </div>
+        );
+    }
+
     if (!isAuthenticated) {
-        return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
+        return (
+            <Navigate
+                to={`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`}
+                replace
+            />
+        );
     }
 
     if (requiredRole) {

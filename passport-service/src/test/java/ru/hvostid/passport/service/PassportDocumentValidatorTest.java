@@ -55,7 +55,26 @@ class PassportDocumentValidatorTest {
                 .isInstanceOf(UnsupportedPassportDocumentException.class);
     }
 
+    @Test
+    void rejectsForgedBytesAndPdfPhotos() {
+        var forged = new MockMultipartFile("file", "photo.jpg", "image/jpeg", "not-an-image".getBytes());
+        assertThatThrownBy(() -> validator.validate(forged)).isInstanceOf(InvalidPassportDocumentException.class);
+        assertThatThrownBy(() -> validator.validate(
+                        file("photo.pdf", "application/pdf"), ru.hvostid.passport.entity.PassportDocumentType.PHOTO))
+                .isInstanceOf(UnsupportedPassportDocumentException.class);
+        var mismatch = new MockMultipartFile(
+                "file", "photo.jpg", "image/jpeg", ru.hvostid.passport.TestDocumentContent.image("png"));
+        assertThatThrownBy(() -> validator.validate(mismatch)).isInstanceOf(InvalidPassportDocumentException.class);
+    }
+
     private MockMultipartFile file(String filename, String contentType) {
-        return new MockMultipartFile("file", filename, contentType, "content".getBytes());
+        return new MockMultipartFile(
+                "file",
+                filename,
+                contentType,
+                contentType.equals("application/pdf")
+                        ? ru.hvostid.passport.TestDocumentContent.pdf()
+                        : ru.hvostid.passport.TestDocumentContent.image(
+                                contentType.equals("image/png") ? "png" : "jpg"));
     }
 }

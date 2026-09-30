@@ -22,6 +22,9 @@ import ru.hvostid.passport.exception.PassportNotFoundException;
 @SpringBootTest
 @Transactional
 class PassportServiceTest extends AbstractPassportIntegrationTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private ru.hvostid.passport.client.ListingServiceClient listingServiceClient;
+
     @Autowired
     private PassportService passportService;
 

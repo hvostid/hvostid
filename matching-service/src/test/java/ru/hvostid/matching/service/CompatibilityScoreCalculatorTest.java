@@ -26,6 +26,25 @@ class CompatibilityScoreCalculatorTest {
     }
 
     @Test
+    void localizedTemperamentUsesTheSameChildSafetyRulesAsStructuredCodes() {
+        BuyerQuestionnaire questionnaire = idealQuestionnaire();
+        questionnaire.setHasChildren(true);
+        questionnaire.setChildrenAgeMin(5);
+        var friendly = calculator.calculate(questionnaire, petContext("cat", "Siamese", "FRIENDLY", true));
+        var localized = calculator.calculate(
+                questionnaire,
+                petContext("cat", "Siamese", "\u0441\u043f\u043e\u043a\u043e\u0439\u043d\u044b\u0439", true));
+        var challenging = calculator.calculate(
+                questionnaire,
+                petContext(
+                        "cat", "Siamese", "\u0430\u0433\u0440\u0435\u0441\u0441\u0438\u0432\u043d\u044b\u0439", true));
+        assertThat(factor(localized, CompatibilityFactor.CHILDREN).score())
+                .isEqualTo(factor(friendly, CompatibilityFactor.CHILDREN).score());
+        assertThat(factor(challenging, CompatibilityFactor.CHILDREN).score())
+                .isLessThan(factor(friendly, CompatibilityFactor.CHILDREN).score());
+    }
+
+    @Test
     @DisplayName("returns all eight factors and score equals sum of factor scores")
     void calculate_allFactors_sumMatchesTotal() {
         BuyerQuestionnaire questionnaire = idealQuestionnaire();

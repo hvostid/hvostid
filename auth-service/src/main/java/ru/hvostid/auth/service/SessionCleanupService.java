@@ -22,12 +22,12 @@ public class SessionCleanupService {
     }
 
     /**
-     * Runs every 15 minutes to delete sessions past their expiresAt.
+     * Runs every 15 minutes to delete sessions past their refresh token expiry.
      */
     @Scheduled(fixedRateString = "${hvostid.auth.cleanup-interval:PT15M}")
     @Transactional
     public void cleanupExpiredSessions() {
-        int deleted = sessionRepository.deleteAllByExpiresAtBefore(Instant.now());
+        int deleted = sessionRepository.deleteAllByRefreshTokenExpiresAtLessThanEqual(Instant.now());
         if (deleted > 0) {
             log.info("Cleaned up {} expired session(s)", deleted);
         }

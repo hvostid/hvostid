@@ -80,34 +80,34 @@ class TrustScoreControllerTest extends AbstractPassportIntegrationTest {
     void ownerSeesFullScore() throws Exception {
         Long passportId = persistPassport(true, true);
 
-        // 20 (profile complete) + 10 (vaccinations dated) + 5 (moderated) = 35
+        // 25 (profile complete) + 15 (vaccinations dated) + 5 (moderated) = 45
         mockMvc.perform(get(PASSPORTS_URL + "/{id}/trust", passportId)
                         .header(USER_ID, 10L)
                         .header(USER_ROLES, SELLER.value()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.score", is(35)))
-                .andExpect(jsonPath("$.breakdown.profileComplete", is(20)))
-                .andExpect(jsonPath("$.breakdown.vaccinationsDated", is(10)))
+                .andExpect(jsonPath("$.score", is(45)))
+                .andExpect(jsonPath("$.breakdown.profileComplete", is(25)))
+                .andExpect(jsonPath("$.breakdown.vaccinationsDated", is(15)))
                 .andExpect(jsonPath("$.breakdown.moderated", is(5)));
     }
 
     @Test
     void buyerSeesScoreWhenListingIsPublished() throws Exception {
         Long passportId = persistPassport(true, true);
-        when(listingServiceClient.hasPublishedListingForPassport(eq(passportId), any()))
+        when(listingServiceClient.hasPublishedListingForPassport(eq(passportId), any(), any()))
                 .thenReturn(true);
 
         mockMvc.perform(get(PASSPORTS_URL + "/{id}/trust", passportId)
                         .header(USER_ID, 200L)
                         .header(USER_ROLES, BUYER.value()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.score", is(35)));
+                .andExpect(jsonPath("$.score", is(45)));
     }
 
     @Test
     void buyerGets404WhenPassportIsNotLinkedToAPublishedListing() throws Exception {
         Long passportId = persistPassport(true, true);
-        when(listingServiceClient.hasPublishedListingForPassport(eq(passportId), any()))
+        when(listingServiceClient.hasPublishedListingForPassport(eq(passportId), any(), any()))
                 .thenReturn(false);
 
         mockMvc.perform(get(PASSPORTS_URL + "/{id}/trust", passportId)
@@ -129,7 +129,7 @@ class TrustScoreControllerTest extends AbstractPassportIntegrationTest {
     @Test
     void listingServiceUnavailableYieldsServiceUnavailable() throws Exception {
         Long passportId = persistPassport(true, true);
-        when(listingServiceClient.hasPublishedListingForPassport(eq(passportId), any()))
+        when(listingServiceClient.hasPublishedListingForPassport(eq(passportId), any(), any()))
                 .thenThrow(new ListingServiceUnavailableException("upstream down"));
 
         mockMvc.perform(get(PASSPORTS_URL + "/{id}/trust", passportId)
@@ -146,7 +146,7 @@ class TrustScoreControllerTest extends AbstractPassportIntegrationTest {
 
         PetPassport reloaded =
                 passportRepository.findById(passportId).orElseThrow(() -> new AssertionError("Passport missing"));
-        org.assertj.core.api.Assertions.assertThat(reloaded.getTrustScore()).isEqualTo(35);
+        org.assertj.core.api.Assertions.assertThat(reloaded.getTrustScore()).isEqualTo(45);
     }
 
     @Test

@@ -18,12 +18,18 @@ import ru.hvostid.common.security.GatewaySecurityDefaults;
  */
 @Configuration
 @EnableWebSecurity
-@EnableConfigurationProperties(AuthTokenProperties.class)
+@EnableConfigurationProperties({AuthTokenProperties.class, AccountMailProperties.class})
 public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager) {
         return GatewaySecurityDefaults.applyTo(http, authenticationManager)
-                .authorizeHttpRequests(auth -> auth.requestMatchers("/api/v1/auth/**")
+                .authorizeHttpRequests(auth -> auth.requestMatchers(
+                                "/api/v1/auth/register",
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/refresh",
+                                "/api/v1/auth/logout",
+                                "/api/v1/auth/password-reset/**",
+                                "/api/v1/auth/email-verification/confirm")
                         .permitAll()
                         .requestMatchers(GatewaySecurityDefaults.internalPaths())
                         .permitAll()

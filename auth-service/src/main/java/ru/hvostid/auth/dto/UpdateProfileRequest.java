@@ -22,4 +22,14 @@ public record UpdateProfileRequest(
         String city,
 
         @Size(max = 2000, message = "bio must be at most 2000 characters")
-        String bio) {}
+        String bio,
+
+        Boolean contactSharingEnabled) {
+    public UpdateProfileRequest(String name, String phone, String city, String bio) {
+        this(name, phone, city, bio, null);
+    }
+
+    public UpdateProfileRequest {
+        name = name == null ? null : name.strip();
+    }
+}

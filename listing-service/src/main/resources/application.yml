@@ -19,6 +19,15 @@ spring:
         open-in-view: false
 
 management:
+    otlp:
+        metrics:
+            export:
+                enabled: false
+    opentelemetry:
+        tracing:
+            export:
+                otlp:
+                    enabled: false
     endpoints:
         web:
             exposure:
@@ -28,3 +37,7 @@ logging:
     level:
         root: INFO
         ru.hvostid: DEBUG
+
+hvostid:
+    services:
+        passport-url: http://${PASSPORT_SERVICE_HOST:localhost}:8083

@@ -74,7 +74,7 @@ class ModerationServiceTest {
     @Test
     void reviewFlag_setsStatusFromPendingToDismissed() {
         ListingFlag flag = new ListingFlag(42L, 5L, FlagReason.SCAM, "fake");
-        when(flagRepository.findById(1L)).thenReturn(Optional.of(flag));
+        when(flagRepository.findLockedById(1L)).thenReturn(Optional.of(flag));
 
         FlagListingResponse response = moderationService.reviewFlag(1L, FlagStatus.DISMISSED);
 
@@ -89,14 +89,14 @@ class ModerationServiceTest {
         assertThatThrownBy(() -> moderationService.reviewFlag(1L, FlagStatus.PENDING))
                 .isInstanceOf(InvalidFlagReviewException.class)
                 .hasMessageContaining("REVIEWED or DISMISSED");
-        verify(flagRepository, never()).findById(any());
+        verify(flagRepository, never()).findLockedById(any());
     }
 
     @Test
     void reviewFlag_rejectsAlreadyReviewedFlag() {
         ListingFlag flag = new ListingFlag(42L, 5L, FlagReason.SCAM, "fake");
         flag.setStatus(FlagStatus.REVIEWED);
-        when(flagRepository.findById(1L)).thenReturn(Optional.of(flag));
+        when(flagRepository.findLockedById(1L)).thenReturn(Optional.of(flag));
 
         assertThatThrownBy(() -> moderationService.reviewFlag(1L, FlagStatus.DISMISSED))
                 .isInstanceOf(InvalidFlagReviewException.class)
@@ -106,7 +106,7 @@ class ModerationServiceTest {
 
     @Test
     void reviewFlag_throwsWhenFlagMissing() {
-        when(flagRepository.findById(99L)).thenReturn(Optional.empty());
+        when(flagRepository.findLockedById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> moderationService.reviewFlag(99L, FlagStatus.REVIEWED))
                 .isInstanceOf(FlagNotFoundException.class);

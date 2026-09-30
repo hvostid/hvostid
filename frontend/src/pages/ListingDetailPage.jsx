@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import api from '../api/client';
-import { issueDocumentTicket } from '../api/passports';
+import { issueDocumentTicket, passportCoverUrl } from '../api/passports';
+import SellerContact from '../components/SellerContact';
+import { canonicalPassportId } from '../utils/passportId';
 import PassportImage from '../components/PassportImage';
 import TrustBadge from '../components/TrustBadge';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 
 const STATUS_BADGE = {
     DRAFT: 'bg-gray-100 text-gray-700 ring-gray-200',
@@ -29,13 +31,11 @@ const DOC_TYPE_LABEL = {
 };
 
 const TRUST_COMPONENTS = [
-    { key: 'profileComplete', label: 'Profile complete', max: 20 },
-    { key: 'hasPhoto', label: 'Photo uploaded', max: 15 },
-    { key: 'hasVaccinationCert', label: 'Vaccination certificate', max: 15 },
+    { key: 'profileComplete', label: 'Profile complete', max: 25 },
+    { key: 'hasPhoto', label: 'Photo uploaded', max: 20 },
+    { key: 'hasVaccinationCert', label: 'Vaccination certificate', max: 20 },
     { key: 'hasVetRecord', label: 'Vet record', max: 15 },
-    { key: 'vaccinationsDated', label: 'Dated vaccinations', max: 10 },
-    { key: 'sellerRating', label: 'Seller rating ≥ 4.0', max: 10 },
-    { key: 'sellerSales', label: 'Experienced seller', max: 10 },
+    { key: 'vaccinationsDated', label: 'Dated vaccinations', max: 15 },
     { key: 'moderated', label: 'Passed moderation', max: 5 },
 ];
 
@@ -53,6 +53,13 @@ function extractDetail(err, fallback) {
 }
 
 export default function ListingDetailPage() {
+    const { id } = useParams();
+    const { user, isAuthenticated } = useAuth();
+    // Remount account-scoped data immediately when identity changes, including private listings.
+    return <ListingDetail key={`${id}:${isAuthenticated ? user?.id : 'guest'}`} />;
+}
+
+function ListingDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user, isAuthenticated, hasRole } = useAuth();
@@ -109,8 +116,8 @@ export default function ListingDetailPage() {
     // Each may legitimately 403 (buyer viewing a non-owned passport) — treated as
     // "restricted", not an error.
     useEffect(() => {
-        if (!listing?.passportId) return undefined;
-        const passportId = listing.passportId;
+        if (!listing?.passportId || !isAuthenticated) return undefined;
+        const passportId = canonicalPassportId(listing.passportId);
         const controller = new AbortController();
 
         api.get(`/passports/${passportId}`, { signal: controller.signal })
@@ -139,7 +146,7 @@ export default function ListingDetailPage() {
             });
 
         return () => controller.abort();
-    }, [listing?.passportId]);
+    }, [listing?.passportId, isAuthenticated, user?.id]);
 
     const isOwner = isAuthenticated && listing && user?.id === listing.sellerId;
     const isModerator = hasRole('MODERATOR') || hasRole('ADMIN');
@@ -183,16 +190,28 @@ export default function ListingDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
             <article className="space-y-6">
                 <Header listing={listing} isOwner={isOwner} />
-                <PhotoGallery
-                    documents={documents}
-                    documentsRestricted={documentsRestricted}
-                    hasPassportId={Boolean(listing.passportId)}
-                    passportId={listing.passportId}
-                />
+                {!isAuthenticated && listing.passportId ? (
+                    <img
+                        src={passportCoverUrl(listing.passportId)}
+                        alt={listing.title}
+                        className="w-full max-h-96 object-cover rounded-lg"
+                        onError={(event) => {
+                            event.currentTarget.onerror = null;
+                            event.currentTarget.src = '/def.png';
+                        }}
+                    />
+                ) : (
+                    <PhotoGallery
+                        documents={documents}
+                        documentsRestricted={documentsRestricted || !isAuthenticated}
+                        hasPassportId={Boolean(listing.passportId)}
+                        passportId={listing.passportId}
+                    />
+                )}
                 <MainInfo listing={listing} />
                 <PassportBlock
                     passport={passport}
-                    restricted={passportRestricted}
+                    restricted={passportRestricted || !isAuthenticated}
                     hasPassportId={Boolean(listing.passportId)}
                 />
                 {canSeeAllDocs && documents && documents.length > 0 && (
@@ -204,10 +223,10 @@ export default function ListingDetailPage() {
                 <PriceCard listing={listing} />
                 <TrustCard
                     trust={trust}
-                    unavailable={trustUnavailable}
+                    unavailable={trustUnavailable || !isAuthenticated}
                     hasPassportId={Boolean(listing.passportId)}
                 />
-                <SellerCard sellerId={listing.sellerId} />
+                <SellerContact sellerId={listing.sellerId} authenticated={isAuthenticated} />
                 <ActionsCard
                     listing={listing}
                     isAuthenticated={isAuthenticated}
@@ -288,7 +307,7 @@ function PassportBlock({ passport, restricted, hasPassportId }) {
         );
     }
 
-    if (!passport) {
+    if (restricted || !passport) {
         return (
             <section className="bg-white rounded-lg border border-gray-200 p-4">
                 <h2 className="text-lg font-semibold text-gray-900 mb-2">Pet passport</h2>
@@ -464,9 +483,9 @@ function TrustCard({ trust, unavailable, hasPassportId }) {
     if (!trust) {
         return (
             <section className="bg-white rounded-lg border border-gray-200 p-4">
-                <h2 className="text-sm font-semibold text-gray-900 mb-2">Trust score</h2>
+                <h2 className="text-sm font-semibold text-gray-900 mb-2">Evidence score</h2>
                 <p className="text-xs text-gray-500">
-                    {unavailable ? 'Trust score is not available.' : 'Loading…'}
+                    {unavailable ? 'Evidence score is not available.' : 'Loading…'}
                 </p>
             </section>
         );
@@ -475,7 +494,7 @@ function TrustCard({ trust, unavailable, hasPassportId }) {
     return (
         <section className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
             <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-gray-900">Trust score</h2>
+                <h2 className="text-sm font-semibold text-gray-900">Evidence score</h2>
                 <TrustBadge score={trust.score} />
             </div>
             <ul className="space-y-1.5">
@@ -506,15 +525,6 @@ function TrustCard({ trust, unavailable, hasPassportId }) {
     );
 }
 
-function SellerCard({ sellerId }) {
-    return (
-        <section className="bg-white rounded-lg border border-gray-200 p-4">
-            <h2 className="text-sm font-semibold text-gray-900 mb-1">Seller</h2>
-            <p className="text-sm text-gray-700">User #{sellerId}</p>
-        </section>
-    );
-}
-
 function ActionsCard({ listing, isAuthenticated, isOwner, navigate }) {
     const [matchBusy, setMatchBusy] = useState(false);
     const [matchError, setMatchError] = useState(null);
@@ -530,7 +540,7 @@ function ActionsCard({ listing, isAuthenticated, isOwner, navigate }) {
             navigate(returnUrl);
         } catch (err) {
             if (err.response?.status === 404) {
-                navigate(`/profile/questionnaire?return=${encodeURIComponent(returnUrl)}`);
+                navigate(`/profile/questionnaire?returnUrl=${encodeURIComponent(returnUrl)}`);
                 return;
             }
             setMatchError(extractDetail(err, 'Failed to check questionnaire'));

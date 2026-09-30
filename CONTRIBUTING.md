@@ -209,7 +209,7 @@ after the change.
 
 | Layer       | Tooling                                                                                                                                                           |
 |-------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Unit        | JUnit 5, Mockito, AssertJ                                                                                                                                         |
+| Unit        | JUnit 6, Mockito, AssertJ                                                                                                                                         |
 | Web layer   | `@WebMvcTest` slices for controller logic, `MockMvc` assertions                                                                                                   |
 | Integration | Testcontainers PostgreSQL via [`AbstractPostgresContainerTest`](./common/src/testFixtures/java/ru/hvostid/common/testfixtures/AbstractPostgresContainerTest.java) |
 | Coverage    | JaCoCo (`<module>/build/reports/jacoco/test/jacocoTestReport.xml`)                                                                                                |
@@ -224,9 +224,8 @@ after the change.
 * **Do not mock what you own.** Real services in the same module are
   exercised end to end; only HTTP boundaries (introspection client,
   inter-service calls) are mocked.
-* **Frontend tests** are not yet wired up (tracked in T22). Until
-  then, manual verification is documented in the PR's "How to test"
-  section.
+* **Frontend tests** use Vitest and Playwright. CI runs unit tests, browser
+  regression flows, strict lint, production build and npm audit.
 
 ### Running tests
 
@@ -282,3 +281,30 @@ this document or the formatter belong as suggestions, not blockers.
 PRs are merged with a merge commit (default GitHub merge), which
 preserves the per-commit history. Squash-merging is reserved for
 trivial fix PRs where the per-commit history adds no value.
+
+## Dependency integrity and operational checks
+
+Gradle resolves from Maven Central; module lockfiles and
+`gradle/verification-metadata.xml` pin resolved versions and SHA-256 checksums.
+The wrapper archive also has a verified SHA-256. Review upstream release notes
+and checksums before accepting new verification entries:
+
+```bash
+./gradlew resolveAndLockDependencies --write-locks --write-verification-metadata sha256
+./gradlew spotlessApply jacocoTestReport --write-verification-metadata sha256
+./gradlew build
+node scripts/audit-jvm-dependencies.mjs
+cd frontend
+npm ci
+npm run lint -- --max-warnings=0
+npm test
+npm run test:e2e
+npm run build
+npm audit --audit-level=high
+```
+
+Do not bypass dependency verification to make a build green. CI performs the
+full NVD scan with its required secret. Runtime Docker images are pinned by
+digest; PostgreSQL's test-only catalog tag is intentionally rolling to exercise
+current supported patch releases. See [operations](./docs/operations.md) for
+the Compose smoke, disposable restore drill and alert checks.

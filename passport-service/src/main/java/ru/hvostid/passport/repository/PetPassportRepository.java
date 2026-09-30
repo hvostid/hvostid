@@ -15,5 +15,9 @@ public interface PetPassportRepository extends JpaRepository<PetPassport, Long> 
     @EntityGraph(attributePaths = "vaccinations")
     List<PetPassport> findBySellerIdOrderByCreatedAtDesc(Long sellerId);
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select p from PetPassport p where p.id = :id")
+    Optional<PetPassport> findLockedById(Long id);
+
     Page<PetPassport> findBySellerId(Long sellerId, Pageable pageable);
 }

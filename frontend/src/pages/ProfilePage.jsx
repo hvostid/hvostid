@@ -1,290 +1,199 @@
-// pages/ProfilePage.jsx
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { getProfile, updateProfile } from '../api/profile';
-import LoadingSpinner from '../components/LoadingSpinner';
+import { useAuth } from '../context/useAuth';
+import { updateProfile } from '../api/profile';
 import Input from '../components/Input';
+import AccountSecurity from '../components/AccountSecurity';
+
+const fieldsFrom = (profile) => ({
+    name: profile?.name || '',
+    phone: profile?.phone || '',
+    city: profile?.city || '',
+    bio: profile?.bio || '',
+    contactSharingEnabled: Boolean(profile?.contactSharingEnabled),
+});
 
 export default function ProfilePage() {
-    const { hasRole, addRole } = useAuth();
-    const [profile, setProfile] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [isEditing, setIsEditing] = useState(false);
-    const [saving, setSaving] = useState(false);
+    const { user, hasRole, addRole, reloadProfile } = useAuth();
+    const [form, setForm] = useState(() => fieldsFrom(user));
+    const [editing, setEditing] = useState(false);
+    const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
-
-    const [formData, setFormData] = useState({
-        name: '',
-        phone: '',
-        city: '',
-        bio: '',
-    });
-
-    useEffect(() => {
-        const loadProfile = async () => {
-            try {
-                const data = await getProfile();
-                setProfile(data);
-                setFormData({
-                    name: data.name || '',
-                    phone: data.phone || '',
-                    city: data.city || '',
-                    bio: data.bio || '',
-                });
-            } catch (err) {
-                console.error('Failed to load profile:', err);
-                setError('Не удалось загрузить профиль');
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadProfile();
-    }, []);
-
-    const handleSave = async () => {
-        setSaving(true);
+    const [message, setMessage] = useState('');
+    const seller = hasRole('SELLER');
+    const change = (field) => (event) =>
+        setForm((current) => ({ ...current, [field]: event.target.value }));
+    async function save(event) {
+        event.preventDefault();
+        setBusy(true);
         setError('');
-        setSuccess('');
-
+        setMessage('');
         try {
-            const updated = await updateProfile(formData);
-            setProfile(updated);
-            setIsEditing(false);
-            setSuccess('Профиль успешно обновлён');
-            setTimeout(() => setSuccess(''), 2000);
+            await updateProfile(form);
+            await reloadProfile();
+            setEditing(false);
+            setMessage('Profile updated.');
         } catch (err) {
-            console.error('Failed to update profile:', err);
-            setError('Не удалось сохранить изменения');
+            setError(err.response?.data?.detail || 'Changes could not be saved. Please retry.');
         } finally {
-            setSaving(false);
+            setBusy(false);
         }
-    };
-
-    const handleCancel = () => {
-        setFormData({
-            name: profile?.name || '',
-            phone: profile?.phone || '',
-            city: profile?.city || '',
-            bio: profile?.bio || '',
-        });
-        setIsEditing(false);
-        setError('');
-    };
-
-    const handleAddSellerRole = async () => {
-        setSaving(true);
-        setError('');
-        setSuccess('');
-
-        try {
-            const updatedProfile = await addRole('SELLER');
-            setProfile(updatedProfile);
-            setSuccess('Поздравляем! Теперь вы продавец.');
-            setTimeout(() => setSuccess(''), 2000);
-        } catch (err) {
-            console.error('Failed to get seller role:', err);
-            setError('Не удалось получить роль продавца');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="flex justify-center py-12">
-                <LoadingSpinner size="lg" />
-            </div>
-        );
     }
-
-    const isSeller = hasRole('SELLER');
-
+    async function becomeSeller() {
+        setBusy(true);
+        setError('');
+        try {
+            await addRole('SELLER');
+            setMessage('Your seller account is ready.');
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Seller access could not be enabled.');
+        } finally {
+            setBusy(false);
+        }
+    }
     return (
-        <div className="max-w-2xl mx-auto">
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">Мой профиль</h1>
-
+        <div className="mx-auto max-w-2xl space-y-6">
+            <h1 className="text-2xl font-bold">My profile</h1>
             {error && (
-                <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                <p role="alert" className="text-red-700">
                     {error}
-                </div>
+                </p>
             )}
-
-            {success && (
-                <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md">
-                    {success}
-                </div>
+            {message && (
+                <p role="status" className="text-green-700">
+                    {message}
+                </p>
             )}
-
-            <div className="bg-white rounded-lg shadow p-6 space-y-6">
-                {/* Основная информация */}
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-500">Email</label>
-                        <p className="text-base text-gray-900">{profile?.email}</p>
-                    </div>
-
-                    {isEditing ? (
-                        <>
-                            <Input
-                                id="name"
-                                label="Имя"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            />
-                            <Input
-                                id="phone"
-                                label="Телефон"
-                                value={formData.phone}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, phone: e.target.value })
-                                }
-                                placeholder="+7 999 000-00-00"
-                            />
-                            <Input
-                                id="city"
-                                label="Город"
-                                value={formData.city}
-                                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                                placeholder="Москва"
-                            />
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    О себе
-                                </label>
-                                <textarea
-                                    rows="3"
-                                    value={formData.bio}
-                                    onChange={(e) =>
-                                        setFormData({ ...formData, bio: e.target.value })
+            <section className="rounded-lg bg-white p-6 shadow space-y-4">
+                <p>Email: {user?.email}</p>
+                {editing ? (
+                    <form onSubmit={save} className="space-y-4">
+                        <Input
+                            id="profile-name"
+                            label="Name"
+                            value={form.name}
+                            onChange={change('name')}
+                            required
+                            maxLength={255}
+                        />
+                        <Input
+                            id="profile-phone"
+                            label="Phone"
+                            type="tel"
+                            value={form.phone}
+                            onChange={change('phone')}
+                            maxLength={30}
+                        />
+                        <Input
+                            id="profile-city"
+                            label="City"
+                            value={form.city}
+                            onChange={change('city')}
+                            maxLength={255}
+                        />
+                        <label htmlFor="profile-bio" className="block">
+                            About you
+                        </label>
+                        <textarea
+                            id="profile-bio"
+                            value={form.bio}
+                            onChange={change('bio')}
+                            maxLength={2000}
+                            className="w-full rounded border p-2"
+                            rows={3}
+                        />
+                        {seller && (
+                            <label className="flex items-start gap-2">
+                                <input
+                                    type="checkbox"
+                                    checked={form.contactSharingEnabled}
+                                    onChange={(event) =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            contactSharingEnabled: event.target.checked,
+                                        }))
                                     }
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                    placeholder="Расскажите о себе..."
                                 />
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-500">
-                                    Имя
-                                </label>
-                                <p className="text-base text-gray-900">{profile?.name || '—'}</p>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-500">
-                                    Телефон
-                                </label>
-                                <p className="text-base text-gray-900">{profile?.phone || '—'}</p>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-500">
-                                    Город
-                                </label>
-                                <p className="text-base text-gray-900">{profile?.city || '—'}</p>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-500">
-                                    О себе
-                                </label>
-                                <p className="text-gray-900">{profile?.bio || '—'}</p>
-                            </div>
-                        </>
-                    )}
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-500">Роли</label>
-                        <div className="flex flex-wrap gap-2 mt-1">
-                            {profile?.roles?.map((role) => (
-                                <span
-                                    key={role}
-                                    className="px-2 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-800"
-                                >
-                                    {role === 'BUYER' && 'Покупатель'}
-                                    {role === 'SELLER' && 'Продавец'}
-                                    {role === 'MODERATOR' && 'Модератор'}
-                                    {role === 'ADMIN' && 'Администратор'}
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-
-                    {profile?.rating !== undefined && (
-                        <div>
-                            <label className="block text-sm font-medium text-gray-500">
-                                Рейтинг продавца
+                                Share my phone number with signed-in buyers so they can contact me
+                                about my listings.
                             </label>
-                            <div className="flex items-center gap-2">
-                                <span className="text-xl font-bold text-indigo-600">
-                                    {profile.rating}
-                                </span>
-                                <span className="text-sm text-gray-500">/ 5.0</span>
-                                <div className="flex text-yellow-400">
-                                    {'★'.repeat(Math.floor(profile.rating))}
-                                    {'☆'.repeat(5 - Math.floor(profile.rating))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Кнопки действий */}
-                <div className="flex justify-between items-center pt-4 border-t">
-                    <Link
-                        to="/profile/questionnaire"
-                        className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-                    >
-                        Заполнить анкету совместимости →
-                    </Link>
-
-                    <div className="flex gap-3">
-                        {isEditing ? (
-                            <>
-                                <button
-                                    onClick={handleCancel}
-                                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                                >
-                                    Отмена
-                                </button>
-                                <button
-                                    onClick={handleSave}
-                                    disabled={saving}
-                                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
-                                >
-                                    {saving ? 'Сохранение...' : 'Сохранить'}
-                                </button>
-                            </>
-                        ) : (
-                            <button
-                                onClick={() => setIsEditing(true)}
-                                className="px-4 py-2 text-sm font-medium text-indigo-600 border border-indigo-600 rounded-md hover:bg-indigo-50"
-                            >
-                                Редактировать профиль
-                            </button>
                         )}
-                    </div>
-                </div>
-
-                {/* Стать продавцом */}
-                {!isSeller && (
-                    <div className="border-t pt-6">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-3">
-                            Стать продавцом
-                        </h2>
-                        <p className="text-sm text-gray-600 mb-4">
-                            Получите роль продавца, чтобы создавать объявления о продаже питомцев.
-                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                disabled={busy}
+                                className="rounded bg-indigo-600 px-4 py-2 text-white"
+                            >
+                                {busy ? 'Saving...' : 'Save profile'}
+                            </button>
+                            <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => {
+                                    setEditing(false);
+                                    setError('');
+                                }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                ) : (
+                    <>
+                        <dl className="space-y-2">
+                            <div>
+                                <dt className="font-medium">Name</dt>
+                                <dd>{user?.name || '-'}</dd>
+                            </div>
+                            <div>
+                                <dt className="font-medium">Phone</dt>
+                                <dd>{user?.phone || '-'}</dd>
+                            </div>
+                            <div>
+                                <dt className="font-medium">City</dt>
+                                <dd>{user?.city || '-'}</dd>
+                            </div>
+                            <div>
+                                <dt className="font-medium">About you</dt>
+                                <dd>{user?.bio || '-'}</dd>
+                            </div>
+                        </dl>
+                        {seller && (
+                            <p>
+                                Phone sharing:{' '}
+                                {user?.contactSharingEnabled
+                                    ? 'Enabled for signed-in buyers'
+                                    : 'Off'}
+                            </p>
+                        )}
                         <button
-                            onClick={handleAddSellerRole}
-                            disabled={saving}
-                            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                            className="text-indigo-700 underline"
+                            onClick={() => {
+                                setForm(fieldsFrom(user));
+                                setEditing(true);
+                            }}
                         >
-                            Стать продавцом
+                            Edit profile
+                        </button>
+                    </>
+                )}
+                <p>Roles: {user?.roles?.join(', ')}</p>
+                <Link to="/profile/questionnaire" className="text-indigo-700 underline">
+                    Compatibility questionnaire
+                </Link>
+                {!seller && (
+                    <div className="border-t pt-4">
+                        <p className="mb-3">Enable seller access to create animal listings.</p>
+                        <button
+                            disabled={busy}
+                            onClick={becomeSeller}
+                            className="rounded bg-indigo-600 px-4 py-2 text-white"
+                        >
+                            Become a seller
                         </button>
                     </div>
                 )}
-            </div>
+            </section>
+            <AccountSecurity />
         </div>
     );
 }

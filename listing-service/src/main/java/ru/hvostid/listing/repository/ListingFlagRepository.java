@@ -11,6 +11,10 @@ import ru.hvostid.listing.entity.FlagStatus;
 import ru.hvostid.listing.entity.ListingFlag;
 
 public interface ListingFlagRepository extends JpaRepository<ListingFlag, Long> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select f from ListingFlag f where f.id=:id")
+    java.util.Optional<ListingFlag> findLockedById(Long id);
+
     boolean existsByListingIdAndReporterId(Long listingId, Long reporterId);
 
     long countByListingIdAndStatus(Long listingId, FlagStatus status);

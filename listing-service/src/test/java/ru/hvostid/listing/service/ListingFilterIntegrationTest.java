@@ -20,8 +20,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
 import ru.hvostid.listing.ListingConstants;
+import ru.hvostid.listing.ListingIntegrationTest;
 import ru.hvostid.listing.dto.ListingFilterRequest;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
@@ -32,7 +32,7 @@ import ru.hvostid.listing.repository.ListingRepository;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
+class ListingFilterIntegrationTest extends ListingIntegrationTest {
 
     @Autowired
     private ListingService listingService;
@@ -174,7 +174,7 @@ class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
     void pagination_returnsCorrectPage() {
         // Create 25 more listings to test pagination
         for (int i = 0; i < 25; i++) {
-            createPublishedListing("Test " + i, "Desc", "Breed", "dog", 12, 10000, "Moscow", "passport-" + i);
+            createPublishedListing("Test " + i, "Desc", "Breed", "dog", 12, 10000, "Moscow", "passport-" + (i + 1));
         }
 
         Page<ListingResponse> result = listingService.getListingsWithFilters(
@@ -398,7 +398,8 @@ class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
         void maxPageSize_works() {
             // Create more listings
             for (int i = 0; i < 150; i++) {
-                createPublishedListing("Test " + i, "Desc", "Breed" + i, "dog", 12, 10000, "Moscow", "passport-" + i);
+                createPublishedListing(
+                        "Test " + i, "Desc", "Breed" + i, "dog", 12, 10000, "Moscow", "passport-" + (i + 1));
             }
 
             Page<ListingResponse> result = listingService.getListingsWithFilters(
@@ -431,10 +432,10 @@ class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
         void sortByCreatedDesc_newerFirst() {
             // Set explicit createdAt values so the sort assertion is deterministic
             // without relying on wall-clock granularity / Thread.sleep.
-            createPublishedListing("First", "Desc", "Breed1", "dog", 1, 1000, "City1", "pass-ts1");
-            createPublishedListing("Second", "Desc", "Breed2", "cat", 2, 2000, "City2", "pass-ts2");
-            stampCreatedAt("pass-ts1", java.time.Instant.parse("2026-05-01T10:00:00Z"));
-            stampCreatedAt("pass-ts2", java.time.Instant.parse("2026-05-01T10:05:00Z"));
+            createPublishedListing("First", "Desc", "Breed1", "dog", 1, 1000, "City1", "1001");
+            createPublishedListing("Second", "Desc", "Breed2", "cat", 2, 2000, "City2", "1002");
+            stampCreatedAt("1001", java.time.Instant.parse("2026-05-01T10:00:00Z"));
+            stampCreatedAt("1002", java.time.Instant.parse("2026-05-01T10:05:00Z"));
 
             PageRequest pageRequest = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
             Page<ListingResponse> result = listingService.getListingsWithFilters(
@@ -566,7 +567,7 @@ class ListingFilterIntegrationTest extends AbstractPostgresContainerTest {
         @Test
         @DisplayName("City name with special characters")
         void cityWithSpecialCharacters_works() throws Exception {
-            createPublishedListing("Special City", "Desc", "Breed", "dog", 12, 10000, "St. Petersburg", "pass-special");
+            createPublishedListing("Special City", "Desc", "Breed", "dog", 12, 10000, "St. Petersburg", "1003");
 
             mockMvc.perform(get("/api/v1/listings")
                             .param("city", "St. Petersburg")

@@ -1,174 +1,238 @@
 package ru.hvostid.matching.service;
 
+import jakarta.annotation.PreDestroy;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.annotation.Lazy;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import ru.hvostid.common.exception.ValidationException;
 import ru.hvostid.matching.client.ListingServiceClient;
 import ru.hvostid.matching.client.ListingSummary;
-import ru.hvostid.matching.config.CacheConfig;
 import ru.hvostid.matching.domain.CompatibilityLevel;
 import ru.hvostid.matching.domain.CompatibilityResult;
+import ru.hvostid.matching.domain.SpeciesKind;
+import ru.hvostid.matching.dto.QuestionnaireResponse;
 import ru.hvostid.matching.dto.RecommendationItem;
 import ru.hvostid.matching.dto.RecommendationsResponse;
 import ru.hvostid.matching.entity.BuyerQuestionnaire;
+import ru.hvostid.matching.exception.ListingUnavailableException;
 import ru.hvostid.matching.exception.QuestionnaireRequiredException;
 
 @Service
 public class MatchRecommendationsService {
-    private static final Logger log = LoggerFactory.getLogger(MatchRecommendationsService.class);
-
-    /**
-     * Cap on the number of PUBLISHED listings we will score per recommendations request.
-     * Prevents an unbounded fan-out across listing-service / passport-service when the
-     * catalog grows beyond a few hundred items.
-     */
-    static final int MAX_CANDIDATES = 200;
-
-    /** Page size used when iterating through the listing-service catalog. */
     static final int CATALOG_PAGE_SIZE = 50;
-
     private final ListingServiceClient listingClient;
     private final MatchScoreService matchScoreService;
-    private final MatchRecommendationsService self;
+    private final ThreadPoolExecutor workers;
+    private final Semaphore computations;
+    private final int maxScannedListings;
+    private final Duration computationTimeout;
+    private final ConcurrentHashMap<QuestionnaireResponse, CompletableFuture<List<ScoredListing>>> inFlight =
+            new ConcurrentHashMap<>();
 
     public MatchRecommendationsService(
             ListingServiceClient listingClient,
             MatchScoreService matchScoreService,
-            @Lazy @Autowired(required = false) MatchRecommendationsService self) {
-        // @Lazy self-reference resolves to the Spring proxy so self.scoredCandidates(...)
-        // goes through the AOP chain and @Cacheable actually fires (a plain
-        // this.scoredCandidates() would short-circuit the proxy). Unit tests
-        // construct the service without a container and pass null, falling back
-        // to a direct call where caching is irrelevant.
+            @Value("${hvostid.recommendations.parallelism:16}") int parallelism,
+            @Value("${hvostid.recommendations.max-concurrent-computations:8}") int maxConcurrentComputations,
+            @Value("${hvostid.recommendations.max-scanned-listings:10000}") int maxScannedListings,
+            @Value("${hvostid.recommendations.computation-timeout:30s}") Duration computationTimeout) {
         this.listingClient = listingClient;
         this.matchScoreService = matchScoreService;
-        this.self = self;
+        this.maxScannedListings = Math.max(1, maxScannedListings);
+        if (computationTimeout.isNegative() || computationTimeout.isZero()) {
+            throw new IllegalArgumentException("Recommendation timeout must be positive");
+        }
+        this.computationTimeout = computationTimeout;
+        computations = new Semaphore(Math.max(1, maxConcurrentComputations));
+        int workerCount = Math.max(1, parallelism);
+        workers = new ThreadPoolExecutor(
+                workerCount,
+                workerCount,
+                0,
+                TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(Math.max(CATALOG_PAGE_SIZE, workerCount * maxConcurrentComputations)),
+                Thread.ofVirtual().name("matching-worker-", 0).factory(),
+                new ThreadPoolExecutor.AbortPolicy());
     }
 
     public RecommendationsResponse getRecommendations(long userId, int minScore, int page, int size, String requestId) {
-        List<ScoredListing> sorted = self().scoredCandidates(userId, requestId);
-
-        List<RecommendationItem> filtered = sorted.stream()
+        if (page < 0 || size < 1 || size > 50 || minScore < 0 || minScore > 100) {
+            throw new ValidationException("Invalid recommendation page, size or minimum score");
+        }
+        List<RecommendationItem> filtered = scoredCandidates(userId, requestId).stream()
                 .filter(item -> item.score() >= minScore)
                 .map(item -> new RecommendationItem(item.listing(), item.score(), item.level()))
                 .toList();
-
         int totalElements = filtered.size();
-        int totalPages = size == 0 ? 0 : (int) Math.ceil((double) totalElements / size);
-        int from = Math.min(page * size, totalElements);
-        int to = Math.min(from + size, totalElements);
-        List<RecommendationItem> pageContent = filtered.subList(from, to);
-
-        log.info(
-                "Recommendations userId={} minScore={} page={} size={} returned={}/{} requestId={}",
-                userId,
-                minScore,
-                page,
-                size,
-                pageContent.size(),
-                totalElements,
-                requestId);
-
-        return new RecommendationsResponse(pageContent, page, size, totalElements, totalPages);
+        int totalPages = (int) ((totalElements + (long) size - 1) / size);
+        int from = (int) Math.min((long) page * size, totalElements);
+        int to = (int) Math.min((long) from + size, totalElements);
+        return new RecommendationsResponse(filtered.subList(from, to), page, size, totalElements, totalPages);
     }
 
-    /**
-     * Builds the full sorted list of (listing, score) pairs for a buyer. Cached for the
-     * 10-minute TTL configured on {@link CacheConfig#RECOMMENDATIONS_CACHE} so paging
-     * through results does not refetch and rescore the catalog.
-     */
-    @Cacheable(cacheNames = CacheConfig.RECOMMENDATIONS_CACHE, key = "#userId")
     public List<ScoredListing> scoredCandidates(long userId, String requestId) {
         BuyerQuestionnaire questionnaire = matchScoreService
                 .findQuestionnaire(userId)
                 .orElseThrow(() -> new QuestionnaireRequiredException(
                         "Buyer questionnaire is required to compute recommendations. "
                                 + "Submit one via POST /api/v1/match/questionnaire."));
+        // Share only active work for an immutable questionnaire revision. Completed results
+        // cannot be cached safely without versions/events from both remote services.
+        QuestionnaireResponse key = QuestionnaireResponse.from(questionnaire);
+        CompletableFuture<List<ScoredListing>> computation = new CompletableFuture<>();
+        CompletableFuture<List<ScoredListing>> existing = inFlight.putIfAbsent(key, computation);
+        if (existing != null) {
+            return await(existing);
+        }
+        boolean acquired = computations.tryAcquire();
+        try {
+            if (!acquired) {
+                throw new ListingUnavailableException("Matching capacity is busy; retry shortly");
+            }
+            List<ScoredListing> result = scoreCatalog(questionnaire, requestId);
+            computation.complete(result);
+            return result;
+        } catch (RuntimeException | Error ex) {
+            computation.completeExceptionally(ex);
+            throw ex;
+        } finally {
+            inFlight.remove(key, computation);
+            if (acquired) {
+                computations.release();
+            }
+        }
+    }
 
-        List<ListingSummary> candidates = fetchCandidates(requestId);
-        List<ScoredListing> scored = scoreInParallel(candidates, questionnaire, requestId);
-        scored.sort(Comparator.comparingInt(ScoredListing::score).reversed());
+    private List<ScoredListing> scoreCatalog(BuyerQuestionnaire questionnaire, String requestId) {
+        long deadline = System.nanoTime() + computationTimeout.toNanos();
+        long scanned = 0;
+        List<ScoredListing> scored = new ArrayList<>();
+        var seen = new HashSet<Long>();
+        for (int page = 0; ; page++) {
+            remaining(deadline);
+            ListingServiceClient.PublishedListingsPage response =
+                    listingClient.getPublishedListings(page, CATALOG_PAGE_SIZE, requestId);
+            scanned += response.content().size();
+            if (scanned > maxScannedListings) {
+                throw budgetExceeded();
+            }
+            remaining(deadline);
+            List<ListingSummary> candidates = response.content().stream()
+                    .filter(listing -> seen.add(listing.id()))
+                    .filter(listing -> matchesPreferences(questionnaire, listing))
+                    .toList();
+            scored.addAll(scoreBatch(candidates, questionnaire, requestId, deadline));
+            if (response.content().isEmpty() || (long) page + 1 >= response.totalPages()) {
+                break;
+            }
+        }
+        scored.sort(Comparator.comparingInt(ScoredListing::score)
+                .reversed()
+                .thenComparing(item -> item.listing().id()));
         return List.copyOf(scored);
     }
 
-    /**
-     * Scores candidates concurrently on virtual threads. Each call into
-     * {@link MatchScoreService#scoreSnapshot} fans out a synchronous HTTP request
-     * to passport-service; running them sequentially is an N+1 wait, which on a
-     * 200-listing catalog with ~100ms per call would block the recommendations
-     * endpoint for tens of seconds. Virtual threads make this fan-out essentially
-     * free since the underlying HTTP calls are blocking I/O.
-     */
-    private List<ScoredListing> scoreInParallel(
-            List<ListingSummary> candidates, BuyerQuestionnaire questionnaire, String requestId) {
-        if (candidates.isEmpty()) {
-            return new ArrayList<>();
-        }
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            List<Future<ScoredListing>> futures = candidates.stream()
-                    .map(listing -> executor.submit(() -> {
-                        CompatibilityResult result =
-                                matchScoreService.scoreSnapshot(questionnaire, listing.toSnapshot(), requestId);
-                        return new ScoredListing(listing, result.score(), result.level());
-                    }))
-                    .toList();
+    private List<ScoredListing> scoreBatch(
+            List<ListingSummary> candidates, BuyerQuestionnaire questionnaire, String requestId, long deadline) {
+        List<Future<ScoredListing>> futures = new ArrayList<>();
+        try {
+            for (ListingSummary listing : candidates) {
+                futures.add(workers.submit(() -> {
+                    CompatibilityResult result =
+                            matchScoreService.scoreSnapshot(questionnaire, listing.toSnapshot(), requestId);
+                    return new ScoredListing(listing, result.score(), result.level());
+                }));
+            }
             List<ScoredListing> scored = new ArrayList<>(futures.size());
             for (Future<ScoredListing> future : futures) {
-                scored.add(awaitScore(future));
+                scored.add(future.get(remaining(deadline), TimeUnit.NANOSECONDS));
             }
             return scored;
+        } catch (RejectedExecutionException ex) {
+            throw new ListingUnavailableException("Matching capacity is busy; retry shortly", ex);
+        } catch (TimeoutException ex) {
+            throw budgetExceeded();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new ListingUnavailableException("Interrupted while computing recommendations", ex);
+        } catch (ExecutionException ex) {
+            if (ex.getCause() instanceof RuntimeException cause) {
+                throw cause;
+            }
+            throw new ListingUnavailableException("Failed to compute recommendations", ex.getCause());
+        } finally {
+            futures.forEach(future -> {
+                if (!future.isDone()) {
+                    future.cancel(true);
+                }
+            });
         }
     }
 
-    private static ScoredListing awaitScore(Future<ScoredListing> future) {
+    private static long remaining(long deadline) {
+        long remaining = deadline - System.nanoTime();
+        if (remaining <= 0) {
+            throw budgetExceeded();
+        }
+        return remaining;
+    }
+
+    private static ListingUnavailableException budgetExceeded() {
+        return new ListingUnavailableException(
+                "Recommendation computation budget exceeded; retry later or use the catalog filters. No partial ranking was returned.");
+    }
+
+    static boolean matchesPreferences(BuyerQuestionnaire questionnaire, ListingSummary listing) {
+        String species = questionnaire.getPreferredSpecies();
+        if (species != null && !species.isBlank()) {
+            SpeciesKind preferred = SpeciesKind.classify(species);
+            if (preferred == SpeciesKind.OTHER) {
+                if (!species.trim().equalsIgnoreCase(listing.species())) {
+                    return false;
+                }
+            } else if (preferred != SpeciesKind.classify(listing.species())) {
+                return false;
+            }
+        }
+        String breed = questionnaire.getPreferredBreed();
+        return breed == null
+                || breed.isBlank()
+                || (listing.breed() != null
+                        && breed.trim().equalsIgnoreCase(listing.breed().trim()));
+    }
+
+    private static <T> T await(Future<T> future) {
         try {
             return future.get();
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while scoring listing", ex);
+            throw new ListingUnavailableException("Interrupted while computing recommendations", ex);
         } catch (ExecutionException ex) {
-            Throwable cause = ex.getCause();
-            if (cause instanceof RuntimeException re) {
-                throw re;
+            if (ex.getCause() instanceof RuntimeException cause) {
+                throw cause;
             }
-            throw new IllegalStateException("Failed to score listing", cause);
+            throw new ListingUnavailableException("Failed to compute recommendations", ex.getCause());
         }
     }
 
-    private List<ListingSummary> fetchCandidates(String requestId) {
-        List<ListingSummary> candidates = new ArrayList<>();
-        int page = 0;
-        while (candidates.size() < MAX_CANDIDATES) {
-            ListingServiceClient.PublishedListingsPage pageResponse =
-                    listingClient.getPublishedListings(page, CATALOG_PAGE_SIZE, requestId);
-            for (ListingSummary listing : pageResponse.content()) {
-                candidates.add(listing);
-                if (candidates.size() >= MAX_CANDIDATES) {
-                    break;
-                }
-            }
-            if (pageResponse.content().isEmpty() || page + 1 >= pageResponse.totalPages()) {
-                break;
-            }
-            page++;
-        }
-        return candidates;
+    @PreDestroy
+    public void close() {
+        workers.shutdownNow();
     }
 
-    private MatchRecommendationsService self() {
-        return self != null ? self : this;
-    }
-
-    /** Internal record for the cached sorted catalog. */
     public record ScoredListing(ListingSummary listing, int score, CompatibilityLevel level) {}
 }

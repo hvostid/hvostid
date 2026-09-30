@@ -1,0 +1,185 @@
+{
+  "reviewedAt": "2026-09-30",
+  "builder": "golang:1.26.8-alpine3.24@sha256:8ac98ca534ac3f51e1f420a1dd2c15e74c75cfa0f23f3ad27eb5d7236c349a0c",
+  "sources": [
+    {
+      "repository": "minio/minio",
+      "module": "github.com/minio/minio",
+      "commit": "7aac2a2c5b7c882e68c1ce017d8256be2feea27f",
+      "version": "v0.0.0-20260212201848-7aac2a2c5b7c",
+      "sum": "h1:/qdoYujxF5MBLDMVLeiYJ/7fBa1HikX39Dvzb9Ji8pA=",
+      "advisories": {
+        "GHSA-xh8f-g2qw-gcm7": {
+          "status": "not-exposed",
+          "reason": "This build refuses distributed deployment and blocks internode storage paths; no ReadMultiple route is registered in standalone mode.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-xh8f-g2qw-gcm7",
+          "digest": "1002d8c6130d2bdc342e381d500f0bc1579a3254aaf91f8ce80d79a8801ffa7b"
+        },
+        "GHSA-hv4r-mvr4-25vw": {
+          "status": "mitigated",
+          "reason": "Reject every unsigned-trailer upload before upstream handlers; hardening_test.go and security-smoke.mjs cover header/query/multipart variants.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-hv4r-mvr4-25vw",
+          "digest": "9b518788483a601564bb574fe1fa43d6d727bca942f36fd5a22e63eaa3256ed4"
+        },
+        "GHSA-9c4q-hq6p-c237": {
+          "status": "mitigated",
+          "reason": "Reject unsigned-trailer uploads including Snowball extraction before upstream body parsing.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-9c4q-hq6p-c237",
+          "digest": "ae0abef0cd0cd4df990bfd2668a2ad8b4da46df631f4e66e603e5bfec5ecffb5"
+        },
+        "GHSA-h749-fxx7-pwpg": {
+          "status": "mitigated",
+          "reason": "S3 Select is unavailable: guarded query and removed handler registration; ordinary object reads remain supported.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-h749-fxx7-pwpg",
+          "digest": "0764c43480f286f1c559e4c4d5f0a4a219541bfe2425f6d4410bfffa962f8302"
+        },
+        "GHSA-3rh2-v3gr-35p9": {
+          "status": "mitigated",
+          "reason": "Shared metadata extraction rejects replication keys from headers, query, POST forms and Snowball PAX records. POST policy is disabled. Reject replication/remote-target configuration and disable bucket/site/batch replication plus persisted target loading/heartbeat. Does not repair previously corrupted objects.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-3rh2-v3gr-35p9",
+          "digest": "64f3d0c95b455548c7e5e82ba84707f958515af9baf9e04986da8774876a290b"
+        },
+        "GHSA-jv87-32hw-hh99": {
+          "status": "not-exposed",
+          "reason": "STS routes and external identity provider login are disabled; application uses static S3 credentials and signed/presigned requests.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-jv87-32hw-hh99",
+          "digest": "10a952b67df6fafc82af5ca044c055c3a6bdb2cf030b38364c84b84da83409ff"
+        },
+        "GHSA-5cx5-wh4m-82fh": {
+          "status": "not-exposed",
+          "reason": "STS routes and OIDC login are disabled; no custom token/cryptographic parser is introduced.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-5cx5-wh4m-82fh",
+          "digest": "07fcd7ddf7aa6fba2967c5a8624b87ddab001dccc87db024989bc9ec4b02988a"
+        },
+        "GHSA-jjjj-jwhf-8rgr": {
+          "status": "fixed-upstream",
+          "reason": "Pinned server commit includes upstream security fix c1a49490c78e9c3ebcad86ba0662319138ace190 (session policy validation).",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-jjjj-jwhf-8rgr",
+          "digest": "d0bbab442c93b5645252a603999d3cb9ee6fe2a91ffffc0fc5e4c7d2209b0a2e"
+        },
+        "GHSA-wg47-6jq2-q2hh": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-wg47-6jq2-q2hh",
+          "digest": "1c9f119fbda5b535e283e94d399793be83f5a34469ce6a8a23efa16e0b49b714"
+        },
+        "GHSA-wc79-7x8x-2p58": {
+          "status": "not-exposed",
+          "reason": "FTP/SFTP startup is explicitly rejected and regression tested. GO-2025-3495 has an open SEMVER range because release tags cannot be mapped; its documented custom range was fixed RELEASE.2025-02-28T09-55-16Z (commits 4c71f1b4ec0fb2a473ddaac18c20ec9e63f267ec and 91e1487de45720753c9e9e4c02b1bd16b7e452fa). Do not treat the OSV match as a blanket fixed-version exclusion.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-wc79-7x8x-2p58",
+          "digest": "e6a6574ace8b8f49b33dfd0bae3e8597cd1adfd14e95908109a85550af214311"
+        },
+        "GHSA-cwq8-g58r-32hg": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-cwq8-g58r-32hg",
+          "digest": "2c2f429cc2c11a10edd3e55c6d564b2117489179733e49d0fbb1c37ba7025d19"
+        },
+        "GHSA-95fr-cm4m-q5p9": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-95fr-cm4m-q5p9",
+          "digest": "38a17a3749a4be9531e0db8f2644c0593e9a903031086724079fbd530a46c0dd"
+        },
+        "GHSA-xx8w-mq23-29g4": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-xx8w-mq23-29g4",
+          "digest": "3c3cfb140e889d17370764413a5162227c6851de15746b8adbe9d1511909346e"
+        },
+        "GHSA-6xvq-wj2x-3h3q": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-6xvq-wj2x-3h3q",
+          "digest": "47064c62ea8d48caf2e52ad814e738f937b392c67ff2662208ed7d692b41fee6"
+        },
+        "GHSA-2pxw-r47w-4p8c": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-2pxw-r47w-4p8c",
+          "digest": "750ef87b509e46d37b074b74ecb7c269bab4dde9ccdf7758f09c034621f873e4"
+        },
+        "GHSA-w23q-4hw3-2pp6": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-w23q-4hw3-2pp6",
+          "digest": "a664d53b7030dbada98e0f57b3ebfc7dc280c909de076c0b92556851712e04f0"
+        },
+        "GHSA-9wfv-wmf7-6753": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-9wfv-wmf7-6753",
+          "digest": "947766b61a67e03c22b5596205c42ed7d06104cb085fa0ddd586d42f70a7d397"
+        },
+        "GHSA-c8fc-mjj8-fc63": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-c8fc-mjj8-fc63",
+          "digest": "ff6780a06a66bbf6476361eb31484a5ffff9030c8c2d3849e9db8afb949b8fbe"
+        },
+        "GHSA-gr9v-6pcm-rqvg": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-gr9v-6pcm-rqvg",
+          "digest": "da2a07af050b5bdb9113d8d57eba2ce5e2fb4f40bf34d75cc5af09bf9edfcdb7"
+        },
+        "GHSA-qrpr-r3pw-f636": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-qrpr-r3pw-f636",
+          "digest": "19ab5bba3ca215fcc1786e7b3cb2332b9326d66333a8fb7df30b028e05642e18"
+        },
+        "GHSA-2j69-jjmg-534q": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-2j69-jjmg-534q",
+          "digest": "41eb9ab13385f85cfa97211934bb98a57b9b6129a25a06460c802cbe9ba0e5e2"
+        },
+        "GHSA-j6jc-jqqc-p6cx": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-j6jc-jqqc-p6cx",
+          "digest": "2db0774f02004d332bef08cfe563d91c654f2f88925b7e0b1c334aac3717d6bc"
+        },
+        "GHSA-v64v-g97p-577c": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-v64v-g97p-577c",
+          "digest": "81d95a7f985033075157ab1747b2e94c87c678ea1ffe44e95278fb4948ab3173"
+        },
+        "GHSA-xr7r-7gpj-5pgp": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-xr7r-7gpj-5pgp",
+          "digest": "2af5fefc6949960fcfc109c33636a6cc0e981b59df7fb2495471fbd08cccf027"
+        },
+        "GHSA-hq5j-6r98-9m8v": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-hq5j-6r98-9m8v",
+          "digest": "8ad236f788677ae58d1570aaa98086c6c045f0d10f5965881471a799464238a0"
+        },
+        "GHSA-m4qq-5f7c-693q": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-m4qq-5f7c-693q",
+          "digest": "d13d56419b99adf62842c18717554475134ccbcc53af1266dde053e9feca7658"
+        },
+        "GHSA-xv4r-vccv-mg4w": {
+          "status": "fixed-upstream",
+          "reason": "Advisory patched release predates pinned upstream source; reviewed upstream vulnerable/patched ranges.",
+          "url": "https://github.com/minio/minio/security/advisories/GHSA-xv4r-vccv-mg4w",
+          "digest": "a23e49a5af1bbf23454bc6f81e0cfda11278f63e39e9f8255ec3a4f56f3a81c9"
+        }
+      }
+    },
+    {
+      "repository": "minio/mc",
+      "module": "github.com/minio/mc",
+      "commit": "77f82e18b5401a65958f1619df6ebb994634bd88",
+      "version": "v0.0.0-20251106162529-77f82e18b540",
+      "sum": "h1:OAeamQLGQyf7sT/JEocLpAfMTU2Me5Jx3c1MjyS/mNo=",
+      "advisories": {}
+    }
+  ]
+}

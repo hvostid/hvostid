@@ -52,6 +52,11 @@ jobs:
                         shared-backend:
                             - 'common/**'
                             - 'Dockerfile'
+                            - 'docker/**'
+                            - 'docker-compose*.yml'
+                            - 'scripts/**'
+                            - 'package.json'
+                            - 'package-lock.json'
                             - '.dockerignore'
                             - 'gradle/**'
                             - 'build.gradle.kts'
@@ -69,6 +74,7 @@ jobs:
                             - 'listing-service/**'
                         passport-service:
                             - 'passport-service/**'
+                            - 'docker/minio/**'
                         matching-service:
                             - 'matching-service/**'
                         frontend:
@@ -138,6 +144,14 @@ jobs:
                 with:
                     name: test-results
                     path: "**/build/reports/tests/"
+
+            - name: Upload dependency verification diagnostics
+              if: failure()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: dependency-verification-ci
+                  path: "**/build/reports/dependency-verification/"
+                  if-no-files-found: ignore
 
             # Each service's OpenApiDocsTest writes the generated spec to
             # build/openapi/<service>.json. Uploading them makes it easy to
@@ -230,3 +244,69 @@ jobs:
                     tags: hvostid-frontend:pr
                     cache-from: type=gha,scope=hvostid-frontend
                     cache-to: type=gha,mode=max,scope=hvostid-frontend
+
+    frontend-check:
+        needs: changes
+        if: needs.changes.outputs.code == 'true'
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: frontend
+        steps:
+            - uses: actions/checkout@v6
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: 24
+                  cache: npm
+                  cache-dependency-path: frontend/package-lock.json
+            - name: Audit repository tooling
+              working-directory: .
+              run: |
+                  npm ci --ignore-scripts
+                  npm audit --audit-level=high
+            - run: npm ci
+            - run: npm run lint -- --max-warnings=0
+            - run: npm test
+            - run: npm run build
+            - run: npm audit --audit-level=high
+            - run: npx playwright install --with-deps chromium
+            - run: npm run test:e2e
+            - uses: actions/upload-artifact@v7
+              if: always()
+              with:
+                  name: browser-results
+                  path: |
+                      frontend/test-results/
+                      frontend/playwright-report/
+
+    compose-smoke:
+        needs: [changes, verify, frontend-check]
+        if: needs.changes.outputs.code == 'true'
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        steps:
+            - uses: actions/checkout@v6
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: 24
+            - uses: docker/setup-buildx-action@v4
+            - name: Build and start a fresh stack
+              run: |
+                  docker compose pull --ignore-buildable
+                  for service in minio api-gateway auth-service listing-service passport-service matching-service frontend; do
+                    docker compose build "$service"
+                  done
+                  docker compose up -d --wait --wait-timeout 300
+            - name: Validate monitoring rules
+              run: |
+                  docker run --rm --entrypoint /bin/promtool -v "$PWD/docker/observability:/config:ro" prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e test rules /config/alerts.test.yml
+            - name: Exercise API flows through the frontend proxy
+              run: node scripts/smoke-api.mjs
+            - name: Verify backup and isolated restore
+              run: RESTORE_DRILL_DISPOSABLE=true bash scripts/test-restore.sh
+            - name: Logs
+              if: failure()
+              run: docker compose logs --tail=100
+            - name: Clean test volumes
+              if: always()
+              run: docker compose down -v

@@ -18,7 +18,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import ru.hvostid.common.security.UserRole;
-import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
+import ru.hvostid.listing.ListingIntegrationTest;
 import ru.hvostid.listing.entity.Listing;
 import ru.hvostid.listing.entity.ListingStatus;
 import ru.hvostid.listing.repository.ListingRepository;
@@ -26,7 +26,7 @@ import ru.hvostid.listing.repository.ListingRepository;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class ListingMyControllerTest extends AbstractPostgresContainerTest {
+class ListingMyControllerTest extends ListingIntegrationTest {
     private static final String LISTINGS_URL = "/api/v1/listings";
     private static final Long OWNER_ID = 100L;
     private static final Long OTHER_OWNER_ID = 200L;

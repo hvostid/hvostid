@@ -3,16 +3,19 @@ services:
     # --- Infrastructure ---
 
     postgres:
-        image: postgres:18-alpine
-        container_name: hvostid-postgres
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
         restart: unless-stopped
         mem_limit: 256m
         environment:
             POSTGRES_USER: ${DB_USER}
             POSTGRES_PASSWORD: ${DB_PASSWORD}
+            AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD}
+            LISTING_DB_PASSWORD: ${LISTING_DB_PASSWORD:?Set LISTING_DB_PASSWORD}
+            PASSPORT_DB_PASSWORD: ${PASSPORT_DB_PASSWORD:?Set PASSPORT_DB_PASSWORD}
+            MATCHING_DB_PASSWORD: ${MATCHING_DB_PASSWORD:?Set MATCHING_DB_PASSWORD}
         volumes:
             - postgres-data:/var/lib/postgresql
-            - ./docker/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+            - ./docker/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
         healthcheck:
             test: [ "CMD-SHELL", "pg_isready -U ${DB_USER}" ]
             interval: 5s
@@ -20,25 +23,27 @@ services:
             retries: 5
 
     minio:
-        image: minio/minio
-        container_name: hvostid-minio
+        image: hvostid/minio:security-2026-09-30
+        pull_policy: build
+        build: ./docker/minio
         restart: unless-stopped
         mem_limit: 256m
-        command: server /data --console-address ":9001"
+        command: server /data
         environment:
             MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
             MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
         volumes:
             - minio-data:/data
         healthcheck:
-            test: [ "CMD", "mc", "ready", "local" ]
+            test: [ "CMD-SHELL", "wget -qO- http://localhost:9000/minio/health/live || exit 1" ]
             interval: 5s
             timeout: 3s
             retries: 5
 
     minio-init:
-        image: minio/mc
-        container_name: hvostid-minio-init
+        image: hvostid/minio:security-2026-09-30
+        pull_policy: build
+        build: ./docker/minio
         depends_on:
             minio:
                 condition: service_healthy
@@ -47,17 +52,15 @@ services:
             MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
             MINIO_DOCUMENTS_BUCKET: ${MINIO_DOCUMENTS_BUCKET:-pet-documents}
             MINIO_PHOTOS_BUCKET: ${MINIO_PHOTOS_BUCKET:-pet-photos}
-        entrypoint: >
-            /bin/sh -c "
-            mc alias set local http://minio:9000 $$MINIO_ACCESS_KEY $$MINIO_SECRET_KEY;
-            mc mb --ignore-existing local/$$MINIO_DOCUMENTS_BUCKET;
-            mc mb --ignore-existing local/$$MINIO_PHOTOS_BUCKET;
-            exit 0;
-            "
+        entrypoint: ["/bin/sh", "-ec"]
+        command:
+            - |
+                mc alias set local http://minio:9000 "$${MINIO_ACCESS_KEY}" "$${MINIO_SECRET_KEY}"
+                mc mb --ignore-existing "local/$${MINIO_DOCUMENTS_BUCKET}"
+                mc mb --ignore-existing "local/$${MINIO_PHOTOS_BUCKET}"
 
     redis:
-        image: redis:alpine
-        container_name: hvostid-redis
+        image: redis:8.2.5-alpine@sha256:82db05459fb850cc3fe2bfa510a054323247bbd0ecb8831272e41fe14b9ead82
         restart: unless-stopped
         mem_limit: 128m
         command: [ "redis-server", "--appendonly", "no", "--save", "" ]
@@ -71,19 +74,23 @@ services:
 
     api-gateway:
         image: ghcr.io/${GHCR_OWNER}/hvostid-api-gateway:${IMAGE_TAG:-latest}
-        container_name: hvostid-gateway
         restart: unless-stopped
         mem_limit: 512m
         ports:
-            - "8080:8080"
+            - "127.0.0.1:8080:8080"
         environment:
             JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"
             SPRING_PROFILES_ACTIVE: prod
             HVOSTID_CORS_ALLOWED_ORIGINS: ${HVOSTID_CORS_ALLOWED_ORIGINS}
+            MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: false
+            MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENABLED: false
             AUTH_SERVICE_HOST: auth-service
             LISTING_SERVICE_HOST: listing-service
             PASSPORT_SERVICE_HOST: passport-service
             MATCHING_SERVICE_HOST: matching-service
+            HVOSTID_RATE_LIMIT_TRUSTED_PROXIES: ${HVOSTID_FRONTEND_IP:-172.30.44.10}
+            SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: 10MB
+            SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: 20MB
         depends_on:
             auth-service:
                 condition: service_healthy
@@ -96,17 +103,28 @@ services:
 
     auth-service:
         image: ghcr.io/${GHCR_OWNER}/hvostid-auth-service:${IMAGE_TAG:-latest}
-        container_name: hvostid-auth
         restart: unless-stopped
         mem_limit: 512m
         environment:
             JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"
+            MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: false
+            MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENABLED: false
             SERVER_PORT: 8081
+            AUTH_MAIL_ENCRYPTION_KEY: ${AUTH_MAIL_ENCRYPTION_KEY:-}
+            AUTH_MAIL_ENABLED: ${AUTH_MAIL_ENABLED:-false}
+            AUTH_MAIL_FROM: ${AUTH_MAIL_FROM:-no-reply@localhost}
+            AUTH_PUBLIC_BASE_URL: ${AUTH_PUBLIC_BASE_URL:-http://localhost:3000}
+            SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-localhost}
+            SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-1025}
+            SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+            SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+            SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:-false}
+            SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:-false}
             SPRING_PROFILES_ACTIVE: prod
             DB_HOST: postgres
             DB_NAME: hvostid_auth
-            DB_USER: ${DB_USER}
-            DB_PASSWORD: ${DB_PASSWORD}
+            DB_USER: hvostid_auth
+            DB_PASSWORD: ${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD}
         depends_on:
             postgres:
                 condition: service_healthy
@@ -119,17 +137,19 @@ services:
 
     listing-service:
         image: ghcr.io/${GHCR_OWNER}/hvostid-listing-service:${IMAGE_TAG:-latest}
-        container_name: hvostid-listing
         restart: unless-stopped
         mem_limit: 512m
         environment:
             JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"
+            MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: false
+            MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENABLED: false
             SERVER_PORT: 8082
+            PASSPORT_SERVICE_HOST: passport-service
             SPRING_PROFILES_ACTIVE: prod
             DB_HOST: postgres
             DB_NAME: hvostid_listing
-            DB_USER: ${DB_USER}
-            DB_PASSWORD: ${DB_PASSWORD}
+            DB_USER: hvostid_listing
+            DB_PASSWORD: ${LISTING_DB_PASSWORD:?Set LISTING_DB_PASSWORD}
         depends_on:
             postgres:
                 condition: service_healthy
@@ -142,17 +162,18 @@ services:
 
     passport-service:
         image: ghcr.io/${GHCR_OWNER}/hvostid-passport-service:${IMAGE_TAG:-latest}
-        container_name: hvostid-passport
         restart: unless-stopped
         mem_limit: 512m
         environment:
             JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"
+            MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: false
+            MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENABLED: false
             SERVER_PORT: 8083
             SPRING_PROFILES_ACTIVE: prod
             DB_HOST: postgres
             DB_NAME: hvostid_passport
-            DB_USER: ${DB_USER}
-            DB_PASSWORD: ${DB_PASSWORD}
+            DB_USER: hvostid_passport
+            DB_PASSWORD: ${PASSPORT_DB_PASSWORD:?Set PASSPORT_DB_PASSWORD}
             MINIO_HOST: minio
             MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
             MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
@@ -165,6 +186,8 @@ services:
                 condition: service_healthy
             minio:
                 condition: service_healthy
+            minio-init:
+                condition: service_completed_successfully
             redis:
                 condition: service_healthy
         healthcheck:
@@ -176,17 +199,22 @@ services:
 
     matching-service:
         image: ghcr.io/${GHCR_OWNER}/hvostid-matching-service:${IMAGE_TAG:-latest}
-        container_name: hvostid-matching
         restart: unless-stopped
         mem_limit: 512m
         environment:
             JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"
+            MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: false
+            MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENABLED: false
             SERVER_PORT: 8084
+            MATCHING_PARALLELISM: ${MATCHING_PARALLELISM:-16}
+            MATCHING_MAX_COMPUTATIONS: ${MATCHING_MAX_COMPUTATIONS:-8}
+            MATCHING_MAX_SCANNED_LISTINGS: ${MATCHING_MAX_SCANNED_LISTINGS:-10000}
+            MATCHING_COMPUTATION_TIMEOUT: ${MATCHING_COMPUTATION_TIMEOUT:-30s}
             SPRING_PROFILES_ACTIVE: prod
             DB_HOST: postgres
             DB_NAME: hvostid_matching
-            DB_USER: ${DB_USER}
-            DB_PASSWORD: ${DB_PASSWORD}
+            DB_USER: hvostid_matching
+            DB_PASSWORD: ${MATCHING_DB_PASSWORD:?Set MATCHING_DB_PASSWORD}
             LISTING_SERVICE_HOST: listing-service
             PASSPORT_SERVICE_HOST: passport-service
         depends_on:
@@ -203,7 +231,9 @@ services:
 
     frontend:
         image: ghcr.io/${GHCR_OWNER}/hvostid-frontend:${IMAGE_TAG:-latest}
-        container_name: hvostid-frontend
+        networks:
+            default:
+                ipv4_address: ${HVOSTID_FRONTEND_IP:-172.30.44.10}
         restart: unless-stopped
         mem_limit: 512m
         ports:
@@ -215,3 +245,10 @@ services:
 volumes:
     postgres-data:
     minio-data:
+
+networks:
+    default:
+        ipam:
+            config:
+                - subnet: ${HVOSTID_SUBNET:-172.30.44.0/24}
+                  ip_range: ${HVOSTID_DYNAMIC_RANGE:-172.30.44.128/25}

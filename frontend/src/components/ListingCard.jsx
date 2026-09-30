@@ -34,12 +34,10 @@ export default function ListingCard({ listing }) {
                     }}
                 />
 
-                {/* Осветляющий слой ТОЛЬКО для картинки-заглушки */}
                 {isPlaceholder && (
                     <div className="absolute inset-0 bg-white/80 transition-all duration-300 "></div>
                 )}
 
-                {/* Аккуратная надпись в углу, если нет фото */}
                 {isPlaceholder && (
                     <div className="absolute bottom-2 right-2 bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-md">
                         <span className="text-white text-xs font-medium">No photo</span>

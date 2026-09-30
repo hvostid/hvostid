@@ -1,5 +1,5 @@
 // components/ConfirmDialog.jsx
-import { useEffect } from 'react';
+import { useEffect, useRef, useId, useEffectEvent } from 'react';
 
 export default function ConfirmDialog({
     isOpen,
@@ -7,19 +7,62 @@ export default function ConfirmDialog({
     onConfirm,
     title,
     message,
-    confirmLabel = 'Подтвердить',
-    cancelLabel = 'Отмена',
-    confirmVariant = 'danger', // 'danger' или 'primary'
+    confirmLabel = 'Confirm',
+    cancelLabel = 'Cancel',
+    confirmVariant = 'danger',
     isLoading = false,
 }) {
+    const dialogRef = useRef(null);
+    const titleId = useId();
+    const messageId = useId();
+    const dismiss = useEffectEvent(() => {
+        if (!isLoading) onClose();
+    });
     useEffect(() => {
-        if (isOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = 'unset';
-        }
+        if (!isOpen) return undefined;
+        const previousFocus = document.activeElement;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        dialogRef.current?.querySelector('button')?.focus();
+        const onKey = (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                dismiss();
+            }
+            if (event.key !== 'Tab') return;
+            const targets = [
+                ...dialogRef.current.querySelectorAll(
+                    'button:not([disabled]), a[href], input:not([disabled]), [tabindex="0"]'
+                ),
+            ];
+            if (!targets.length) {
+                event.preventDefault();
+                dialogRef.current.focus();
+                return;
+            }
+            const first = targets[0],
+                last = targets[targets.length - 1];
+            if (
+                event.shiftKey &&
+                (document.activeElement === first ||
+                    !dialogRef.current.contains(document.activeElement))
+            ) {
+                event.preventDefault();
+                last.focus();
+            } else if (
+                !event.shiftKey &&
+                (document.activeElement === last ||
+                    !dialogRef.current.contains(document.activeElement))
+            ) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+        document.addEventListener('keydown', onKey);
         return () => {
-            document.body.style.overflow = 'unset';
+            document.removeEventListener('keydown', onKey);
+            document.body.style.overflow = previousOverflow;
+            if (previousFocus instanceof HTMLElement) previousFocus.focus();
         };
     }, [isOpen]);
 
@@ -32,12 +75,22 @@ export default function ConfirmDialog({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-            {/* Прозрачный фон с размытием */}
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+            <div
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                onClick={() => {
+                    if (!isLoading) onClose();
+                }}
+            />
 
-            {/* Модальное окно */}
-            <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 animate-in zoom-in-95">
-                {/* Иконка в зависимости от типа */}
+            <div
+                ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                aria-describedby={messageId}
+                tabIndex={-1}
+                className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 animate-in zoom-in-95"
+            >
                 <div className="flex justify-center pt-6">
                     <div
                         className={`
@@ -77,13 +130,15 @@ export default function ConfirmDialog({
                     </div>
                 </div>
 
-                {/* Заголовок */}
                 <div className="text-center mt-4 px-6">
-                    <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
-                    <p className="mt-2 text-sm text-gray-500">{message}</p>
+                    <h3 id={titleId} className="text-xl font-semibold text-gray-900">
+                        {title}
+                    </h3>
+                    <p id={messageId} className="mt-2 text-sm text-gray-500">
+                        {message}
+                    </p>
                 </div>
 
-                {/* Кнопки */}
                 <div className="flex gap-3 px-6 py-6">
                     <button
                         onClick={onClose}
@@ -116,7 +171,7 @@ export default function ConfirmDialog({
                                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                                     />
                                 </svg>
-                                Загрузка...
+                                Loading...
                             </span>
                         ) : (
                             confirmLabel

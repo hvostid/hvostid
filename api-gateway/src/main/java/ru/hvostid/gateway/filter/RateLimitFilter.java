@@ -5,7 +5,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -36,7 +37,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private final RateLimitProperties properties;
     private final ObjectMapper objectMapper;
-    private final ConcurrentHashMap<String, TokenBucket> buckets = new ConcurrentHashMap<>();
+    private final Map<String, TokenBucket> buckets = new HashMap<>();
+    private long nextCleanupNanos;
 
     public RateLimitFilter(RateLimitProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
@@ -47,10 +49,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String clientIp = resolveClientIp(request);
-        TokenBucket bucket = buckets.computeIfAbsent(
-                clientIp, _ -> new TokenBucket(properties.replenishRate(), properties.burstCapacity()));
+        boolean authentication = request.getRequestURI().startsWith("/api/v1/auth/");
+        TokenBucket bucket = bucketFor(clientIp + (authentication ? ":auth" : ":api"), authentication);
 
-        if (!bucket.tryConsume()) {
+        if (bucket == null || !bucket.tryConsume()) {
             log.warn("Rate limit exceeded for ip={} on {}", clientIp, request.getRequestURI());
 
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
@@ -73,11 +75,44 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private String resolveClientIp(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            // Take the first IP in the chain (original client)
-            return forwarded.split(",")[0].trim();
+        String peer = request.getRemoteAddr();
+        if (forwarded == null
+                || forwarded.length() > 1024
+                || !properties.trustedProxies().contains(peer)) {
+            return peer;
         }
-        return request.getRemoteAddr();
+        String[] chain = forwarded.split(",");
+        for (int i = chain.length - 1; i >= 0; i--) {
+            String address = chain[i].trim();
+            if (address.isEmpty() || address.length() > 45 || !address.matches("[0-9a-fA-F:.]+")) return peer;
+            if (!properties.trustedProxies().contains(address)) return address;
+        }
+        return peer;
+    }
+
+    private synchronized TokenBucket bucketFor(String key, boolean authentication) {
+        long now = System.nanoTime();
+        if (now >= nextCleanupNanos || buckets.size() >= properties.maxClients()) {
+            long cutoff = now - properties.idleTtl().toNanos();
+            buckets.values().removeIf(bucket -> bucket.lastAccessNanos < cutoff);
+            nextCleanupNanos = now + java.time.Duration.ofMinutes(1).toNanos();
+        }
+        TokenBucket existing = buckets.get(key);
+        if (existing != null) {
+            existing.lastAccessNanos = now;
+            return existing;
+        }
+        // Do not evict active buckets: rotating identities must not replenish their quota.
+        if (buckets.size() >= properties.maxClients()) return null;
+        TokenBucket created = new TokenBucket(
+                authentication ? properties.authReplenishRate() : properties.replenishRate(),
+                authentication ? properties.authBurstCapacity() : properties.burstCapacity());
+        buckets.put(key, created);
+        return created;
+    }
+
+    synchronized int trackedClients() {
+        return buckets.size();
     }
 
     /**
@@ -92,6 +127,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         private final int capacity;
         private double tokens;
         private long lastRefillNanos;
+        private volatile long lastAccessNanos = System.nanoTime();
 
         TokenBucket(int rate, int capacity) {
             this.rate = rate;

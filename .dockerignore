@@ -29,6 +29,11 @@ Thumbs.db
 
 # Local env / secrets
 .env
+.env.*
+tmp
+backups
+docs
+**/*.log
 *.local
 
 # Docs and CI metadata not needed at build time
