@@ -29,7 +29,11 @@ certificate and retains it in its own volume. Port 80/443 must be reachable for
 certificate issuance. Nginx trusts the edge at 172.30.44.11; gateway trusts frontend
 at 172.30.44.10. If changing subnet/IPs, change the explicit Nginx trust rule too.
 SMTP is disabled by default; enable it after configuring a working provider and a
-correct `AUTH_PUBLIC_BASE_URL`. Verify delivery and password reset before public use.
+correct `AUTH_PUBLIC_BASE_URL`. Set `AUTH_MAIL_ENCRYPTION_KEY` to a randomly generated
+32-byte base64 key; the durable mail outbox stores encrypted payloads. Back up the
+key separately in your secret manager and restore it with the database. Do not
+rotate it while pending encrypted messages remain. Verify delivery and password
+reset before public use.
 
 ### Existing databases
 

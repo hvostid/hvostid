@@ -21,11 +21,10 @@ await request('/listings', { anonymous: true });
 await request('/listings/my', { status: 401, anonymous: true, headers: { 'X-User-Id': '1', 'X-User-Roles': 'ADMIN,SELLER' } });
 await request('/listings/draft', { status: 401, anonymous: true, headers: { 'X-User-Id': '1', 'X-User-Roles': 'ADMIN,SELLER' } });
 await request('/auth/register', { method: 'POST', status: 201, body: { ...credentials, name: 'Smoke Seller' } });
-token = (await request('/auth/login', { method: 'POST', body: credentials })).accessToken;
-await request('/profile/me/roles', { method: 'POST', body: { role: 'SELLER' } });
-// A fresh token avoids the short-lived introspection cache from before the role change.
 const tokens = await request('/auth/login', { method: 'POST', body: credentials });
 token = tokens.accessToken;
+await request('/profile/me/roles', { method: 'POST', body: { role: 'SELLER' } });
+// Existing sessions must observe the newly assigned role through current introspection.
 const passport = await request('/passports', { method: 'POST', status: 201, body: {
   name: 'Smoke Cat', species: 'CAT', breed: 'Siamese', birthDate: '2025-01-01', gender: 'FEMALE',
   temperament: 'FRIENDLY', neutered: true, microchipped: true,
@@ -59,11 +58,15 @@ const forgedRead = await fetch(`${api}/listings/${listing.id}`, {
   headers: { 'X-User-Id': String(listing.sellerId), 'X-User-Roles': 'ADMIN,SELLER' },
 });
 assert.ok([403, 404].includes(forgedRead.status), 'Anonymous forged identity must not expose a draft');
-await request(`/listings/${listing.id}/status`, { method: 'PATCH', body: { status: 'MODERATION' } });
-await request(`/passports/${passport.id}`, { method: 'DELETE', status: 409 });
-await request(`/listings/${listing.id}/status`, { method: 'PATCH', body: { status: 'DRAFT' } });
 await request(`/listings/${listing.id}`, { method: 'DELETE', status: 204 });
-await request(`/passports/${passport.id}`, { method: 'DELETE', status: 204 });
+const activeListing = await request('/listings', { method: 'POST', status: 201, body: {
+  title: `Smoke active listing ${Date.now()}`, description: 'End-to-end smoke', species: 'CAT', breed: 'Siamese',
+  age: 12, price: 0, city: 'Test City', passportId: String(passport.id),
+} });
+await request(`/listings/${activeListing.id}/status`, { method: 'PATCH', body: { status: 'MODERATION' } });
+await request(`/passports/${passport.id}`, { method: 'DELETE', status: 409 });
+await request(`/listings/${activeListing.id}/status`, { method: 'PATCH', status: 403, body: { status: 'DRAFT', comment: 'Owner cannot moderate' } });
+// Moderation data remains in this disposable stack for the backup/restore drill.
 const refreshed = await request('/auth/refresh', { method: 'POST', body: { refreshToken: tokens.refreshToken } });
 assert.ok(refreshed.accessToken);
 token = refreshed.accessToken;

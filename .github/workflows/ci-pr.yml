@@ -145,6 +145,14 @@ jobs:
                     name: test-results
                     path: "**/build/reports/tests/"
 
+            - name: Upload dependency verification diagnostics
+              if: failure()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: dependency-verification-ci
+                  path: "**/build/reports/dependency-verification/"
+                  if-no-files-found: ignore
+
             # Each service's OpenApiDocsTest writes the generated spec to
             # build/openapi/<service>.json. Uploading them makes it easy to
             # diff API changes across PRs and feeds future client/codegen.
@@ -285,7 +293,10 @@ jobs:
             - name: Build and start a fresh stack
               run: |
                   docker compose pull --ignore-buildable
-                  docker compose up --build -d --wait --wait-timeout 300
+                  for service in minio api-gateway auth-service listing-service passport-service matching-service frontend; do
+                    docker compose build "$service"
+                  done
+                  docker compose up -d --wait --wait-timeout 300
             - name: Validate monitoring rules
               run: |
                   docker run --rm --entrypoint /bin/promtool -v "$PWD/docker/observability:/config:ro" prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e test rules /config/alerts.test.yml
