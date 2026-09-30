@@ -205,7 +205,7 @@ Seed загружается только при профиле `demo`. В produc
 
 ```bash
 cp .env.prod.example .env.prod
-# Заполните .env.prod: DB_PASSWORD, MINIO_ACCESS_KEY, MINIO_SECRET_KEY,
+# Заполните .env.prod: DB_PASSWORD и каждый *_DB_PASSWORD, MINIO_ACCESS_KEY, MINIO_SECRET_KEY,
 # IMAGE_TAG (например latest или short SHA с main), GHCR_OWNER.
 
 docker login ghcr.io   # если образы приватные

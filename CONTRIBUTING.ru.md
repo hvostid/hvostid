@@ -283,12 +283,12 @@ PR мержатся merge-коммитом (default GitHub merge), что сох
 покоммитную историю. Squash-merge -- только для тривиальных fix-PR,
 где покоммитная история ничего не добавляет.
 
-## Dependency integrity and operational checks
+## Целостность зависимостей и эксплуатационные проверки
 
-Gradle resolves from Maven Central; module lockfiles and
-`gradle/verification-metadata.xml` pin resolved versions and SHA-256 checksums.
-The wrapper archive also has a verified SHA-256. Review upstream release notes
-and checksums before accepting new verification entries:
+Gradle использует Maven Central; lockfile каждого модуля и
+`gradle/verification-metadata.xml` фиксируют версии и SHA-256 зависимостей.
+SHA-256 архива wrapper также закреплён. Перед добавлением контрольных сумм
+проверьте официальные release notes и источник артефактов:
 
 ```bash
 ./gradlew resolveAndLockDependencies --write-locks --write-verification-metadata sha256
@@ -304,8 +304,8 @@ npm run build
 npm audit --audit-level=high
 ```
 
-Do not bypass dependency verification to make a build green. CI performs the
-full NVD scan with its required secret. Runtime Docker images are pinned by
-digest; PostgreSQL's test-only catalog tag is intentionally rolling to exercise
-current supported patch releases. See [operations](./docs/operations.md) for
-the Compose smoke, disposable restore drill and alert checks.
+Не отключайте проверку зависимостей ради зелёной сборки. CI выполняет полный
+скан NVD с обязательным секретом. Runtime-образы Docker закреплены по digest.
+Тестовый тег PostgreSQL намеренно подвижен для проверки актуальных patch-релизов.
+[Руководство эксплуатации](./docs/operations.md) описывает Compose smoke,
+изолированное восстановление и проверку правил оповещения.
