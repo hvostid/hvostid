@@ -59,11 +59,12 @@ jobs:
             -   name: Setup Gradle
                 uses: gradle/actions/setup-gradle@v6
 
-            -   name: Cache NVD database
-                uses: actions/cache@v5
+            -   name: Restore NVD database
+                id: nvd-cache
+                uses: actions/cache/restore@v5
                 with:
                     path: build/dependency-check-data
-                    key: nvd-db-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}-${{ github.run_id }}
+                    key: nvd-db-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
                     restore-keys: |
                         nvd-db-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}-
                         nvd-db-${{ runner.os }}-
@@ -78,7 +79,8 @@ jobs:
                     mkdir -p build/reports
                     node scripts/audit-jvm-dependencies.mjs
 
-            -   name: Run OWASP Dependency Check
+            -   name: Update NVD database
+                id: nvd-update
                 env:
                     NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
                 run: |
@@ -86,7 +88,21 @@ jobs:
                         echo "::error::NVD_API_KEY is required for the NVD scan; this is not a clean security result."
                         exit 1
                     fi
-                    ./gradlew dependencyCheckAggregate --no-daemon
+                    ./gradlew dependencyCheckUpdate --no-daemon --info
+
+            # Preserve successfully updated data even when the later vulnerability gate fails.
+            # Never persist a partial update after a feed/authentication error.
+            -   name: Save updated NVD database
+                if: success() && steps.nvd-update.outcome == 'success' && steps.nvd-cache.outputs.cache-hit != 'true'
+                uses: actions/cache/save@v5
+                with:
+                    path: build/dependency-check-data
+                    key: ${{ steps.nvd-cache.outputs.cache-primary-key }}
+
+            -   name: Run OWASP Dependency Check
+                env:
+                    NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+                run: ./gradlew dependencyCheckAggregate --no-daemon
 
             -   name: Upload dependency verification diagnostics
                 if: failure()
