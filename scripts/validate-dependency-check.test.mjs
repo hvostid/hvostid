@@ -10,8 +10,8 @@ import { validateDatabase, validateReport as validateAggregate } from './validat
 const script = fileURLToPath(new URL('./validate-dependency-check.mjs', import.meta.url));
 const services = ['api-gateway', 'auth-service', 'listing-service', 'passport-service', 'matching-service'];
 const hash = 'a'.repeat(64);
-const validInventory = () => ({ schema: 1, services, artifacts: services.map(service => ({
-  service, group: 'org.example', name: 'example', version: '1.0', fileName: 'example-1.0.jar', sha256: hash,
+const validInventory = () => ({ schema: 2, services, artifacts: services.map(service => ({
+  service, configuration: 'runtimeClasspath', group: 'org.example', name: 'example', version: '1.0', fileName: 'example-1.0.jar', sha256: hash,
 })) });
 const validateReport = report => validateAggregate(report, validInventory());
 const validReport = () => ({
@@ -53,6 +53,34 @@ test('complete Java aggregate with all runtime services passes', () => {
   assert.equal(summary.mavenPackages, 1);
   assert.equal(summary.uniqueVulnerabilities, 0);
   assert.deepEqual(summary.runtimeServices, [...services].sort());
+});
+
+test('DC13/Boot production runtime references match the exported exact configuration', () => {
+  // Minimal real dependency from Security run 36661878362; volatile dates use
+  // the fixture clock. Preserve the actual package ID, hash and reference shape.
+  const report = validReport();
+  report.dependencies = [{
+    fileName: 'HdrHistogram-2.2.2.jar', filePath: '/cache/HdrHistogram-2.2.2.jar',
+    sha256: '22d1d4316c4ec13a68b559e98c8256d69071593731da96136640f864fa14fad8',
+    packages: [{ id: 'pkg:maven/org.hdrhistogram/HdrHistogram@2.2.2', confidence: 'HIGH' }],
+    projectReferences: services.map(service => `${service}:productionRuntimeClasspath`),
+  }];
+  const inventory = { schema: 2, services, artifacts: services.map(service => ({
+    service, configuration: 'productionRuntimeClasspath', group: 'org.hdrhistogram',
+    name: 'HdrHistogram', version: '2.2.2', fileName: 'HdrHistogram-2.2.2.jar',
+    sha256: report.dependencies[0].sha256,
+  })) };
+  assert.equal(validateAggregate(report, inventory).expectedRuntimeArtifacts, 5);
+  inventory.artifacts[0].configuration = 'runtimeClasspath';
+  assert.throws(() => validateAggregate(report, inventory), /Runtime artifacts missing/);
+});
+
+test('expected compile/test configurations are rejected instead of weakening production coverage', () => {
+  for (const configuration of ['compileClasspath', 'testRuntimeClasspath', undefined]) {
+    const inventory = validInventory();
+    inventory.artifacts[0].configuration = configuration;
+    assert.throws(() => validateAggregate(validReport(), inventory), /Malformed expected runtime artifact/);
+  }
 });
 
 test('freshness requires API Last Checked, not Last Modified or unrelated metadata', () => {

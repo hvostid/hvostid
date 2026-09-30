@@ -55,7 +55,9 @@ val exportSecurityRuntimeInventory = tasks.register("exportSecurityRuntimeInvent
     doLast {
         val services = listOf("api-gateway", "auth-service", "listing-service", "passport-service", "matching-service")
         val artifacts = services.flatMap { service ->
-            val runtime = project(":$service").configurations.getByName("runtimeClasspath")
+            val configurations = project(":$service").configurations
+            val runtime = configurations.findByName("productionRuntimeClasspath")
+                ?: configurations.getByName("runtimeClasspath")
             val external = runtime.incoming.artifactView {
                 componentFilter { it is org.gradle.api.artifacts.component.ModuleComponentIdentifier }
             }.artifacts.artifacts
@@ -73,6 +75,7 @@ val exportSecurityRuntimeInventory = tasks.register("exportSecurityRuntimeInvent
                 }
                 mapOf(
                     "service" to service,
+                    "configuration" to runtime.name,
                     "group" to module.group,
                     "name" to module.module,
                     "version" to module.version,
@@ -84,7 +87,7 @@ val exportSecurityRuntimeInventory = tasks.register("exportSecurityRuntimeInvent
         val report = destination.get().asFile
         report.parentFile.mkdirs()
         report.writeText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(
-            mapOf("schema" to 1, "services" to services, "artifacts" to artifacts)
+            mapOf("schema" to 2, "services" to services, "artifacts" to artifacts)
         )) + "\n")
         logger.lifecycle("Exported ${artifacts.size} external runtime artifacts across ${services.size} services to $report")
     }

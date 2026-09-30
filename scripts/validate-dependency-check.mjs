@@ -3,6 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const runtimeServices = ['api-gateway', 'auth-service', 'listing-service', 'passport-service', 'matching-service'];
+const runtimeConfigurations = ['runtimeClasspath', 'productionRuntimeClasspath'];
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const text = value => typeof value === 'string' && value.trim().length > 0;
 const checksum = value => typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value);
@@ -13,21 +14,24 @@ function requireValue(condition, message) {
 
 /** Validate a real DC13 aggregate, including runtime coverage, independently of its CVSS gate. */
 export function validateReport(report, inventory, now = Date.now()) {
-  requireValue(object(inventory) && inventory.schema === 1
+  requireValue(object(inventory) && inventory.schema === 2
     && Array.isArray(inventory.services) && inventory.services.length === runtimeServices.length
     && runtimeServices.every(service => inventory.services.includes(service)), 'Missing or malformed runtime inventory services');
   requireValue(Array.isArray(inventory.artifacts) && inventory.artifacts.length > 0, 'Empty expected runtime artifact inventory');
   const expected = new Map();
   for (const artifact of inventory.artifacts) {
     requireValue(object(artifact) && runtimeServices.includes(artifact.service)
+      && runtimeConfigurations.includes(artifact.configuration)
       && ['group', 'name', 'version', 'fileName'].every(field => text(artifact[field]))
       && checksum(artifact.sha256), 'Malformed expected runtime artifact');
-    const key = `${artifact.service}:${artifact.group}:${artifact.name}:${artifact.version}:${artifact.sha256.toLowerCase()}`;
+    const key = `${artifact.service}:${artifact.configuration}:${artifact.group}:${artifact.name}:${artifact.version}:${artifact.sha256.toLowerCase()}`;
     requireValue(!expected.has(key), `Duplicate expected runtime artifact: ${key}`);
     expected.set(key, artifact);
   }
   requireValue(runtimeServices.every(service => inventory.artifacts.some(artifact => artifact.service === service)),
     'Expected runtime inventory omits a service');
+  requireValue(runtimeServices.every(service => new Set(inventory.artifacts.filter(artifact => artifact.service === service)
+    .map(artifact => artifact.configuration)).size === 1), 'Expected runtime inventory mixes configurations for a service');
   requireValue(object(report) && report.reportSchema === '1.1', 'Missing or unsupported Dependency-Check report schema');
   requireValue(object(report.scanInfo) && text(report.scanInfo.engineVersion), 'Missing scan engine metadata');
   requireValue(Array.isArray(report.scanInfo.dataSource) && report.scanInfo.dataSource.length > 0
@@ -75,9 +79,11 @@ export function validateReport(report, inventory, now = Date.now()) {
         for (const service of runtimeServices) {
           // DC13 merges project references onto the parent. Its related entries
           // carry packageIds/checksums but omit their own projectReferences.
-          if (references.includes(`${service}:runtimeClasspath`)) {
-            services.add(service);
-            observed.add(`${service}:${group}:${name}:${version}:${entry.sha256.toLowerCase()}`);
+          for (const configuration of runtimeConfigurations) {
+            if (references.includes(`${service}:${configuration}`)) {
+              services.add(service);
+              observed.add(`${service}:${configuration}:${group}:${name}:${version}:${entry.sha256.toLowerCase()}`);
+            }
           }
         }
       }
