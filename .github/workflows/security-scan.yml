@@ -38,7 +38,8 @@ permissions:
 jobs:
     dependency-check:
         runs-on: ubuntu-latest
-        timeout-minutes: 45
+        # Cold NVD imports have exceeded 45 minutes on hosted runners.
+        timeout-minutes: 90
 
         env:
             DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
@@ -81,6 +82,7 @@ jobs:
 
             -   name: Update NVD database
                 id: nvd-update
+                timeout-minutes: 60
                 env:
                     NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
                 run: |
