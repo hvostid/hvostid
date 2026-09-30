@@ -21,11 +21,17 @@ tasks.named("sonar") {
 
 dependencyCheck {
     failBuildOnCVSS = 9.0f
+    failOnError = true
     suppressionFile = "dependency-check-suppressions.xml"
     data.directory = "${rootProject.layout.buildDirectory.get()}/dependency-check-data"
     nvd {
         apiKey = System.getenv("NVD_API_KEY")
-        validForHours = 24
+        // CI bootstraps an empty database from full official feeds, then clears
+        // the feed URL and forces an API catch-up before saving a valid cache.
+        providers.gradleProperty("nvdDatafeedUrl").orNull?.let { datafeedUrl = it }
+        validForHours = providers.gradleProperty("nvdValidForHours").map {
+            it.toInt().also { hours -> require(hours == 0 || hours == 24) }
+        }.getOrElse(24)
     }
     formats = listOf("HTML", "JSON", "SARIF", "XML")
 }

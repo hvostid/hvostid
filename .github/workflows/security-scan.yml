@@ -120,7 +120,7 @@ jobs:
             group: security-scan-${{ github.ref }}
             cancel-in-progress: false
         runs-on: ubuntu-latest
-        # Cold NVD imports have exceeded 45 minutes on hosted runners.
+        # Allow a bounded full-feed bootstrap, API catch-up and aggregate scan.
         timeout-minutes: 90
 
         env:
@@ -150,7 +150,6 @@ jobs:
                     key: nvd-db-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
                     restore-keys: |
                         nvd-db-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}-
-                        nvd-db-${{ runner.os }}-
 
             -   name: Set up Node for runtime advisory scan
                 uses: actions/setup-node@v6
@@ -168,12 +167,26 @@ jobs:
                 timeout-minutes: 60
                 env:
                     NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+                    NVD_RESTORED_CACHE: ${{ steps.nvd-cache.outputs.cache-matched-key }}
                 run: |
+                    set -euo pipefail
                     if [ -z "$NVD_API_KEY" ]; then
                         echo "::error::NVD_API_KEY is required for the NVD scan; this is not a clean security result."
                         exit 1
                     fi
-                    ./gradlew dependencyCheckUpdate --no-daemon --info
+                    if [ -z "$NVD_RESTORED_CACHE" ]; then
+                        # DC13 imports every year from 2002 (including older CVEs)
+                        # through the current year, then applies the modified feed.
+                        ./gradlew dependencyCheckUpdate --no-daemon --info \
+                            '-PnvdDatafeedUrl=https://nvd.nist.gov/feeds/json/cve/2.0/nvdcve-2.0-{0}.json.gz' \
+                            -PnvdValidForHours=0
+                        # A feed import also marks the API as recently checked.
+                        # Clear the feed override and bypass that time cache so
+                        # all API changes since the feed timestamp are ingested.
+                        ./gradlew dependencyCheckUpdate --no-daemon --info -PnvdValidForHours=0
+                    else
+                        ./gradlew dependencyCheckUpdate --no-daemon --info
+                    fi
 
             # Preserve successfully updated data even when the later vulnerability gate fails.
             # Never persist a partial update after a feed/authentication error.
