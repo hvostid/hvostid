@@ -1,0 +1,6 @@
+apiVersion: 1
+providers:
+    - name: HvostID
+      type: file
+      options:
+          path: /var/lib/grafana/dashboards

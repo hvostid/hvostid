@@ -2,10 +2,10 @@ package ru.hvostid.matching.service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import org.springframework.stereotype.Component;
 import ru.hvostid.matching.domain.PetContext;
 import ru.hvostid.matching.domain.SpeciesKind;
+import ru.hvostid.matching.domain.TemperamentKind;
 import ru.hvostid.matching.dto.AdaptationPhaseDto;
 
 @Component
@@ -13,6 +13,19 @@ public class AdaptationPlanBuilder {
 
     private static final int PUPPY_MAX_AGE_MONTHS = 12;
     private static final int SENIOR_MIN_AGE_MONTHS = 84;
+
+    public List<AdaptationPhaseDto> build(PetContext pet, boolean readyForAdaptation) {
+        if (!readyForAdaptation) {
+            return List.of(new AdaptationPhaseDto(
+                    "Before adoption",
+                    "Prepare for the adaptation period",
+                    List.of(
+                            "Arrange time and household support for the first weeks before adopting",
+                            "Discuss the pet's individual needs with the seller and a veterinarian",
+                            "Update your questionnaire when you are ready to begin the adaptation plan")));
+        }
+        return build(pet);
+    }
 
     public List<AdaptationPhaseDto> build(PetContext pet) {
         SpeciesKind species = SpeciesKind.classify(pet.species());
@@ -155,26 +168,11 @@ public class AdaptationPlanBuilder {
     }
 
     private static TemperamentBand temperamentBand(String temperament) {
-        if (temperament == null || temperament.isBlank()) {
-            return TemperamentBand.NEUTRAL;
-        }
-        String t = temperament.toLowerCase(Locale.ROOT);
-        if (containsAny(t, "nervous", "shy", "fearful", "anxious")) {
-            return TemperamentBand.NERVOUS;
-        }
-        if (containsAny(t, "active", "energetic", "hyper")) {
-            return TemperamentBand.ACTIVE;
-        }
-        return TemperamentBand.NEUTRAL;
-    }
-
-    private static boolean containsAny(String text, String... tokens) {
-        for (String token : tokens) {
-            if (text.contains(token)) {
-                return true;
-            }
-        }
-        return false;
+        return switch (TemperamentKind.classify(temperament)) {
+            case NERVOUS, CHALLENGING -> TemperamentBand.NERVOUS;
+            case ACTIVE -> TemperamentBand.ACTIVE;
+            default -> TemperamentBand.NEUTRAL;
+        };
     }
 
     private enum AgeBand {

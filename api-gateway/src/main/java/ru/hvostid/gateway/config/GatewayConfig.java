@@ -16,14 +16,14 @@ import org.springframework.web.client.RestClient;
 @EnableConfigurationProperties({AuthProperties.class, RateLimitProperties.class, CorsProperties.class})
 public class GatewayConfig {
     @Bean
-    public RestClient introspectionRestClient(AuthProperties authProperties) {
+    public RestClient introspectionRestClient(AuthProperties authProperties, RestClient.Builder builder) {
         int timeoutMillis = (int) authProperties.introspectTimeout().toMillis();
 
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(timeoutMillis);
         factory.setReadTimeout(timeoutMillis);
 
-        return RestClient.builder()
+        return builder.clone()
                 .baseUrl(authProperties.introspectUrl())
                 .requestFactory(factory)
                 .build();

@@ -15,7 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 import ru.hvostid.common.security.UserRole;
-import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
+import ru.hvostid.listing.ListingIntegrationTest;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
@@ -29,7 +29,7 @@ import ru.hvostid.listing.repository.ListingRepository;
 
 @SpringBootTest
 @Transactional
-class ListingServiceTest extends AbstractPostgresContainerTest {
+class ListingServiceTest extends ListingIntegrationTest {
 
     @Autowired
     private ListingService listingService;
@@ -183,7 +183,7 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
 
         // then
         assertThat(updated.title()).isEqualTo("Updated Published Title");
-        assertThat(updated.status()).isEqualTo(ListingStatus.PUBLISHED);
+        assertThat(updated.status()).isEqualTo(ListingStatus.MODERATION);
     }
 
     @Test
@@ -223,11 +223,11 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
     void getPublishedListings_ShouldReturnOnlyPublishedListings() {
         // given - create 3 listings: 2 published, 1 draft
         ListingRequest request1 =
-                new ListingRequest("Unique Puppy 1", "Description", "dog", "Labrador", 3, 15000, "Moscow", null);
+                new ListingRequest("Unique Puppy 1", "Description", "dog", "Labrador", 3, 15000, "Moscow", "123");
         ListingRequest request2 =
-                new ListingRequest("Unique Puppy 2", "Description", "dog", "Labrador", 3, 15000, "Moscow", null);
+                new ListingRequest("Unique Puppy 2", "Description", "dog", "Labrador", 3, 15000, "Moscow", "123");
         ListingRequest request3 =
-                new ListingRequest("Unique Puppy 3", "Description", "dog", "Labrador", 3, 15000, "Moscow", null);
+                new ListingRequest("Unique Puppy 3", "Description", "dog", "Labrador", 3, 15000, "Moscow", "123");
 
         ListingResponse listing1 = listingService.createListing(request1, 1L);
         ListingResponse listing2 = listingService.createListing(request2, 1L);
@@ -264,7 +264,7 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
                     3,
                     15000 + i,
                     "Moscow",
-                    null);
+                    "123");
             ListingResponse created = listingService.createListing(request, 1L);
             setStatus(created.id(), ListingStatus.PUBLISHED);
             createdIds.add(created.id());
@@ -303,9 +303,9 @@ class ListingServiceTest extends AbstractPostgresContainerTest {
     void getPublishedListings_WhenNoPublishedListings_ShouldReturnEmptyPage() {
         // given - create only draft listings
         ListingRequest request1 =
-                new ListingRequest("Draft Puppy 1", "Description", "dog", "Labrador", 3, 15000, "Moscow", null);
+                new ListingRequest("Draft Puppy 1", "Description", "dog", "Labrador", 3, 15000, "Moscow", "123");
         ListingRequest request2 =
-                new ListingRequest("Draft Puppy 2", "Description", "dog", "Labrador", 3, 15000, "Moscow", null);
+                new ListingRequest("Draft Puppy 2", "Description", "dog", "Labrador", 3, 15000, "Moscow", "123");
 
         listingService.createListing(request1, 1L);
         listingService.createListing(request2, 1L);

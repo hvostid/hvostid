@@ -73,6 +73,13 @@ public class ProfileService {
             user.setBio(request.bio());
         }
 
+        if (request.contactSharingEnabled() != null) {
+            user.setContactSharingEnabled(request.contactSharingEnabled());
+        }
+        if (user.isContactSharingEnabled()
+                && (user.getPhone() == null || user.getPhone().isBlank())) {
+            throw new IllegalArgumentException("A phone number is required to share seller contact");
+        }
         user = userRepository.save(user);
         log.info("Profile updated for userId={}", userId);
         return toProfileResponse(user);
@@ -111,6 +118,18 @@ public class ProfileService {
         return toProfileResponse(user);
     }
 
+    @Transactional(readOnly = true)
+    public ru.hvostid.auth.dto.SellerContactResponse getSellerContact(Long sellerId) {
+        User user = findUserOrThrow(sellerId);
+        if (!user.hasRole(UserRole.SELLER)
+                || !user.isContactSharingEnabled()
+                || user.getPhone() == null
+                || user.getPhone().isBlank()) {
+            throw new UserNotFoundException(sellerId);
+        }
+        return new ru.hvostid.auth.dto.SellerContactResponse(user.getId(), user.getName(), user.getPhone());
+    }
+
     private User findUserOrThrow(Long userId) {
         return userRepository.findById(userId).orElseThrow(() -> {
             log.warn("User not found userId={}", userId);
@@ -127,6 +146,8 @@ public class ProfileService {
                 user.getPhone(),
                 user.getCity(),
                 user.getBio(),
-                user.getRating());
+                user.getRating(),
+                user.isContactSharingEnabled(),
+                user.isEmailVerified());
     }
 }

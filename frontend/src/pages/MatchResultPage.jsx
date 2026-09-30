@@ -4,7 +4,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getMatchScore } from '../api/matching';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-// Цвета для разных уровней
 const LEVEL_COLORS = {
     GREAT: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-200' },
     GOOD: { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200' },
@@ -12,28 +11,26 @@ const LEVEL_COLORS = {
     NOT_RECOMMENDED: { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-200' },
 };
 
-// Русские названия уровней
 const LEVEL_LABELS = {
-    GREAT: 'Отличная совместимость',
-    GOOD: 'Хорошая совместимость',
-    RISKY: 'Есть риски',
-    NOT_RECOMMENDED: 'Не рекомендуется',
+    GREAT: 'Excellent match',
+    GOOD: 'Good match',
+    RISKY: 'Some risks',
+    NOT_RECOMMENDED: 'Not recommended',
 };
 
-// Русские названия факторов
 const FACTOR_LABELS = {
-    living_space: 'Тип жилья',
-    living_area: 'Площадь жилья',
-    has_yard: 'Наличие двора',
-    has_children: 'Наличие детей',
-    allergies: 'Аллергии',
-    pet_experience: 'Опыт содержания',
-    activity_level: 'Уровень активности',
-    monthly_budget: 'Месячный бюджет',
-    work_schedule: 'График работы',
-    ready_for_adaptation: 'Готовность к адаптации',
-    preferred_species: 'Предпочитаемый вид',
-    preferred_breed: 'Предпочитаемая порода',
+    living_space: 'Housing type',
+    living_area: 'Living area',
+    has_yard: 'Outdoor space',
+    has_children: 'Children',
+    allergies: 'Allergies',
+    pet_experience: 'Pet ownership experience',
+    activity_level: 'Activity level',
+    monthly_budget: 'Monthly budget',
+    work_schedule: 'Work schedule',
+    ready_for_adaptation: 'Readiness for adaptation',
+    preferred_species: 'Preferred species',
+    preferred_breed: 'Preferred breed',
 };
 
 export default function MatchResultPage() {
@@ -51,9 +48,9 @@ export default function MatchResultPage() {
             } catch (err) {
                 console.error('Failed to load match result:', err);
                 if (err.response?.status === 404) {
-                    setError('Анкета не заполнена. Пожалуйста, заполните анкету совместимости.');
+                    setError('Complete your compatibility questionnaire first.');
                 } else {
-                    setError('Не удалось загрузить результат. Попробуйте позже.');
+                    setError('The result could not be loaded. Please retry later.');
                 }
             } finally {
                 setLoading(false);
@@ -79,7 +76,7 @@ export default function MatchResultPage() {
                         to="/profile/questionnaire"
                         className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
                     >
-                        Заполнить анкету
+                        Complete questionnaire
                     </Link>
                 </div>
             </div>
@@ -93,18 +90,16 @@ export default function MatchResultPage() {
 
     return (
         <div className="max-w-4xl mx-auto">
-            {/* Заголовок и кнопка рекомендаций */}
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Результат совместимости</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Compatibility result</h1>
                 <Link
                     to={`/listings/${id}`}
                     className="px-4 py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
                 >
-                    Перейти к объявлению →
+                    View listing →
                 </Link>
             </div>
 
-            {/* Большой score */}
             <div className="bg-white rounded-lg shadow p-8 mb-6 text-center">
                 <div className="inline-block relative">
                     <svg className="w-48 h-48">
@@ -142,17 +137,15 @@ export default function MatchResultPage() {
                 </div>
             </div>
 
-            {/* Общий текст summary */}
             {result.summary && (
                 <div className={`border rounded-lg p-6 mb-6 ${levelStyle.border} ${levelStyle.bg}`}>
                     <p className="text-gray-800">{result.summary}</p>
                 </div>
             )}
 
-            {/* Разбивка по факторам */}
             {result.factors && result.factors.length > 0 && (
                 <div className="bg-white rounded-lg shadow p-6 mb-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Детальный анализ</h2>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Detailed analysis</h2>
                     <div className="space-y-4">
                         {result.factors.map((factor) => {
                             const percent = (factor.score / factor.maxScore) * 100;
@@ -190,13 +183,12 @@ export default function MatchResultPage() {
                 </div>
             )}
 
-            {/* Советы */}
             {result.tips && result.tips.length > 0 && (
                 <div className="bg-white rounded-lg shadow p-6 mb-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Советы</h2>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Tips</h2>
                     <ul className="space-y-2">
-                        {result.tips.map((tip, index) => (
-                            <li key={index} className="flex items-start gap-2">
+                        {[...new Set(result.tips)].map((tip) => (
+                            <li key={tip} className="flex items-start gap-2">
                                 <span className="text-indigo-500 text-lg">•</span>
                                 <span className="text-gray-700">{tip}</span>
                             </li>
@@ -205,21 +197,20 @@ export default function MatchResultPage() {
                 </div>
             )}
 
-            {/* План адаптации */}
             {result.adaptationPlan && result.adaptationPlan.length > 0 && (
                 <div className="bg-white rounded-lg shadow p-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">План адаптации</h2>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Adaptation plan</h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {result.adaptationPlan.map((phase, index) => (
-                            <div key={index} className="border rounded-lg p-4">
+                        {result.adaptationPlan.map((phase) => (
+                            <div key={phase.dayRange} className="border rounded-lg p-4">
                                 <h3 className="font-semibold text-indigo-600 mb-2">
                                     {phase.dayRange}
                                 </h3>
                                 <p className="text-sm text-gray-600 mb-3">{phase.title}</p>
                                 <ul className="space-y-1">
-                                    {phase.tasks.map((task, taskIndex) => (
+                                    {[...new Set(phase.tasks)].map((task) => (
                                         <li
-                                            key={taskIndex}
+                                            key={task}
                                             className="text-xs text-gray-500 flex items-start gap-1"
                                         >
                                             <span>•</span>
@@ -233,10 +224,9 @@ export default function MatchResultPage() {
                 </div>
             )}
 
-            {/* Кнопка назад */}
             <div className="mt-6 text-center">
                 <button onClick={() => navigate(-1)} className="text-gray-500 hover:text-gray-700">
-                    ← Назад к рекомендациям
+                    ← Back to recommendations
                 </button>
             </div>
         </div>

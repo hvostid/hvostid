@@ -12,7 +12,7 @@ spring:
                         -   id: auth-service
                             uri: http://${AUTH_SERVICE_HOST:localhost}:8081
                             predicates:
-                                - Path=/api/v1/auth/**, /api/v1/profile/**
+                                - Path=/api/v1/auth/**, /api/v1/profile/**, /api/v1/users/**
 
                         -   id: listing-service
                             uri: http://${LISTING_SERVICE_HOST:localhost}:8082
@@ -68,6 +68,9 @@ hvostid:
             - POST /api/v1/auth/login
             - POST /api/v1/auth/register
             - POST /api/v1/auth/refresh
+            - POST /api/v1/auth/password-reset/request
+            - POST /api/v1/auth/password-reset/confirm
+            - POST /api/v1/auth/email-verification/confirm
             - GET /api/v1/listings
             - GET /api/v1/passports/*/docs/*/content
             - GET /api/v1/passports/*/cover
@@ -82,7 +85,7 @@ hvostid:
         # is anonymous, the request goes through with no identity headers
         # and the service-level access check decides the response.
         optional-auth-paths:
-            - GET /api/v1/listings/*
+            - GET /api/v1/listings/{id:[0-9]+}
     rate-limit:
         # Per client-IP token bucket. Sized to fit the documented k6 load
         # profile (50 VU steady-state on the public catalog, ~50 req/s from
@@ -90,6 +93,12 @@ hvostid:
         # user on the same NAT egress still gets through.
         replenish-rate: 60
         burst-capacity: 120
+        max-clients: 10000
+        idle-ttl: 15m
+        # Exact immediate proxy IPs, empty by default. Never trust arbitrary X-Forwarded-For.
+        trusted-proxies: ${HVOSTID_RATE_LIMIT_TRUSTED_PROXIES:}
+        auth-replenish-rate: 1
+        auth-burst-capacity: 10
 
 springdoc:
     api-docs:
@@ -112,6 +121,15 @@ springdoc:
                 url: /v3/api-docs/matching
 
 management:
+    otlp:
+        metrics:
+            export:
+                enabled: false
+    opentelemetry:
+        tracing:
+            export:
+                otlp:
+                    enabled: false
     endpoints:
         web:
             exposure:

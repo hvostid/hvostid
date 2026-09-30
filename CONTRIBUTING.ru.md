@@ -209,7 +209,7 @@ PR открывается в `main`. Шаблон PR
 
 | Слой       | Тулинг                                                                                                                                                              |
 |------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Unit       | JUnit 5, Mockito, AssertJ                                                                                                                                           |
+| Unit       | JUnit 6, Mockito, AssertJ                                                                                                                                           |
 | Web-слой   | `@WebMvcTest`-слайсы для логики контроллеров, `MockMvc` ассерты                                                                                                     |
 | Интеграция | Testcontainers PostgreSQL через [`AbstractPostgresContainerTest`](./common/src/testFixtures/java/ru/hvostid/common/testfixtures/AbstractPostgresContainerTest.java) |
 | Покрытие   | JaCoCo (`<module>/build/reports/jacoco/test/jacocoTestReport.xml`)                                                                                                  |
@@ -224,8 +224,8 @@ PR открывается в `main`. Шаблон PR
 * **Не мокайте то, что вам принадлежит.** Реальные сервисы внутри
   одного модуля прогоняются end-to-end; мокаются только HTTP-границы
   (introspection-клиент, межсервисные вызовы).
-* **Тесты фронтенда** ещё не подключены (отслеживается в T22). Пока
-  ручная проверка фиксируется в секции «How to test» PR.
+* **Тесты фронтенда** используют Vitest и Playwright. CI запускает unit- и
+  браузерные сценарии, строгий lint, production-сборку и npm audit.
 
 ### Запуск тестов
 
@@ -282,3 +282,30 @@ k6 run k6/search-listings.js          # нагрузочный тест прот
 PR мержатся merge-коммитом (default GitHub merge), что сохраняет
 покоммитную историю. Squash-merge -- только для тривиальных fix-PR,
 где покоммитная история ничего не добавляет.
+
+## Dependency integrity and operational checks
+
+Gradle resolves from Maven Central; module lockfiles and
+`gradle/verification-metadata.xml` pin resolved versions and SHA-256 checksums.
+The wrapper archive also has a verified SHA-256. Review upstream release notes
+and checksums before accepting new verification entries:
+
+```bash
+./gradlew resolveAndLockDependencies --write-locks --write-verification-metadata sha256
+./gradlew spotlessApply jacocoTestReport --write-verification-metadata sha256
+./gradlew build
+node scripts/audit-jvm-dependencies.mjs
+cd frontend
+npm ci
+npm run lint -- --max-warnings=0
+npm test
+npm run test:e2e
+npm run build
+npm audit --audit-level=high
+```
+
+Do not bypass dependency verification to make a build green. CI performs the
+full NVD scan with its required secret. Runtime Docker images are pinned by
+digest; PostgreSQL's test-only catalog tag is intentionally rolling to exercise
+current supported patch releases. See [operations](./docs/operations.md) for
+the Compose smoke, disposable restore drill and alert checks.

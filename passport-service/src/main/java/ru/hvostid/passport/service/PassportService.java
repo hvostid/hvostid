@@ -15,9 +15,7 @@ import ru.hvostid.passport.dto.UpdatePassportRequest;
 import ru.hvostid.passport.entity.PetPassport;
 import ru.hvostid.passport.exception.PassportInUseException;
 import ru.hvostid.passport.exception.PassportNotFoundException;
-import ru.hvostid.passport.repository.PassportDocumentRepository.StorageRef;
 import ru.hvostid.passport.repository.PetPassportRepository;
-import ru.hvostid.passport.service.PassportDocumentService.DocumentCleanupResult;
 
 @Service
 public class PassportService {
@@ -28,18 +26,24 @@ public class PassportService {
     private final TrustScoreService trustScoreService;
     private final ListingServiceClient listingServiceClient;
     private final PassportDocumentService documentService;
+    private final PassportReferenceService references;
+    private final ru.hvostid.passport.repository.PassportDocumentRepository documents;
 
     public PassportService(
             PetPassportRepository passportRepository,
             PassportAccessService accessService,
             TrustScoreService trustScoreService,
             ListingServiceClient listingServiceClient,
-            PassportDocumentService documentService) {
+            PassportDocumentService documentService,
+            PassportReferenceService references,
+            ru.hvostid.passport.repository.PassportDocumentRepository documents) {
         this.passportRepository = passportRepository;
         this.accessService = accessService;
         this.trustScoreService = trustScoreService;
         this.listingServiceClient = listingServiceClient;
         this.documentService = documentService;
+        this.references = references;
+        this.documents = documents;
     }
 
     @Transactional
@@ -59,6 +63,7 @@ public class PassportService {
                 .microchipped(request.microchipped())
                 .build();
 
+        replaceVaccinations(passport, request.vaccinations());
         PetPassport saved = passportRepository.save(passport);
         log.info("Passport created id={} sellerId={}", saved.getId(), saved.getSellerId());
         trustScoreService.recalculate(saved.getId());
@@ -76,7 +81,15 @@ public class PassportService {
     @Transactional(readOnly = true)
     public Page<PassportResponse> getMyPassports(Long sellerId, Pageable pageable) {
         log.debug("Listing paged passports for sellerId={} pageable={}", sellerId, pageable);
-        return passportRepository.findBySellerId(sellerId, pageable).map(PassportResponse::from);
+        var page = passportRepository.findBySellerId(sellerId, pageable);
+        if (page.isEmpty()) return page.map(PassportResponse::from);
+        var covers = documents
+                .findCovers(page.getContent().stream().map(PetPassport::getId).toList())
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        ru.hvostid.passport.repository.PassportDocumentRepository.CoverRef::getPassportId,
+                        ru.hvostid.passport.repository.PassportDocumentRepository.CoverRef::getDocumentId));
+        return page.map(passport -> PassportResponse.from(passport, covers.get(passport.getId())));
     }
 
     @Transactional(readOnly = true)
@@ -97,9 +110,13 @@ public class PassportService {
     @Transactional
     public PassportResponse updatePassport(Long passportId, UpdatePassportRequest request, Long sellerId) {
         log.debug("Updating passport id={} sellerId={}", passportId, sellerId);
-        PetPassport passport = getPassportWithVaccinations(passportId);
+        PetPassport passport = references.lock(passportId);
         accessService.requireOwner(passport, sellerId, "edit");
+        requireEditable(passportId, null);
 
+        if (request.species() != null && request.species().isBlank()
+                || request.name() != null && request.name().isBlank())
+            throw new ru.hvostid.common.exception.ValidationException("Name and species cannot be blank");
         if (request.species() != null) passport.setSpecies(normalize(request.species()));
         if (request.breed() != null) passport.setBreed(normalize(request.breed()));
         if (request.name() != null) passport.setName(normalize(request.name()));
@@ -111,31 +128,49 @@ public class PassportService {
         if (request.neutered() != null) passport.setNeutered(request.neutered());
         if (request.microchipped() != null) passport.setMicrochipped(request.microchipped());
 
+        replaceVaccinations(passport, request.vaccinations());
+        passport.setModerated(false);
         PetPassport updated = passportRepository.save(passport);
         log.info("Passport updated id={} sellerId={}", updated.getId(), sellerId);
         trustScoreService.recalculate(updated.getId());
         return PassportResponse.from(updated);
     }
 
+    @Transactional
     public void deletePassport(Long passportId, Long userId, String requestId) {
-        PetPassport passport = accessService.getExistingPassport(passportId);
+        PetPassport passport = references.lock(passportId);
         accessService.requireOwner(passport, userId, "delete");
-
-        if (listingServiceClient.hasActiveListingForPassport(passportId, requestId)) {
-            throw new PassportInUseException(
-                    "Passport is referenced by a published listing or a listing under moderation; "
-                            + "archive or delete the listing first.");
-        }
-
-        List<StorageRef> documents = documentService.storageRefsForPassport(passportId);
+        requireEditable(passportId, requestId);
+        documentService.enqueueCleanupForPassport(passportId);
         passportRepository.delete(passport);
-        DocumentCleanupResult cleanup = documentService.deleteObjectsForPassport(passportId, documents);
-        log.info(
-                "Passport deleted id={} sellerId={} documentsCleaned={} documentsFailed={}",
-                passportId,
-                userId,
-                cleanup.cleaned(),
-                cleanup.failed());
+        log.info("Passport deleted id={} sellerId={}; object cleanup queued", passportId, userId);
+    }
+
+    private void requireEditable(Long id, String requestId) {
+        references.requireUnreferenced(id);
+        // Legacy active listings predate reservations. Their read check runs while the passport row is locked;
+        // every new publication must acquire that same row before committing.
+        if (listingServiceClient.hasActiveListingForPassport(id, requestId))
+            throw new PassportInUseException("Archive the active listing before editing or deleting this passport");
+    }
+
+    private void replaceVaccinations(
+            PetPassport passport, java.util.List<ru.hvostid.passport.dto.VaccinationRequest> vaccinations) {
+        if (vaccinations == null) {
+            if (passport.getVaccinations().stream().anyMatch(v -> v.getDate().isBefore(passport.getBirthDate())))
+                throw new ru.hvostid.common.exception.ValidationException(
+                        "Birth date cannot follow an existing vaccination date");
+            return;
+        }
+        passport.getVaccinations().clear();
+        for (var v : vaccinations) {
+            if (v.date().isBefore(passport.getBirthDate()))
+                throw new ru.hvostid.common.exception.ValidationException(
+                        "Vaccination date cannot precede the animal's birth date");
+            passport.getVaccinations()
+                    .add(new ru.hvostid.passport.entity.Vaccination(
+                            passport, v.name().trim(), v.date(), v.nextDate(), false));
+        }
     }
 
     private PetPassport getPassportWithVaccinations(Long passportId) {

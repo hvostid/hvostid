@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import Input from '../components/Input';
 
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -55,6 +55,9 @@ export default function RegisterPage() {
         if (!password) {
             setPasswordError('Password is required');
             isValid = false;
+        } else if (new TextEncoder().encode(password).length > 72) {
+            setPasswordError('Password must not exceed 72 UTF-8 bytes');
+            isValid = false;
         } else if (password.length < 8) {
             setPasswordError('Password must be at least 8 characters');
             isValid = false;
@@ -88,13 +91,11 @@ export default function RegisterPage() {
 
         try {
             // API currently only supports BUYER role registration
-            await register(email, password, name);
+            await register(email.trim().toLowerCase(), password, name.trim());
 
             // Redirect to login page with success flag
             navigate('/login?registered=true');
         } catch (err) {
-            console.error('Registration error:', err);
-
             if (err.response?.status === 409) {
                 setGeneralError('User with this email already exists');
             } else if (err.response?.status === 400) {
@@ -147,6 +148,7 @@ export default function RegisterPage() {
                             error={nameError}
                             required
                             autoComplete="name"
+                            maxLength={255}
                             placeholder="Ivan Petrov"
                         />
 
@@ -160,6 +162,7 @@ export default function RegisterPage() {
                             error={emailError}
                             required
                             autoComplete="email"
+                            maxLength={255}
                             placeholder="ivan@example.com"
                         />
 

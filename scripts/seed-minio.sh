@@ -18,8 +18,9 @@ if command -v mc >/dev/null 2>&1; then
     MINIO_ENDPOINT="${MINIO_ENDPOINT:-http://localhost:9000}"
 else
     USE_DOCKER_MC=true
+    docker compose build minio-init
     MINIO_ENDPOINT="${MINIO_ENDPOINT:-http://minio:9000}"
-    MINIO_NETWORK="${MINIO_NETWORK:-$(docker inspect hvostid-minio --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null || echo hvostid_default)}"
+    MINIO_NETWORK="${MINIO_NETWORK:-$(docker inspect "$(docker compose ps -q minio)" --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null || echo hvostid_default)}"
 fi
 
 # Every Docker invocation gets its own --rm container, so any state set in
@@ -40,7 +41,7 @@ run_mc() {
     docker run --rm --network "${MINIO_NETWORK}" \
         -e "MC_HOST_hvostid_seed=${MC_HOST_VALUE}" \
         -v "${SEED_DATA_DIR}:/seed-data:ro" \
-        minio/mc "$@"
+        --entrypoint mc hvostid/minio:2025-09-07-mc2025-08-13 "$@"
 }
 
 mc_path_for_local_file() {
@@ -61,13 +62,13 @@ for _ in $(seq 1 30); do
     if curl -sf "${health_url}" >/dev/null 2>&1; then
         break
     fi
-    if [[ "${USE_DOCKER_MC}" == true ]] && docker run --rm --network "${MINIO_NETWORK}" curlimages/curl:8.5.0 -sf "http://minio:9000/minio/health/live" >/dev/null 2>&1; then
+    if [[ "${USE_DOCKER_MC}" == true ]] && docker run --rm --network "${MINIO_NETWORK}" --entrypoint wget hvostid/minio:2025-09-07-mc2025-08-13 -qO- "http://minio:9000/minio/health/live" >/dev/null 2>&1; then
         break
     fi
     sleep 2
 done
 if ! curl -sf "${health_url}" >/dev/null 2>&1 \
-    && ! { [[ "${USE_DOCKER_MC}" == true ]] && docker run --rm --network "${MINIO_NETWORK}" curlimages/curl:8.5.0 -sf "http://minio:9000/minio/health/live" >/dev/null 2>&1; }; then
+    && ! { [[ "${USE_DOCKER_MC}" == true ]] && docker run --rm --network "${MINIO_NETWORK}" --entrypoint wget hvostid/minio:2025-09-07-mc2025-08-13 -qO- "http://minio:9000/minio/health/live" >/dev/null 2>&1; }; then
     echo "Error: MinIO is not ready at ${MINIO_ENDPOINT}" >&2
     exit 1
 fi
@@ -83,7 +84,7 @@ while IFS=$'\t' read -r bucket object_key local_file; do
         exit 1
     fi
 
-    run_mc mb --ignore-existing "hvostid_seed/${bucket}" >/dev/null 2>&1 || true
+    run_mc mb --ignore-existing "hvostid_seed/${bucket}" >/dev/null
     run_mc cp "${source_path}" "hvostid_seed/${bucket}/${object_key}"
     count=$((count + 1))
 done < <(python3 -c "import json; [print(f\"{x['bucket']}\t{x['objectKey']}\t{x['localFile']}\") for x in json.load(open('${MANIFEST}'))]")

@@ -4,6 +4,17 @@ server:
 spring:
     application:
         name: auth-service
+    mail:
+        host: ${SPRING_MAIL_HOST:localhost}
+        port: ${SPRING_MAIL_PORT:1025}
+        username: ${SPRING_MAIL_USERNAME:}
+        password: ${SPRING_MAIL_PASSWORD:}
+        properties:
+            mail.smtp.connectiontimeout: 5000
+            mail.smtp.timeout: 5000
+            mail.smtp.writetimeout: 5000
+            mail.smtp.auth: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:false}
+            mail.smtp.starttls.enable: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:false}
     datasource:
         url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:hvostid_auth}
         username: ${DB_USER:hvostid}
@@ -22,8 +33,23 @@ hvostid:
     auth:
         access-token-ttl: 30m
         refresh-token-ttl: 7d
+        mail:
+            enabled: ${AUTH_MAIL_ENABLED:false}
+            from: ${AUTH_MAIL_FROM:no-reply@localhost}
+            public-base-url: ${AUTH_PUBLIC_BASE_URL:http://localhost}
+            # A distinct Base64-encoded 32-byte key protects pending email links at rest.
+            encryption-key: ${AUTH_MAIL_ENCRYPTION_KEY:}
 
 management:
+    otlp:
+        metrics:
+            export:
+                enabled: false
+    opentelemetry:
+        tracing:
+            export:
+                otlp:
+                    enabled: false
     endpoints:
         web:
             exposure:

@@ -10,7 +10,7 @@
 # This stage depends only on Gradle build scripts, the wrapper, and the
 # version catalog. It is reused from the BuildKit layer cache as long as
 # none of those files change. Source files have no effect on it.
-FROM eclipse-temurin:25-jdk-alpine AS deps
+FROM eclipse-temurin:25-jdk-alpine@sha256:3fd2d245c4e0eba615fe366a71b8bd25f5db7104f53e4026b24bf508b880bd2a AS deps
 
 WORKDIR /workspace
 
@@ -20,11 +20,13 @@ WORKDIR /workspace
 COPY --chmod=755 gradlew gradlew
 COPY gradle gradle
 COPY settings.gradle.kts build.gradle.kts gradle.properties ./
+COPY settings-gradle.lockfile ./
 
 # Per-module build scripts. --parents preserves the directory layout so
 # every <module>/build.gradle.kts lands under its own directory. Sources
 # are deliberately excluded so source changes do not invalidate this layer.
 COPY --parents */build.gradle.kts ./
+COPY --parents */gradle.lockfile ./
 
 # Resolve dependencies for every subproject discovered on disk. The
 # `dependencies` task forces resolution of all configurations, which
@@ -59,7 +61,7 @@ RUN ./gradlew :${SERVICE_NAME}:bootJar --no-daemon -x test && \
     find ${SERVICE_NAME}/build/libs/ -name "${SERVICE_NAME}-*.jar" ! -name "*-plain.jar" -exec cp {} /workspace/app.jar \;
 
 # --- Runtime stage --------------------------------------------------------
-FROM eclipse-temurin:25-jre-alpine
+FROM eclipse-temurin:25-jre-alpine@sha256:3c0a9084927a221ccd1d007fcaf614465672c0af37aaa834c5184483afe56d61
 
 ARG SERVICE_NAME
 ARG SERVICE_PORT=8080

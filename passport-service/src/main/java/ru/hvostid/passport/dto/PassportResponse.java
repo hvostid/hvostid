@@ -23,8 +23,13 @@ public record PassportResponse(
         boolean microchipped,
         Instant createdAt,
         Instant updatedAt,
-        List<VaccinationResponse> vaccinations) {
+        List<VaccinationResponse> vaccinations,
+        Long firstPhotoDocumentId) {
     public static PassportResponse from(PetPassport passport) {
+        return from(passport, null);
+    }
+
+    public static PassportResponse from(PetPassport passport, Long firstPhotoDocumentId) {
         return new PassportResponse(
                 passport.getId(),
                 passport.getSellerId(),
@@ -42,6 +47,7 @@ public record PassportResponse(
                 passport.getUpdatedAt(),
                 passport.getVaccinations().stream()
                         .map(VaccinationResponse::from)
-                        .toList());
+                        .toList(),
+                firstPhotoDocumentId);
     }
 }

@@ -4,6 +4,10 @@ on:
     push:
         branches: [ main ]
 
+concurrency:
+    group: cd-main-release
+    cancel-in-progress: false
+
 permissions:
     contents: read
     packages: write
@@ -37,7 +41,7 @@ jobs:
                 uses: ./.github/actions/setup-java-gradle
 
             -   name: Run tests
-                run: ./gradlew test
+                run: ./gradlew check
 
             -   name: Upload test results
                 if: always()
@@ -107,7 +111,6 @@ jobs:
                     push: true
                     tags: |
                         ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ needs.prepare.outputs.short-sha }}
-                        ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:latest
                     cache-from: |
                         type=gha,scope=hvostid-deps
                         type=gha,scope=hvostid-${{ matrix.service }}
@@ -138,7 +141,6 @@ jobs:
                     push: true
                     tags: |
                         ${{ env.IMAGE_PREFIX }}-frontend:${{ needs.prepare.outputs.short-sha }}
-                        ${{ env.IMAGE_PREFIX }}-frontend:latest
                     cache-from: type=gha,scope=hvostid-frontend
                     cache-to: type=gha,mode=max,scope=hvostid-frontend
 
@@ -285,8 +287,8 @@ jobs:
                     IMAGE_TAG: ${{ needs.prepare.outputs.short-sha }}
                     REPO_OWNER: ${{ github.repository_owner }}
                 run: |
-                    docker compose -f docker-compose.yml -f docker-compose.ci.yml pull
-                    docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+                    docker compose -f docker-compose.yml -f docker-compose.ci.yml pull --ignore-buildable
+                    docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --wait --wait-timeout 300
 
             -   name: Check service health endpoints
                 run: |
@@ -340,9 +342,39 @@ jobs:
                     echo ""
                     echo "All health checks passed."
 
+            -   name: Set up Node
+                uses: actions/setup-node@v6
+                with:
+                    node-version: 24
+
+            -   name: Exercise frontend and application flows
+                run: node scripts/smoke-api.mjs
+
             -   name: Tear down
                 if: always()
                 env:
                     IMAGE_TAG: ${{ needs.prepare.outputs.short-sha }}
                     REPO_OWNER: ${{ github.repository_owner }}
                 run: docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v
+
+    promote:
+        needs: [prepare, scan, smoke-test]
+        runs-on: ubuntu-latest
+        concurrency:
+            group: publish-stable-images
+            cancel-in-progress: false
+        steps:
+            - uses: docker/setup-buildx-action@v4
+            - uses: docker/login-action@v4
+              with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+            - name: Promote verified candidate images
+              env:
+                  CANDIDATE: ${{ needs.prepare.outputs.short-sha }}
+              run: |
+                  set -euo pipefail
+                  for service in api-gateway auth-service listing-service passport-service matching-service frontend; do
+                    docker buildx imagetools create --tag "$IMAGE_PREFIX-$service:latest" "$IMAGE_PREFIX-$service:$CANDIDATE"
+                  done

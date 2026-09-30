@@ -4,13 +4,11 @@ import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import ru.hvostid.matching.client.ListingServiceClient;
 import ru.hvostid.matching.client.ListingSnapshot;
 import ru.hvostid.matching.client.PassportServiceClient;
 import ru.hvostid.matching.client.PassportSnapshot;
-import ru.hvostid.matching.config.CacheConfig;
 import ru.hvostid.matching.domain.CompatibilityResult;
 import ru.hvostid.matching.domain.DegradedReason;
 import ru.hvostid.matching.domain.PetContext;
@@ -47,7 +45,6 @@ public class MatchScoreService {
         this.adaptationPlanBuilder = adaptationPlanBuilder;
     }
 
-    @Cacheable(cacheNames = CacheConfig.MATCH_SCORES_CACHE, key = "#userId + '_' + #listingId")
     public MatchScoreResponse calculateScore(long listingId, long userId, String requestId) {
         log.debug("Calculating match score listingId={} userId={} requestId={}", listingId, userId, requestId);
 
@@ -88,7 +85,8 @@ public class MatchScoreService {
 
         String summary = explanationService.buildSummary(petContext, result, degraded);
         List<String> tips = explanationService.buildTips(petContext, result);
-        List<AdaptationPhaseDto> adaptationPlan = adaptationPlanBuilder.build(petContext);
+        List<AdaptationPhaseDto> adaptationPlan =
+                adaptationPlanBuilder.build(petContext, Boolean.TRUE.equals(questionnaire.getReadyForAdaptation()));
         List<FactorScoreDto> factors =
                 result.factors().stream().map(FactorScoreDto::from).toList();
         String reasonCode = degradedReason == null ? null : degradedReason.code();

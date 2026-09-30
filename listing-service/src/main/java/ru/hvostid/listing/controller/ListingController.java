@@ -342,9 +342,12 @@ public class ListingController {
     public ResponseEntity<PassportPublishedStatusResponse> hasPublishedListingForPassport(
             @Parameter(description = "Passport identifier as stored on the listing", required = true, example = "42")
                     @PathVariable
-                    String passportId) {
+                    String passportId,
+            @Parameter(description = "Require the listing to belong to this passport owner")
+                    @RequestParam(required = false)
+                    Long sellerId) {
         log.debug("GET /api/v1/listings/passports/{}/has-published", passportId);
-        boolean exists = listingService.hasPublishedListingForPassport(passportId);
+        boolean exists = listingService.hasPublishedListingForPassport(passportId, sellerId);
         return ResponseEntity.ok(new PassportPublishedStatusResponse(passportId, exists));
     }
 

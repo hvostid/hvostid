@@ -1,6 +1,16 @@
 name: Security - Dependency Check
 
 on:
+    pull_request:
+        branches: [ main ]
+        paths:
+            - "gradle/**"
+            - "**/build.gradle.kts"
+            - "**/gradle.lockfile"
+            - "settings.gradle.kts"
+            - "scripts/audit-jvm-dependencies.mjs"
+            - "dependency-check-suppressions.xml"
+            - ".github/workflows/security-scan.yml"
     schedule:
         # Daily at 03:00 UTC (06:00 Moscow).
         -   cron: "0 3 * * *"
@@ -58,10 +68,25 @@ jobs:
                         nvd-db-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}-
                         nvd-db-${{ runner.os }}-
 
+            -   name: Set up Node for runtime advisory scan
+                uses: actions/setup-node@v6
+                with:
+                    node-version: 24
+
+            -   name: Check production JVM dependencies against OSV
+                run: |
+                    mkdir -p build/reports
+                    node scripts/audit-jvm-dependencies.mjs
+
             -   name: Run OWASP Dependency Check
                 env:
                     NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-                run: ./gradlew dependencyCheckAggregate --no-daemon
+                run: |
+                    if [ -z "$NVD_API_KEY" ]; then
+                        echo "::error::NVD_API_KEY is required for the NVD scan; this is not a clean security result."
+                        exit 1
+                    fi
+                    ./gradlew dependencyCheckAggregate --no-daemon
 
             -   name: Upload HTML, JSON and XML reports
                 if: always()
@@ -69,6 +94,7 @@ jobs:
                 with:
                     name: dependency-check-report
                     path: |
+                        build/reports/osv-runtime.json
                         build/reports/dependency-check-report.html
                         build/reports/dependency-check-report.json
                         build/reports/dependency-check-report.xml

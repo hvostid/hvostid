@@ -15,7 +15,7 @@ public class ListingServiceClient {
         this.listingRestClient = listingRestClient;
     }
 
-    public boolean hasPublishedListingForPassport(Long passportId, String requestId) {
+    public boolean hasPublishedListingForPassport(Long passportId, Long expectedSellerId, String requestId) {
         HttpHeaders headers = new HttpHeaders();
         if (requestId != null && !requestId.isBlank()) {
             headers.set(SecurityHeaders.REQUEST_ID, requestId);
@@ -23,7 +23,10 @@ public class ListingServiceClient {
         try {
             HasPublishedResponse response = listingRestClient
                     .get()
-                    .uri("/api/v1/listings/passports/{id}/has-published", passportId)
+                    .uri(
+                            "/api/v1/listings/passports/{id}/has-published?sellerId={sellerId}",
+                            passportId,
+                            expectedSellerId)
                     .headers(h -> h.addAll(headers))
                     .retrieve()
                     .body(HasPublishedResponse.class);

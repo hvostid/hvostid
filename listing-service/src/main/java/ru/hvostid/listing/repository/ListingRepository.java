@@ -13,15 +13,22 @@ import ru.hvostid.listing.entity.Listing;
 import ru.hvostid.listing.entity.ListingStatus;
 
 public interface ListingRepository extends JpaRepository<Listing, Long>, JpaSpecificationExecutor<Listing> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select l from Listing l where l.id = :id")
+    java.util.Optional<Listing> findLockedById(Long id);
+
     Page<Listing> findByStatus(ListingStatus status, Pageable pageable);
 
     Page<Listing> findBySellerId(Long sellerId, Pageable pageable);
 
     Page<Listing> findBySellerIdAndStatus(Long sellerId, ListingStatus status, Pageable pageable);
 
-    boolean existsBySellerIdAndTitleAndStatusNot(Long sellerId, String title, ListingStatus status);
+    boolean existsBySellerIdAndTitleIgnoreCaseAndStatusNot(Long sellerId, String title, ListingStatus status);
 
     boolean existsByPassportIdInAndStatusIn(Collection<String> passportIds, Collection<ListingStatus> statuses);
+
+    boolean existsByPassportIdInAndStatusAndSellerId(
+            Collection<String> passportIds, ListingStatus status, Long sellerId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Listing l SET l.status = :newStatus WHERE l.id = :id AND l.status = :expectedStatus")

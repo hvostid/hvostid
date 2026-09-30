@@ -13,12 +13,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import ru.hvostid.common.security.UserRole;
-import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
+import ru.hvostid.listing.ListingIntegrationTest;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class ListingDraftControllerTest extends AbstractPostgresContainerTest {
+class ListingDraftControllerTest extends ListingIntegrationTest {
     private static final String DRAFT_URL = "/api/v1/listings/draft";
     private static final String FORM = """
             {"title":"Friendly kitten","description":"A playful kitten",

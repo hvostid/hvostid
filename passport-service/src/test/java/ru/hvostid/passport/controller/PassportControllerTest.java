@@ -51,7 +51,8 @@ class PassportControllerTest extends AbstractPassportIntegrationTest {
 
     @BeforeEach
     void resetListingClient() {
-        when(listingServiceClient.hasPublishedListingForPassport(any(), any())).thenReturn(false);
+        when(listingServiceClient.hasPublishedListingForPassport(any(), any(), any()))
+                .thenReturn(false);
     }
 
     @AfterEach
@@ -406,6 +407,30 @@ class PassportControllerTest extends AbstractPassportIntegrationTest {
         }
     }
 
+    @Test
+    void vaccinationPayloadFromEditorPersistsButCannotSelfVerify() throws Exception {
+        String payload = validRequestBody().replace("\"microchipped\": false", """
+                "microchipped": false,
+                "vaccinations": [{"id":"temporary-client-id","name":"Rabies","date":"2025-01-01","nextDate":"2026-01-01","verified":true}]
+                """);
+        mockMvc.perform(post(PASSPORTS_URL)
+                        .header(USER_ID, 10L)
+                        .header(USER_ROLES, SELLER.value())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.vaccinations", hasSize(1)))
+                .andExpect(jsonPath("$.vaccinations[0].verified", is(false)))
+                .andExpect(jsonPath("$.vaccinations[0].name", is("Rabies")));
+        mockMvc.perform(put(PASSPORTS_URL + "/1")
+                        .header(USER_ID, 10L)
+                        .header(USER_ROLES, SELLER.value())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"vaccinations\":[]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.vaccinations", hasSize(0)));
+    }
+
     private void createPassport() throws Exception {
         mockMvc.perform(post(PASSPORTS_URL)
                         .header(USER_ID, 10L)
@@ -417,7 +442,11 @@ class PassportControllerTest extends AbstractPassportIntegrationTest {
 
     private void uploadPhoto() throws Exception {
         mockMvc.perform(multipart(PASSPORTS_URL + "/1/docs")
-                        .file(new MockMultipartFile("file", "photo.jpg", "image/jpeg", "image".getBytes()))
+                        .file(new MockMultipartFile(
+                                "file",
+                                "photo.jpg",
+                                "image/jpeg",
+                                ru.hvostid.passport.TestDocumentContent.image("jpg")))
                         .param("type", "PHOTO")
                         .header(USER_ID, 10L)
                         .header(USER_ROLES, SELLER.value()))

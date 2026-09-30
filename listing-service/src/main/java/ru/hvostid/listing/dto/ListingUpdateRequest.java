@@ -15,10 +15,10 @@ public record ListingUpdateRequest(
         @Size(max = 2000, message = "Description too long") @Schema(description = "Listing description")
         String description,
 
-        @Schema(description = "Animal species", example = "CAT")
+        @Schema(description = "Animal species", example = "CAT") @Size(max = 255)
         String species,
 
-        @Schema(description = "Breed", example = "Domestic shorthair")
+        @Schema(description = "Breed", example = "Domestic shorthair") @Size(max = 255)
         String breed,
 
         @PositiveOrZero(message = "Age must be positive")
@@ -29,7 +29,7 @@ public record ListingUpdateRequest(
         @PositiveOrZero(message = "Price must be positive") @Schema(description = "Price in rubles", example = "3500")
         Integer price,
 
-        @Schema(description = "City where the animal is located", example = "Moscow")
+        @Schema(description = "City where the animal is located", example = "Moscow") @Size(max = 255)
         String city,
 
         @Schema(description = "Pet passport identifier", example = "12")

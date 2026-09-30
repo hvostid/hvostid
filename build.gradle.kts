@@ -35,8 +35,6 @@ allprojects {
     version = "0.1.0-SNAPSHOT"
 
     repositories {
-        maven("https://repo.spring.io/snapshot")
-        maven("https://repo.spring.io/milestone")
         mavenCentral()
     }
 }
@@ -57,6 +55,31 @@ subprojects {
         extra["tomcat.version"] = rootProject.libs.versions.tomcat.get()
         extra["postgresql.version"] = rootProject.libs.versions.postgresql.get()
         extra["netty.version"] = rootProject.libs.versions.netty.get()
+        extra["jackson-bom.version"] = "3.2.3"
+        extra["jackson-2-bom.version"] = "2.22.3"
+        extra["log4j2.version"] = "2.26.1"
+        extra["kotlin.version"] = "2.4.20"
+        extra["opentelemetry.version"] = "1.62.0"
+    }
+
+    plugins.withId(rootProject.libs.plugins.spring.boot.get().pluginId) {
+        dependencies.add("runtimeOnly", "io.micrometer:micrometer-registry-prometheus")
+        dependencies.add("runtimeOnly", "org.springframework.boot:spring-boot-starter-opentelemetry")
+        dependencies.add("runtimeOnly", "org.springframework.boot:spring-boot-starter-restclient")
+    }
+
+    dependencyLocking {
+        lockAllConfigurations()
+    }
+
+    tasks.register("resolveAndLockDependencies") {
+        description = "Resolve every dependency configuration and update checked-in lockfiles."
+        doFirst {
+            require(gradle.startParameter.isWriteDependencyLocks) { "Run with --write-locks" }
+        }
+        doLast {
+            configurations.filter { it.isCanBeResolved }.forEach { it.resolve() }
+        }
     }
 
     configurations.all {
@@ -64,9 +87,7 @@ subprojects {
             if (requested.group == "org.bouncycastle" && requested.name.endsWith("-jdk18on")) {
                 useVersion(rootProject.libs.versions.bouncycastle.get())
             }
-            // springdoc 3.0.3 pins swagger-ui 5.32.2 which bundles DOMPurify 3.3.2
-            // (CVE-2026-41238/9/40 + GHSA-39q2-94rc-95cp). 5.32.5 ships DOMPurify
-            // 3.4.0 with the fix; bump the webjar without changing springdoc.
+            // Keep the embedded UI aligned with the independently patched webjar.
             if (requested.group == "org.webjars" && requested.name == "swagger-ui") {
                 useVersion(rootProject.libs.versions.swagger.ui.get())
             }
@@ -75,6 +96,8 @@ subprojects {
 
     tasks.withType<Test> {
         useJUnitPlatform()
+        systemProperty("management.otlp.metrics.export.enabled", "false")
+        systemProperty("management.opentelemetry.tracing.export.otlp.enabled", "false")
         systemProperty(
             "testcontainers.postgres.image",
             rootProject.libs.versions.postgres.image.get()
@@ -95,6 +118,25 @@ subprojects {
         dependsOn(tasks.withType<Test>())
         reports {
             xml.required = true
+        }
+    }
+
+    tasks.jacocoTestCoverageVerification {
+        dependsOn(tasks.withType<Test>())
+        violationRules {
+            rule {
+                element = "CLASS"
+                includes = listOf(
+                    "ru.hvostid.gateway.filter.TokenIntrospectionFilter",
+                    "ru.hvostid.auth.service.SessionCleanupService",
+                    "ru.hvostid.passport.service.PassportDocumentValidator",
+                    "ru.hvostid.matching.service.MatchRecommendationsService"
+                )
+                limit {
+                    counter = "LINE"
+                    minimum = "0.70".toBigDecimal()
+                }
+            }
         }
     }
 
@@ -122,5 +164,6 @@ subprojects {
 
     tasks.named("check") {
         dependsOn("spotlessCheck")
+        dependsOn("jacocoTestCoverageVerification")
     }
 }

@@ -20,7 +20,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
+import ru.hvostid.listing.ListingIntegrationTest;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
@@ -31,7 +31,7 @@ import ru.hvostid.listing.repository.ListingRepository;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class ListingSearchIntegrationTest extends AbstractPostgresContainerTest {
+class ListingSearchIntegrationTest extends ListingIntegrationTest {
 
     @Autowired
     private ListingService listingService;
@@ -135,6 +135,13 @@ class ListingSearchIntegrationTest extends AbstractPostgresContainerTest {
         ListingUpdateRequest updateRequest =
                 new ListingUpdateRequest("Updated title", null, null, null, null, null, null, null);
         listingService.updateListing(created.id(), updateRequest, 1L);
+        assertThat(listingService.searchListings("Updated", PageRequest.of(0, 10)))
+                .isEmpty();
+        listingService.updateStatus(
+                created.id(),
+                new ru.hvostid.listing.dto.StatusUpdateRequest(ListingStatus.PUBLISHED, null),
+                99L,
+                java.util.Set.of("MODERATOR"));
 
         Page<ListingResponse> afterUpdate = listingService.searchListings("Updated", PageRequest.of(0, 10));
         assertThat(afterUpdate.getContent()).hasSize(1);

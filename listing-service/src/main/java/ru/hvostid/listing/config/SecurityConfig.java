@@ -33,6 +33,8 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/listings/passports/*/has-published")
                         .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/actuator/prometheus")
+                        .permitAll()
                         .requestMatchers(GatewaySecurityDefaults.alwaysPublic())
                         .permitAll()
                         .anyRequest()

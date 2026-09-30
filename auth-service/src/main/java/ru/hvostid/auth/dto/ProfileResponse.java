@@ -32,4 +32,7 @@ public record ProfileResponse(
         String bio,
 
         @Schema(description = "Aggregated rating across listings (optional)", example = "4.7")
-        Double rating) {}
+        Double rating,
+
+        boolean contactSharingEnabled,
+        boolean emailVerified) {}

@@ -61,7 +61,7 @@ flowchart TB
     GW --> PASS
     GW --> MATCH
     GW -. token introspect .-> AUTH
-    LIST -->|enrich with passport| PASS
+    LIST -->|validate ownership and reserve references| PASS
     MATCH -->|read listings| LIST
     MATCH -->|read passports| PASS
     AUTH --> PG
@@ -91,11 +91,11 @@ Detailed diagrams (sequence, deployment) and design notes live in
 - Gradle multi-module (Kotlin DSL) with version catalog
 - PostgreSQL 18, Flyway migrations
 - MinIO (S3-compatible)
-- Spotless + palantir-java-format, JUnit 5, Testcontainers
+- Spotless + palantir-java-format, JUnit 6, Testcontainers
 
 **Frontend**
 
-- React 18, Vite, React Router 6
+- React 19, Vite, React Router 7
 - Tailwind CSS, Axios
 - ESLint 9 (flat config) + Prettier
 
@@ -189,8 +189,8 @@ curl -s http://localhost:8080/api/v1/listings \
 
 Seed runs only when the `demo` Spring profile is active. Production
 deploys (`SPRING_PROFILES_ACTIVE=prod`) do not load `db/seed` migrations.
-The catalog UI page is still tracked in T30; seeded listings are available
-via the API immediately after `./scripts/seed-all.sh`.
+The catalog, listing details, seller editor and recommendations are available in
+the SPA. Seeded listings appear after `./scripts/seed-all.sh`.
 
 ## Production demo
 
@@ -204,13 +204,13 @@ GHCR (see [CI/CD](#cicd)). If packages are private, log in first.
 
 ```bash
 cp .env.prod.example .env.prod
-# Edit .env.prod: set DB_PASSWORD, MINIO_ACCESS_KEY, MINIO_SECRET_KEY,
+# Edit .env.prod: set DB_PASSWORD and each *_DB_PASSWORD, MINIO_ACCESS_KEY, MINIO_SECRET_KEY,
 # IMAGE_TAG (e.g. latest or a short SHA from main), and GHCR_OWNER.
 
 docker login ghcr.io   # if images are private
 
-docker compose --env-file .env.prod -f docker-compose.prod.yml pull
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull --ignore-buildable
+docker compose --env-file .env.prod -f docker-compose.prod.yml up --build -d --wait
 ```
 
 | What     | URL                      |
@@ -351,34 +351,30 @@ commit-message rules, code-style decisions, and review checklist.
 
 ## CI/CD
 
-Three GitHub Actions workflows live in [`.github/workflows`](./.github/workflows):
+- [PR checks](./.github/workflows/ci-pr.yml): Gradle formatting, tests and
+  critical-class coverage gates; frontend lint, Vitest, Playwright, build and
+  npm audit; clean Compose API/media smoke and isolated backup/restore drill.
+- [Main release](./.github/workflows/cd-main.yml): publish SHA-tagged images,
+  scan with Trivy and run a real registration/listing/media workflow. Only
+  successful candidates are promoted to `latest`.
+- [Dependency security](./.github/workflows/security-scan.yml): runtime OSV
+  checks and OWASP/NVD scans on dependency PRs, main changes and daily. An absent
+  NVD API key fails explicitly; it never produces a clean scan result.
 
-- [`ci-pr.yml`](./.github/workflows/ci-pr.yml) runs on every pull
-  request: `./gradlew check` (Spotless, JUnit, JaCoCo), optional
-  SonarQube scan, backend and frontend Docker builds.
-- [`cd-main.yml`](./.github/workflows/cd-main.yml) runs on merges to
-  `main`: rebuilds and pushes per-service images to GitHub Container
-  Registry (parallel matrix), scans every image with Trivy (SARIF
-  results visible in the Security tab when GHAS is enabled, JSON
-  reports reimported into DefectDojo when configured), then runs a
-  smoke test that brings up the full Compose stack and waits for
-  every `/actuator/health` to return 200.
-- [`security-scan.yml`](./.github/workflows/security-scan.yml) runs
-  daily and on dependency-declaration changes merged to `main`:
-  `./gradlew dependencyCheckAggregate` produces an OWASP Dependency
-  Check report; SARIF goes to GitHub Code Scanning and the XML
-  report is reimported into DefectDojo when configured.
-
-Image tags follow `ghcr.io/hvostid/hvostid-<service>:<short-sha>` plus
-`latest`.
+Production Compose uses separate database accounts and a pinned-source MinIO
+image. [Operations](./docs/operations.md) covers existing-database migration,
+backup/restore, immutable release rollback, optional TLS, Prometheus alerts,
+Grafana and OTLP tracing. Public TLS and alert delivery require deployment
+configuration.
 
 ## Testing
 
-- **Unit tests** -- JUnit 5 + Mockito + Spring `WebMvcTest`. Run with
+- **Unit tests** -- JUnit 6 + Mockito + Spring `WebMvcTest`. Run with
   `./gradlew test` or `./gradlew :auth-service:test`.
 - **Integration tests** -- Testcontainers boots a PostgreSQL container
-  per test class via the shared
-  `common.testfixtures.AbstractPostgresContainerTest`. Tracked in T22.
+  shared per test JVM via
+  `common.testfixtures.AbstractPostgresContainerTest`. Object storage integration
+  tests use the pinned MinIO source image.
 - **Coverage** -- JaCoCo XML reports at
   `<module>/build/reports/jacoco/test/jacocoTestReport.xml`, picked up
   by SonarQube.

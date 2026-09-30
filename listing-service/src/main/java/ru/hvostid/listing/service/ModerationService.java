@@ -94,7 +94,7 @@ public class ModerationService {
             throw new InvalidFlagReviewException("Decision must be REVIEWED or DISMISSED, got " + decision);
         }
         ListingFlag flag = flagRepository
-                .findById(flagId)
+                .findLockedById(flagId)
                 .orElseThrow(() -> new FlagNotFoundException("Flag not found with id: " + flagId));
         if (flag.getStatus() != FlagStatus.PENDING) {
             throw new InvalidFlagReviewException(

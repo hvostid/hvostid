@@ -54,6 +54,15 @@ hvostid:
         internal-redirect-prefix: /_protected/minio
 
 management:
+    otlp:
+        metrics:
+            export:
+                enabled: false
+    opentelemetry:
+        tracing:
+            export:
+                otlp:
+                    enabled: false
     endpoints:
         web:
             exposure:

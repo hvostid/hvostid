@@ -49,7 +49,8 @@ class PassportCoverControllerTest extends AbstractPassportIntegrationTest {
 
     @BeforeEach
     void defaultListingMock() {
-        when(listingServiceClient.hasPublishedListingForPassport(any(), any())).thenReturn(true);
+        when(listingServiceClient.hasPublishedListingForPassport(any(), any(), any()))
+                .thenReturn(true);
     }
 
     @AfterEach
@@ -77,9 +78,23 @@ class PassportCoverControllerTest extends AbstractPassportIntegrationTest {
     void cover_noPublishedListing_returns404() throws Exception {
         createPassport();
         uploadPhoto("first.jpg");
-        when(listingServiceClient.hasPublishedListingForPassport(any(), any())).thenReturn(false);
+        when(listingServiceClient.hasPublishedListingForPassport(any(), any(), any()))
+                .thenReturn(false);
 
         mockMvc.perform(get(COVER_URL)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void publishedReferenceFromAnotherOwnerDoesNotExposeCover() throws Exception {
+        createPassport();
+        uploadPhoto("private.jpg");
+        // The legacy listing seller is 20, but the actual passport owner is 10.
+        when(listingServiceClient.hasPublishedListingForPassport(any(), any(), any()))
+                .thenAnswer(invocation -> Long.valueOf(20L).equals(invocation.getArgument(1)));
+        mockMvc.perform(get(COVER_URL)).andExpect(status().isNotFound());
+        org.mockito.Mockito.verify(listingServiceClient)
+                .hasPublishedListingForPassport(
+                        org.mockito.ArgumentMatchers.eq(1L), org.mockito.ArgumentMatchers.eq(10L), any());
     }
 
     @Test
@@ -120,7 +135,8 @@ class PassportCoverControllerTest extends AbstractPassportIntegrationTest {
 
     private void uploadPhoto(String filename) throws Exception {
         mockMvc.perform(multipart(DOCS_URL)
-                        .file(new MockMultipartFile("file", filename, "image/jpeg", "image".getBytes()))
+                        .file(new MockMultipartFile(
+                                "file", filename, "image/jpeg", ru.hvostid.passport.TestDocumentContent.image("jpg")))
                         .param("type", "PHOTO")
                         .header(USER_ID, 10L)
                         .header(USER_ROLES, SELLER.value()))

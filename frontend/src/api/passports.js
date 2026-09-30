@@ -1,5 +1,7 @@
 // api/passports.js
 import api from './client';
+import { canonicalPassportId } from '../utils/passportId';
+import { collectPages } from './pages';
 
 // Create passport
 export const createPassport = async (passportData) => {
@@ -8,20 +10,20 @@ export const createPassport = async (passportData) => {
 };
 
 // Get passport by pet ID
-export const getPassport = async (petId) => {
-    const response = await api.get(`/passports/${petId}`);
+export const getPassport = async (petId, signal) => {
+    const response = await api.get(`/passports/${canonicalPassportId(petId)}`, { signal });
     return response.data;
 };
 
 // Update passport
 export const updatePassport = async (petId, passportData) => {
-    const response = await api.put(`/passports/${petId}`, passportData);
+    const response = await api.put(`/passports/${canonicalPassportId(petId)}`, passportData);
     return response.data;
 };
 
 // Get trust score
 export const getTrustScore = async (petId) => {
-    const response = await api.get(`/passports/${petId}/trust`);
+    const response = await api.get(`/passports/${canonicalPassportId(petId)}/trust`);
     return response.data;
 };
 
@@ -30,19 +32,25 @@ export const uploadDocument = async (passportId, file, type) => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await api.post(`/passports/${passportId}/docs?type=${type}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await api.post(
+        `/passports/${canonicalPassportId(passportId)}/docs?type=${type}`,
+        formData,
+        {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }
+    );
     return response.data;
 };
 
 // Delete document
 export const deleteDocument = async (passportId, docId) => {
-    await api.delete(`/passports/${passportId}/docs/${docId}`);
+    await api.delete(`/passports/${canonicalPassportId(passportId)}/docs/${docId}`);
 };
 
 export async function getPassportDocuments(passportId, signal) {
-    const response = await api.get(`/passports/${passportId}/docs`, { signal });
+    const response = await api.get(`/passports/${canonicalPassportId(passportId)}/docs`, {
+        signal,
+    });
     return response.data;
 }
 
@@ -55,7 +63,9 @@ export async function getPassportDocuments(passportId, signal) {
  * Shape: `{ url: string, expiresAt: string (ISO instant) }`.
  */
 export async function issueDocumentTicket(passportId, docId, signal) {
-    const response = await api.get(`/passports/${passportId}/docs/${docId}`, { signal });
+    const response = await api.get(`/passports/${canonicalPassportId(passportId)}/docs/${docId}`, {
+        signal,
+    });
     return response.data;
 }
 
@@ -65,19 +75,23 @@ export async function issueDocumentTicket(passportId, docId, signal) {
  * when the passport has no PUBLISHED listing reference or no PHOTO uploaded;
  * call sites should provide an `onError` fallback (e.g. `/def.png`).
  */
-export const passportCoverUrl = (passportId) => `/api/v1/passports/${passportId}/cover`;
+export const passportCoverUrl = (passportId) =>
+    `/api/v1/passports/${canonicalPassportId(passportId)}/cover`;
 
 /**
  * List passports owned by the authenticated user.
  * Returns Spring Page shape: { content, totalElements, totalPages, ... }
  */
-export async function getAllMyPassports(page = 0, size = 20) {
-    const response = await api.get(`/passports/my?page=${page}&size=${size}`);
+export async function getAllMyPassports(page = 0, size = 20, signal) {
+    const response = await api.get(`/passports/my?page=${page}&size=${size}`, { signal });
     return response.data;
 }
 
 // Delete a passport. Backend rejects deletion when the passport
 // is referenced by a PUBLISHED listing (409).
 export const deletePassport = async (petId) => {
-    await api.delete(`/passports/${petId}`);
+    await api.delete(`/passports/${canonicalPassportId(petId)}`);
 };
+
+export const getOwnedPassports = (signal) =>
+    collectPages((page) => getAllMyPassports(page, 100, signal), signal);

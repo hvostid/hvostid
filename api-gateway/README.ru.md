@@ -2,60 +2,56 @@
 
 # API Gateway
 
-Spring Cloud Gateway (server-MVC) -- парадная дверь платформы.
+Spring Cloud Gateway MVC направляет внешние API-запросы во внутренние сервисы.
 
-## Зоны ответственности
+## Порядок обработки
 
-- Маршрутизирует трафик `/api/v1/**` в нужный сервис.
-- Валидирует входящие Bearer-токены через интроспекцию Auth Service и
-  проставляет `X-User-Id` / `X-User-Roles` для downstream-сервисов
-  (`TokenIntrospectionFilter`).
-- Генерирует / прокидывает `X-Request-Id` и привязывает его к MDC для
-  корреляции логов (`RequestIdFilter`).
-- Token-bucket rate limit по IP клиента (`RateLimitFilter`).
+1. RequestIdFilter устанавливает ID запроса и контекст логирования.
+2. IdentityHeaderFilter удаляет все входящие X-User-Id и X-User-Roles,
+   включая публичные маршруты.
+3. RateLimitFilter проверяет лимит непосредственного клиента или доверенной цепочки proxy.
+4. TokenIntrospectionFilter проверяет Bearer и устанавливает подтверждённые заголовки.
+   Отсутствующий/недействующий токен даёт 401; недоступная интроспекция — 503.
 
-Полный жизненный цикл запроса описан в
-[`docs/architecture.ru.md`](../docs/architecture.ru.md#жизненный-цикл-запроса).
+Публичные пути ограничены HTTP-методом в application.yml. Поиск каталога публичный;
+необязательная авторизация разрешена только для числового ID объявления.
+Мои объявления и черновики требуют авторизации. Внутренние пути сервисов через
+gateway не публикуются.
 
-## Маршрутизация
+## Маршруты
 
-| Префикс пути           | Целевой сервис              |
-|------------------------|-----------------------------|
-| `/api/v1/auth/**`      | Auth Service (`:8081`)      |
-| `/api/v1/profile/**`   | Auth Service (`:8081`)      |
-| `/api/v1/listings/**`  | Listing Service (`:8082`)   |
-| `/api/v1/passports/**` | Passport Service (`:8083`)  |
-| `/api/v1/match/**`     | Matching Service (`:8084`)  |
+| Префикс | Сервис |
+| --- | --- |
+| /api/v1/auth/**, /api/v1/profile/**, /api/v1/users/** | Auth (:8081) |
+| /api/v1/listings/**, /api/v1/moderation/** | Listing (:8082) |
+| /api/v1/passports/** | Passport (:8083) |
+| /api/v1/match/** | Matching (:8084) |
 
-Public paths (без токена): `/api/v1/auth/login`,
-`/api/v1/auth/register`, `/actuator/**`.
+## Настройка
 
-## Переменные окружения
+AUTH_SERVICE_HOST, LISTING_SERVICE_HOST, PASSPORT_SERVICE_HOST и MATCHING_SERVICE_HOST
+по умолчанию localhost; SERVER_PORT — 8080. Таймаут интроспекции — 3 секунды.
 
-| Имя                       | Default     | Описание                          |
-|---------------------------|-------------|-----------------------------------|
-| `SERVER_PORT`             | `8080`      | HTTP-порт                         |
-| `AUTH_SERVICE_HOST`       | `localhost` | Hostname Auth Service             |
-| `LISTING_SERVICE_HOST`    | `localhost` | Hostname Listing Service          |
-| `PASSPORT_SERVICE_HOST`   | `localhost` | Hostname Passport Service         |
-| `MATCHING_SERVICE_HOST`   | `localhost` | Hostname Matching Service         |
+Лимит по IP: 60 запросов в секунду, максимальный burst 120. У auth-маршрутов отдельная
+квота 1 запрос/секунду, burst 10. Карта ограничена 10 000 записями клиент/категория;
+неактивные записи удаляются через 15 минут. Активные квоты не вытесняются:
+при заполнении новые клиенты получают 429. Ответ содержит Retry-After.
 
-Rate limit (`hvostid.rate-limit.replenish-rate` / `burst-capacity`) и
-auth (`hvostid.auth.introspect-url` / `introspect-timeout`)
-настраиваются в
-[`application.yml`](./src/main/resources/application.yml).
+X-Forwarded-For по умолчанию игнорируется. HVOSTID_RATE_LIMIT_TRUSTED_PROXIES —
+явный список IP доверенных proxy через запятую. Edge должен перезаписывать
+X-Forwarded-For адресом remote_addr. Gateway рассматривает цепочку справа налево
+до первого недоверенного узла. При доверии proxy не открывайте gateway напрямую.
+Лимиты локальны для процесса: используйте одну реплику gateway или общий
+распределённый limiter до горизонтального масштабирования.
 
-## Локальный запуск
+В production публикуйте только TLS edge. Actuator предназначен для внутреннего
+мониторинга, nginx не должен публиковать его наружу.
+Все значения свойств находятся в src/main/resources/application.yml.
 
-Поднимите зависимости, затем запустите gateway из IDE или:
+## Запуск
 
 ```bash
 docker compose up -d postgres minio minio-init auth-service listing-service passport-service matching-service
 ./gradlew :api-gateway:bootRun
+./gradlew :api-gateway:test
 ```
-
-## Зависимости
-
-- **Обязательно в рантайме:** Auth Service (интроспекция).
-- **Обязательно для проксирования трафика:** тот downstream-сервис, на
-  который ведёт текущий путь.

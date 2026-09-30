@@ -2,62 +2,87 @@
 
 # Auth Service
 
-Владелец пользователей, сессий, opaque access/refresh токенов, данных
-профиля и ролей.
+Хранит пользователей, профили, роли и сессии. Access/refresh — случайные 256-битные
+токены; в PostgreSQL сохраняются только SHA-256, а не исходные значения.
+После истечения access-токена refresh остаётся действующим до собственного срока.
+Обновление сессии, сброс пароля и отзыв сессий синхронизируются блокировкой аккаунта.
 
-## Зоны ответственности
+## API
 
-- Регистрация, login, logout, refresh.
-- Интроспекция токенов на **внутреннем** пути
-  `POST /internal/auth/introspect` (вызывается Gateway, наружу не
-  выставлен).
-- Чтение/обновление профиля.
-- Управление ролями.
+| Метод | Путь | Доступ | Назначение |
+| --- | --- | --- | --- |
+| POST | /api/v1/auth/register | публичный | Регистрация с ролью BUYER |
+| POST | /api/v1/auth/login | публичный | Получение access/refresh |
+| POST | /api/v1/auth/refresh | публичный | Однократное обновление пары |
+| POST | /api/v1/auth/logout | токен | Отзыв текущей сессии |
+| POST | /api/v1/auth/logout-all | токен | Отзыв всех сессий пользователя |
+| GET | /api/v1/auth/sessions | токен | ID, время создания и истечения сессий; токены не возвращаются |
+| DELETE | /api/v1/auth/sessions/{id} | токен | Отзыв собственной сессии; чужой ID игнорируется |
+| POST | /api/v1/auth/password-reset/request | публичный | {email}; одинаковый 202 для существующего и неизвестного адреса |
+| POST | /api/v1/auth/password-reset/confirm | публичный | {token,password}; смена пароля отзывает все сессии |
+| POST | /api/v1/auth/email-verification/request | токен | Отправка подтверждения текущему пользователю |
+| POST | /api/v1/auth/email-verification/confirm | публичный | Однократное подтверждение {token} |
+| GET | /api/v1/profile/me | токен | Профиль, emailVerified, contactSharingEnabled |
+| PUT | /api/v1/profile/me | токен | Имя, телефон, город, описание и согласие на раскрытие телефона |
+| POST | /api/v1/profile/me/roles | токен | Самостоятельное добавление только SELLER |
+| GET | /api/v1/users/{id}/contact | токен | Имя и телефон продавца при явном согласии; иначе 404 |
+| POST | /internal/auth/introspect | внутренний | Интроспекция токена; gateway не публикует этот путь |
 
-Токены -- непрозрачные случайные строки в таблице `sessions`; нет JWT
-и нет ключа подписи. Обоснование -- в
-[`docs/architecture.ru.md`](../docs/architecture.ru.md#аутентификация-и-авторизация).
+Email приводится к нижнему регистру и очищается от пробелов по краям.
+Пароль: не менее 8 символов, не более 72 байт UTF-8 согласно ограничению BCrypt.
+Ссылки восстановления и подтверждения действуют 30 минут, используются один раз,
+хранятся в виде хеша. Повторное письмо — не чаще раза в минуту на аккаунт и тип.
+Очистка истёкших refresh и ссылок выполняется каждые 15 минут.
 
-## Эндпоинты
+Миграция V4 преобразует существующие токены в хеши, сохраняя действующие сессии.
+При совпадении email после нормализации миграция останавливается: необходимо
+разрешить конфликт владельцев вручную, автоматического объединения аккаунтов нет.
+Согласие на раскрытие контакта изначально отключено.
 
-| Метод  | Путь                              | Auth      | Заметки                              |
-|--------|-----------------------------------|-----------|--------------------------------------|
-| POST   | `/api/v1/auth/register`           | public    |                                      |
-| POST   | `/api/v1/auth/login`              | public    | Возвращает access + refresh          |
-| POST   | `/api/v1/auth/refresh`            | public    | Ротирует refresh-токен               |
-| POST   | `/api/v1/auth/logout`             | bearer    |                                      |
-| GET    | `/api/v1/profile/me`              | bearer    |                                      |
-| PATCH  | `/api/v1/profile/me`              | bearer    |                                      |
-| POST   | `/api/v1/profile/me/roles`        | admin     |                                      |
-| POST   | `/internal/auth/introspect`       | internal  | Не маршрутизируется через Gateway    |
+## Настройка
 
-Полная спецификация: http://localhost:8081/swagger-ui.html.
+| Переменная | По умолчанию | Назначение |
+| --- | --- | --- |
+| SERVER_PORT | 8081 | HTTP-порт |
+| DB_HOST / DB_NAME | localhost / hvostid_auth | PostgreSQL |
+| DB_USER / DB_PASSWORD | hvostid / hvostid | Локальные учётные данные |
+| AUTH_MAIL_ENABLED | false | Включить отправку служебных писем |
+| AUTH_MAIL_ENCRYPTION_KEY | пусто | Отдельный ключ 32 байта в Base64; обязателен при включённой почте |
+| AUTH_MAIL_FROM | no-reply@localhost | Подтверждённый отправитель |
+| AUTH_PUBLIC_BASE_URL | http://localhost | Адрес frontend для ссылок; production требует HTTPS |
+| SPRING_MAIL_HOST / SPRING_MAIL_PORT | localhost / 1025 | SMTP-сервер |
+| SPRING_MAIL_USERNAME / SPRING_MAIL_PASSWORD | пусто | SMTP-аутентификация |
+| SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH | false | Использовать SMTP AUTH |
+| SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE | false | Использовать STARTTLS |
 
-## Переменные окружения
+Отключённая почта возвращает одинаковый 503 для известного и неизвестного email.
+После настройки запрос восстановления возвращает общий 202 и в одной транзакции
+сохраняет хеш токена и зашифрованное письмо в outbox. Отказ SMTP не раскрывает
+наличие аккаунта. Worker читает только подтверждённые записи, повторяет попытку
+через 30 секунд — 5 минут, удаляет отправленное письмо либо запись с истёкшим
+30-минутным сроком. Адресат и ссылка защищены AES-256-GCM; в БД хранится только
+шифротекст. В логах ошибок — только ID сообщения и номер попытки.
 
-| Имя              | Default          | Описание                        |
-|------------------|------------------|---------------------------------|
-| `SERVER_PORT`    | `8081`           | HTTP-порт                       |
-| `DB_HOST`        | `localhost`      | Хост PostgreSQL                 |
-| `DB_NAME`        | `hvostid_auth`   | Имя базы                        |
-| `DB_USER`        | `hvostid`        | Пользователь БД                 |
-| `DB_PASSWORD`    | `hvostid`        | Пароль БД                       |
+Worker удерживает блокировку записи outbox, а не аккаунта. Таймауты SMTP — 5 секунд.
+Доставка выполняется минимум один раз: сбой после приёма письма SMTP может привести
+к повторному письму с той же однократной ссылкой. Для мониторинга доступны метрики
+auth.mail.delivery (result=success/failure) и auth.mail.outbox.pending.
 
-TTL токенов (`hvostid.auth.access-token-ttl`,
-`hvostid.auth.refresh-token-ttl`) настраиваются в
-[`application.yml`](./src/main/resources/application.yml).
-Production-override -- в
-[`application-prod.yml`](./src/main/resources/application-prod.yml).
+Храните AUTH_MAIL_ENCRYPTION_KEY отдельно от БД и SMTP в менеджере секретов.
+Меняйте ключ только после отправки или истечения срока ожидающих писем: ранняя смена
+сделает старые записи нечитаемыми. Production-ключ нельзя помещать в Git.
+Тесты подменяют SMTP и не отправляют реальные письма. Подтверждение запрашивается
+из профиля; регистрация сама по себе письмо не отправляет.
 
-## Локальный запуск
+В application.yml TTL по умолчанию: access — 30 минут, refresh — 7 дней.
+Сервис доступен только во внутренней сети; заголовки личности устанавливает gateway.
+
+## Запуск
 
 ```bash
 docker compose up -d postgres
 ./gradlew :auth-service:bootRun
+./gradlew :auth-service:test
 ```
 
-## Зависимости
-
-- **Обязательно:** PostgreSQL (база `hvostid_auth`).
-- **Другие сервисы не вызывают этот сервис снаружи** -- только Gateway
-  ходит во внутренний introspect-эндпоинт.
+OpenAPI: http://localhost:8081/swagger-ui.html; в production отключён.

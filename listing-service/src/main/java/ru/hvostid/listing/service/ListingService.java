@@ -35,16 +35,22 @@ public class ListingService {
     private final ListingRepository listingRepository;
     private final ListingStatusHistoryRepository historyRepository;
     private final ListingDraftService draftService;
+    private final ru.hvostid.listing.client.PassportServiceClient passports;
+    private final PassportReferenceJobService referenceJobs;
 
     public ListingService(
             ListingFlagRepository flagRepository,
             ListingRepository listingRepository,
             ListingStatusHistoryRepository historyRepository,
-            ListingDraftService draftService) {
+            ListingDraftService draftService,
+            ru.hvostid.listing.client.PassportServiceClient passports,
+            PassportReferenceJobService referenceJobs) {
         this.flagRepository = flagRepository;
         this.listingRepository = listingRepository;
         this.historyRepository = historyRepository;
         this.draftService = draftService;
+        this.passports = passports;
+        this.referenceJobs = referenceJobs;
     }
 
     /**
@@ -61,7 +67,12 @@ public class ListingService {
     public ListingResponse createListing(ListingRequest request, Long sellerId) {
         log.debug("Creating listing for sellerId={}", sellerId);
 
+        if (normalize(request.title()).length() < 3)
+            throw new ru.hvostid.common.exception.ValidationException(
+                    "Title must contain at least 3 non-whitespace characters");
         checkForDuplicate(request, sellerId);
+        String passportId = canonicalPassportId(request.passportId());
+        passports.validateOwner(Long.parseLong(passportId), sellerId);
 
         Listing listing = Listing.builder()
                 .sellerId(sellerId)
@@ -72,7 +83,7 @@ public class ListingService {
                 .age(request.age())
                 .price(request.price())
                 .city(normalize(request.city()))
-                .passportId(normalize(request.passportId()))
+                .passportId(passportId)
                 .build();
 
         Listing saved = listingRepository.save(listing);
@@ -105,7 +116,7 @@ public class ListingService {
     public ListingResponse updateListing(Long id, ListingUpdateRequest request, Long userId) {
         log.debug("Updating listing id={} for userId={}", id, userId);
 
-        Listing listing = requireListing(id);
+        Listing listing = requireLockedListing(id);
 
         if (!listing.getSellerId().equals(userId)) {
             log.warn("Update denied: not owner listingId={} userId={}", id, userId);
@@ -119,6 +130,16 @@ public class ListingService {
                     + ". Only DRAFT/PUBLISHED/REJECTED listings can be edited.");
         }
 
+        if (request.title() != null && normalize(request.title()).length() < 3)
+            throw new ru.hvostid.common.exception.ValidationException(
+                    "Title must contain at least 3 non-whitespace characters");
+        if (request.species() != null && request.species().isBlank()
+                || request.city() != null && request.city().isBlank())
+            throw new ru.hvostid.common.exception.ValidationException("Species and city cannot be blank");
+        if (request.passportId() != null
+                && !canonicalPassportId(request.passportId()).equals(canonicalPassportId(listing.getPassportId())))
+            throw new ru.hvostid.common.exception.ValidationException(
+                    "Passport cannot be changed; create a new listing instead");
         if (request.title() != null) listing.setTitle(normalize(request.title()));
         if (request.description() != null) listing.setDescription(normalize(request.description()));
         if (request.species() != null) listing.setSpecies(normalize(request.species()));
@@ -127,6 +148,26 @@ public class ListingService {
         if (request.price() != null) listing.setPrice(request.price());
         if (request.city() != null) listing.setCity(normalize(request.city()));
 
+        if (listing.getStatus() == ListingStatus.PUBLISHED) {
+            long operation = referenceJobs.prepare(
+                    listing.getId(),
+                    Long.parseLong(canonicalPassportId(listing.getPassportId())),
+                    listing.getSellerId());
+            passports.acquire(
+                    Long.parseLong(canonicalPassportId(listing.getPassportId())),
+                    listing.getId(),
+                    listing.getSellerId(),
+                    false,
+                    operation * 2);
+            listing.setStatus(ListingStatus.MODERATION);
+            historyRepository.save(new ListingStatusHistory(
+                    id,
+                    ListingStatus.PUBLISHED,
+                    ListingStatus.MODERATION,
+                    userId,
+                    "OWNER",
+                    "Content edited; review required"));
+        }
         Listing updated = listingRepository.save(listing);
         log.info("Listing updated id={} userId={}", updated.getId(), userId);
 
@@ -145,10 +186,18 @@ public class ListingService {
 
     @Transactional(readOnly = true)
     public boolean hasPublishedListingForPassport(String passportId) {
+        return hasPublishedListingForPassport(passportId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasPublishedListingForPassport(String passportId, Long sellerId) {
         if (passportId == null || passportId.isBlank()) {
             return false;
         }
-        String id = passportId.trim().replaceFirst("^passport-", "");
+        String id = canonicalPassportId(passportId);
+        if (sellerId != null)
+            return listingRepository.existsByPassportIdInAndStatusAndSellerId(
+                    List.of(id, "passport-" + id), ListingStatus.PUBLISHED, sellerId);
         return listingRepository.existsByPassportIdInAndStatusIn(
                 List.of(id, "passport-" + id), Set.of(ListingStatus.PUBLISHED));
     }
@@ -178,7 +227,7 @@ public class ListingService {
     public ListingResponse updateStatus(Long id, StatusUpdateRequest request, Long userId, Set<String> userRoles) {
         log.debug("Updating status listingId={} to {} by userId={}, roles={}", id, request.status(), userId, userRoles);
 
-        Listing listing = requireListing(id);
+        Listing listing = requireLockedListing(id);
 
         boolean isOwner = listing.getSellerId().equals(userId);
         ListingStatus oldStatus = listing.getStatus();
@@ -206,6 +255,19 @@ public class ListingService {
             checkForDuplicateTitle(listing.getSellerId(), listing.getTitle());
         }
 
+        Long passportId = existingPassportId(listing);
+        if (newStatus == ListingStatus.MODERATION || newStatus == ListingStatus.PUBLISHED) {
+            // Legacy invalid references may be retired, but can never enter an active state.
+            passportId = Long.parseLong(canonicalPassportId(listing.getPassportId()));
+            long operation = referenceJobs.prepare(listing.getId(), passportId, listing.getSellerId());
+            passports.acquire(
+                    passportId,
+                    listing.getId(),
+                    listing.getSellerId(),
+                    newStatus == ListingStatus.PUBLISHED,
+                    operation * 2);
+        }
+        if (passportId != null) referenceJobs.enqueue(listing.getId(), passportId, listing.getSellerId());
         listing.setStatus(newStatus);
         if (newStatus == ListingStatus.SOLD) {
             listing.setSoldAt(Instant.now());
@@ -301,7 +363,7 @@ public class ListingService {
     public void deleteListing(Long id, Long userId, Set<String> userRoles) {
         log.debug("Deleting listing id={} by userId={}, roles={}", id, userId, userRoles);
 
-        Listing listing = requireListing(id);
+        Listing listing = requireLockedListing(id);
 
         boolean isOwner = listing.getSellerId().equals(userId);
         boolean isAdmin = userRoles != null && userRoles.contains(UserRole.ADMIN.value());
@@ -320,12 +382,40 @@ public class ListingService {
         ListingStatus oldStatus = listing.getStatus();
         Long listingId = listing.getId();
 
+        Long passportId = existingPassportId(listing);
+        if (passportId != null) referenceJobs.enqueue(listing.getId(), passportId, listing.getSellerId());
         // Delete related entities
         flagRepository.deleteByListingId(listingId);
         historyRepository.deleteByListingId(listingId);
         listingRepository.delete(listing);
 
         log.info("Listing deleted id={} userId={} oldStatus={}", id, userId, oldStatus);
+    }
+
+    private Listing requireLockedListing(Long id) {
+        return listingRepository
+                .findLockedById(id)
+                .orElseThrow(() -> new ListingNotFoundException(LISTING_NOT_FOUND_MESSAGE + id));
+    }
+
+    public static String canonicalPassportId(String value) {
+        try {
+            String raw = value == null ? "" : value.trim().replaceFirst("^passport-", "");
+            if (!raw.matches("[0-9]+")) throw new NumberFormatException();
+            long id = Long.parseLong(raw);
+            if (id <= 0) throw new NumberFormatException();
+            return Long.toString(id);
+        } catch (NumberFormatException ex) {
+            throw new ru.hvostid.common.exception.ValidationException("Passport id must be a positive 64-bit integer");
+        }
+    }
+
+    private static Long existingPassportId(Listing listing) {
+        try {
+            return Long.parseLong(canonicalPassportId(listing.getPassportId()));
+        } catch (ru.hvostid.common.exception.ValidationException ex) {
+            return null;
+        }
     }
 
     private static String blankToNull(String value) {
@@ -344,8 +434,8 @@ public class ListingService {
     }
 
     private void checkForDuplicateTitle(Long sellerId, String title) {
-        boolean exists =
-                listingRepository.existsBySellerIdAndTitleAndStatusNot(sellerId, title, ListingStatus.ARCHIVED);
+        boolean exists = listingRepository.existsBySellerIdAndTitleIgnoreCaseAndStatusNot(
+                sellerId, title, ListingStatus.ARCHIVED);
         if (exists) {
             throw new DuplicateListingException("You already have a listing with this title");
         }

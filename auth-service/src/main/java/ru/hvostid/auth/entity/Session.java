@@ -4,7 +4,8 @@ import jakarta.persistence.*;
 import java.time.Instant;
 
 /**
- * Persistent entity representing an active user session with opaque tokens.
+ * Persistent entity representing an active user session. Token columns contain SHA-256
+ * digests only; opaque credentials are returned to the client once when issued.
  */
 @Entity
 @Table(name = "sessions")

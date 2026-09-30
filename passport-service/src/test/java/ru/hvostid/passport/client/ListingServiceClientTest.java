@@ -52,6 +52,16 @@ class ListingServiceClientTest {
     }
 
     @Test
+    void publicEvidenceCheckIsBoundToTheActualPassportOwner() {
+        server.expect(requestTo("http://listing/api/v1/listings/passports/42/has-published?sellerId=10"))
+                .andExpect(header(REQUEST_ID, "trace-42"))
+                .andRespond(withSuccess(
+                        "{\"passportId\":\"42\",\"hasPublishedListing\":false}", MediaType.APPLICATION_JSON));
+        assertThat(client.hasPublishedListingForPassport(42L, 10L, "trace-42")).isFalse();
+        server.verify();
+    }
+
+    @Test
     void upstreamFailureDoesNotAuthorizeDeletion() {
         server.expect(requestTo("http://listing/internal/listings/passports/42/has-active"))
                 .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));

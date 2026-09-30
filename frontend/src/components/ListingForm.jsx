@@ -1,15 +1,9 @@
+import { PET_SPECIES } from '../constants/petSpecies';
 // components/ListingForm.jsx
 import { useState } from 'react';
 import Input from './Input';
 
-const SPECIES_OPTIONS = [
-    { value: 'CAT', label: 'Кошка' },
-    { value: 'DOG', label: 'Собака' },
-    { value: 'BIRD', label: 'Птица' },
-    { value: 'RODENT', label: 'Грызун' },
-    { value: 'RABBIT', label: 'Кролик' },
-    { value: 'OTHER', label: 'Другое' },
-];
+const SPECIES_OPTIONS = PET_SPECIES;
 
 export default function ListingForm({
     initialData,
@@ -17,6 +11,7 @@ export default function ListingForm({
     isSubmitting,
     submitLabel,
     fieldErrors = {},
+    onChange,
 }) {
     const [formData, setFormData] = useState({
         title: initialData?.title || '',
@@ -27,6 +22,11 @@ export default function ListingForm({
         price: initialData?.price ?? '',
         city: initialData?.city || '',
     });
+    const updateField = (field, value) => {
+        const next = { ...formData, [field]: value };
+        setFormData(next);
+        onChange?.(next);
+    };
     const [errors, setErrors] = useState({});
 
     const validate = () => {
@@ -34,42 +34,40 @@ export default function ListingForm({
 
         // Title validation
         if (!formData.title.trim()) {
-            newErrors.title = 'Название обязательно';
+            newErrors.title = 'Title is required.';
         } else if (formData.title.trim().length < 5) {
-            newErrors.title = 'Название должно быть не менее 5 символов';
+            newErrors.title = 'Title must contain at least 5 characters.';
         }
 
         // Description validation
         if (!formData.description.trim()) {
-            newErrors.description = 'Описание обязательно';
+            newErrors.description = 'Description is required.';
         } else if (formData.description.trim().length < 10) {
-            newErrors.description = 'Описание должно быть не менее 10 символов';
+            newErrors.description = 'Description must contain at least 10 characters.';
         }
 
         // City validation
         if (!formData.city.trim()) {
-            newErrors.city = 'Город обязателен';
+            newErrors.city = 'City is required.';
         }
 
-        // Age validation - преобразуем строку в число
         if (formData.age && String(formData.age).trim()) {
             const ageNum = Number(formData.age);
             if (isNaN(ageNum)) {
-                newErrors.age = 'Возраст должен быть числом';
+                newErrors.age = 'Age must be a number.';
             } else if (ageNum < 0 || ageNum > 5000) {
-                newErrors.age = 'Возраст должен быть от 0 до 5000 месяцев';
+                newErrors.age = 'Age must be between 0 and 5000 months.';
             }
         }
 
-        // Price validation - преобразуем строку в число
         if (formData.price && String(formData.price).trim()) {
             const priceNum = Number(formData.price);
             if (isNaN(priceNum)) {
-                newErrors.price = 'Цена должна быть числом';
+                newErrors.price = 'Price must be a number.';
             } else if (priceNum < 0) {
-                newErrors.price = 'Цена не может быть отрицательной';
+                newErrors.price = 'Price cannot be negative.';
             } else if (priceNum > 10000000) {
-                newErrors.price = 'Цена не может превышать 10 000 000 ₽';
+                newErrors.price = 'Price cannot exceed RUB 10,000,000.';
             }
         }
 
@@ -84,7 +82,6 @@ export default function ListingForm({
         }
     };
 
-    // Объединяем клиентские ошибки и ошибки от сервера
     const getFieldError = (fieldName) => {
         return errors[fieldName] || fieldErrors[fieldName];
     };
@@ -93,34 +90,54 @@ export default function ListingForm({
         <form onSubmit={handleSubmit} className="space-y-6">
             <Input
                 id="title"
-                label="Название объявления"
+                maxLength={255}
+                label="Listing title"
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                onChange={(e) => updateField('title', e.target.value)}
                 error={getFieldError('title')}
                 required
-                placeholder="Например: Пушистый котёнок ищет дом"
+                placeholder="For example: Friendly kitten looking for a home"
             />
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Описание *</label>
+                <label
+                    htmlFor="description"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                    Description *
+                </label>
                 <textarea
+                    id="description"
+                    aria-invalid={Boolean(getFieldError('description'))}
+                    aria-describedby={
+                        getFieldError('description') ? 'description-error' : undefined
+                    }
                     rows="4"
+                    maxLength={2000}
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) => updateField('description', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500
             ${getFieldError('description') ? 'border-red-500' : 'border-gray-300'}`}
                 />
                 {getFieldError('description') && (
-                    <p className="mt-1 text-sm text-red-600">{getFieldError('description')}</p>
+                    <p id="description-error" role="alert" className="mt-1 text-sm text-red-600">
+                        {getFieldError('description')}
+                    </p>
                 )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Вид *</label>
+                    <label
+                        htmlFor="species"
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                        Species *
+                    </label>
                     <select
+                        id="species"
                         value={formData.species}
-                        onChange={(e) => setFormData({ ...formData, species: e.target.value })}
+                        onChange={(e) => updateField('species', e.target.value)}
                         className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500
               ${getFieldError('species') ? 'border-red-500' : 'border-gray-300'}`}
                     >
@@ -137,11 +154,12 @@ export default function ListingForm({
 
                 <Input
                     id="breed"
-                    label="Порода"
+                    maxLength={255}
+                    label="Breed"
                     value={formData.breed}
-                    onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
+                    onChange={(e) => updateField('breed', e.target.value)}
                     error={getFieldError('breed')}
-                    placeholder="Например: Мейн-кун"
+                    placeholder="For example: Maine Coon"
                 />
             </div>
 
@@ -149,11 +167,11 @@ export default function ListingForm({
                 <Input
                     id="age"
                     type="number"
-                    label="Возраст (месяцев)"
+                    label="Age (months)"
                     value={formData.age}
-                    onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                    onChange={(e) => updateField('age', e.target.value)}
                     error={getFieldError('age')}
-                    placeholder="Например: 4"
+                    placeholder="For example: 4"
                     min={0}
                     max={5000}
                 />
@@ -161,22 +179,23 @@ export default function ListingForm({
                 <Input
                     id="price"
                     type="number"
-                    label="Цена (₽)"
+                    label="Price (RUB)"
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    onChange={(e) => updateField('price', e.target.value)}
                     error={getFieldError('price')}
-                    placeholder="Например: 5000"
+                    placeholder="For example: 5000"
                 />
             </div>
 
             <Input
                 id="city"
-                label="Город"
+                maxLength={255}
+                label="City"
                 value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                onChange={(e) => updateField('city', e.target.value)}
                 error={getFieldError('city')}
                 required
-                placeholder="Например: Москва"
+                placeholder="For example: Moscow"
             />
 
             <div className="flex justify-end gap-3 pt-4">
@@ -185,14 +204,14 @@ export default function ListingForm({
                     onClick={() => window.history.back()}
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
-                    Отмена
+                    Cancel
                 </button>
                 <button
                     type="submit"
                     disabled={isSubmitting}
                     className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
                 >
-                    {isSubmitting ? 'Сохранение...' : submitLabel || 'Сохранить'}
+                    {isSubmitting ? 'Saving...' : submitLabel || 'Save'}
                 </button>
             </div>
         </form>

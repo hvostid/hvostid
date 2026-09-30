@@ -1,0 +1,50 @@
+services:
+    api-gateway:
+        environment: &observed
+            MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,prometheus
+            MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILESHISTOGRAM_HTTP_SERVER_REQUESTS: true
+            MANAGEMENT_TRACING_SAMPLING_PROBABILITY: ${TRACE_SAMPLE_PROBABILITY:-0.1}
+            MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: false
+            MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENABLED: true
+            MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT: http://tempo:4318/v1/traces
+    auth-service:
+        environment: *observed
+    listing-service:
+        environment: *observed
+    passport-service:
+        environment: *observed
+    matching-service:
+        environment: *observed
+    prometheus:
+        image: prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
+        command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=15d"]
+        ports: ["127.0.0.1:9091:9090"]
+        volumes:
+            - ./docker/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+            - ./docker/observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+            - prometheus-data:/prometheus
+    alertmanager:
+        image: prom/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a
+        ports: ["127.0.0.1:9093:9093"]
+        volumes:
+            - ./docker/observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    tempo:
+        image: grafana/tempo:3.1.0@sha256:3076b8dcdfb32fd6bc5ccef85e7b7313e6199b9cb84366257fc17ecb696db5fd
+        command: ["-config.file=/etc/tempo.yml"]
+        volumes:
+            - ./docker/observability/tempo.yml:/etc/tempo.yml:ro
+            - tempo-data:/var/tempo
+    grafana:
+        image: grafana/grafana:13.2.3@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572
+        ports: ["127.0.0.1:3001:3000"]
+        environment:
+            GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD}
+            GF_AUTH_ANONYMOUS_ENABLED: false
+        volumes:
+            - ./docker/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+            - ./docker/observability/grafana/dashboard.json:/var/lib/grafana/dashboards/hvostid.json:ro
+            - grafana-data:/var/lib/grafana
+volumes:
+    prometheus-data:
+    tempo-data:
+    grafana-data:

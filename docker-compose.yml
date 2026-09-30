@@ -3,16 +3,19 @@ services:
     # --- Infrastructure ---
 
     postgres:
-        image: postgres:18-alpine
-        container_name: hvostid-postgres
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
         environment:
             POSTGRES_USER: ${DB_USER:-hvostid}
             POSTGRES_PASSWORD: ${DB_PASSWORD:-hvostid}
+            AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-hvostid_auth}
+            LISTING_DB_PASSWORD: ${LISTING_DB_PASSWORD:-hvostid_listing}
+            PASSPORT_DB_PASSWORD: ${PASSPORT_DB_PASSWORD:-hvostid_passport}
+            MATCHING_DB_PASSWORD: ${MATCHING_DB_PASSWORD:-hvostid_matching}
         ports:
             - "5432:5432"
         volumes:
             - postgres-data:/var/lib/postgresql
-            - ./docker/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+            - ./docker/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh
         healthcheck:
             test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-hvostid}" ]
             interval: 5s
@@ -20,8 +23,9 @@ services:
             retries: 5
 
     minio:
-        image: minio/minio
-        container_name: hvostid-minio
+        image: hvostid/minio:2025-09-07-mc2025-08-13
+        pull_policy: build
+        build: ./docker/minio
         command: server /data --console-address ":9001"
         environment:
             MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
@@ -32,14 +36,15 @@ services:
         volumes:
             - minio-data:/data
         healthcheck:
-            test: [ "CMD", "mc", "ready", "local" ]
+            test: [ "CMD-SHELL", "wget -qO- http://localhost:9000/minio/health/live || exit 1" ]
             interval: 5s
             timeout: 3s
             retries: 5
 
     minio-init:
-        image: minio/mc
-        container_name: hvostid-minio-init
+        image: hvostid/minio:2025-09-07-mc2025-08-13
+        pull_policy: build
+        build: ./docker/minio
         depends_on:
             minio:
                 condition: service_healthy
@@ -48,17 +53,15 @@ services:
             MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
             MINIO_DOCUMENTS_BUCKET: ${MINIO_DOCUMENTS_BUCKET:-pet-documents}
             MINIO_PHOTOS_BUCKET: ${MINIO_PHOTOS_BUCKET:-pet-photos}
-        entrypoint: >
-            /bin/sh -c "
-            mc alias set local http://minio:9000 $${MINIO_ACCESS_KEY:-minioadmin} $${MINIO_SECRET_KEY:-minioadmin};
-            mc mb --ignore-existing local/$${MINIO_DOCUMENTS_BUCKET:-pet-documents};
-            mc mb --ignore-existing local/$${MINIO_PHOTOS_BUCKET:-pet-photos};
-            exit 0;
-            "
+        entrypoint: ["/bin/sh", "-ec"]
+        command:
+            - |
+                mc alias set local http://minio:9000 "$${MINIO_ACCESS_KEY}" "$${MINIO_SECRET_KEY}"
+                mc mb --ignore-existing "local/$${MINIO_DOCUMENTS_BUCKET}"
+                mc mb --ignore-existing "local/$${MINIO_PHOTOS_BUCKET}"
 
     redis:
-        image: redis:alpine
-        container_name: hvostid-redis
+        image: redis:8.2.5-alpine@sha256:82db05459fb850cc3fe2bfa510a054323247bbd0ecb8831272e41fe14b9ead82
         command: [ "redis-server", "--appendonly", "no", "--save", "" ]
         ports:
             - "6379:6379"
@@ -70,7 +73,6 @@ services:
 
     sonarqube:
         image: sonarqube:community
-        container_name: hvostid-sonarqube
         environment:
             SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
         ports:
@@ -89,14 +91,18 @@ services:
             args:
                 SERVICE_NAME: api-gateway
                 SERVICE_PORT: 8080
-        container_name: hvostid-gateway
         ports:
             - "8080:8080"
         environment:
+            MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: false
+            MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENABLED: false
             AUTH_SERVICE_HOST: auth-service
             LISTING_SERVICE_HOST: listing-service
             PASSPORT_SERVICE_HOST: passport-service
             MATCHING_SERVICE_HOST: matching-service
+            HVOSTID_RATE_LIMIT_TRUSTED_PROXIES: ${HVOSTID_FRONTEND_IP:-172.30.44.10}
+            SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: 10MB
+            SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: 20MB
         depends_on:
             auth-service:
                 condition: service_healthy
@@ -114,16 +120,27 @@ services:
             args:
                 SERVICE_NAME: auth-service
                 SERVICE_PORT: 8081
-        container_name: hvostid-auth
         ports:
             - "8081:8081"
         environment:
+            MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: false
+            MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENABLED: false
             SERVER_PORT: 8081
+            AUTH_MAIL_ENCRYPTION_KEY: ${AUTH_MAIL_ENCRYPTION_KEY:-}
+            AUTH_MAIL_ENABLED: ${AUTH_MAIL_ENABLED:-false}
+            AUTH_MAIL_FROM: ${AUTH_MAIL_FROM:-no-reply@localhost}
+            AUTH_PUBLIC_BASE_URL: ${AUTH_PUBLIC_BASE_URL:-http://localhost:3000}
+            SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-localhost}
+            SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-1025}
+            SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+            SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+            SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:-false}
+            SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:-false}
             SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
             DB_HOST: postgres
             DB_NAME: hvostid_auth
-            DB_USER: ${DB_USER:-hvostid}
-            DB_PASSWORD: ${DB_PASSWORD:-hvostid}
+            DB_USER: hvostid_auth
+            DB_PASSWORD: ${AUTH_DB_PASSWORD:-hvostid_auth}
         depends_on:
             postgres:
                 condition: service_healthy
@@ -141,16 +158,18 @@ services:
             args:
                 SERVICE_NAME: listing-service
                 SERVICE_PORT: 8082
-        container_name: hvostid-listing
         ports:
             - "8082:8082"
         environment:
+            MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: false
+            MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENABLED: false
             SERVER_PORT: 8082
+            PASSPORT_SERVICE_HOST: passport-service
             SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
             DB_HOST: postgres
             DB_NAME: hvostid_listing
-            DB_USER: ${DB_USER:-hvostid}
-            DB_PASSWORD: ${DB_PASSWORD:-hvostid}
+            DB_USER: hvostid_listing
+            DB_PASSWORD: ${LISTING_DB_PASSWORD:-hvostid_listing}
         depends_on:
             postgres:
                 condition: service_healthy
@@ -168,16 +187,17 @@ services:
             args:
                 SERVICE_NAME: passport-service
                 SERVICE_PORT: 8083
-        container_name: hvostid-passport
         ports:
             - "8083:8083"
         environment:
+            MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: false
+            MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENABLED: false
             SERVER_PORT: 8083
             SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
             DB_HOST: postgres
             DB_NAME: hvostid_passport
-            DB_USER: ${DB_USER:-hvostid}
-            DB_PASSWORD: ${DB_PASSWORD:-hvostid}
+            DB_USER: hvostid_passport
+            DB_PASSWORD: ${PASSPORT_DB_PASSWORD:-hvostid_passport}
             MINIO_HOST: minio
             MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
             MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
@@ -190,6 +210,8 @@ services:
                 condition: service_healthy
             minio:
                 condition: service_healthy
+            minio-init:
+                condition: service_completed_successfully
             redis:
                 condition: service_healthy
         healthcheck:
@@ -206,16 +228,21 @@ services:
             args:
                 SERVICE_NAME: matching-service
                 SERVICE_PORT: 8084
-        container_name: hvostid-matching
         ports:
             - "8084:8084"
         environment:
+            MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: false
+            MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENABLED: false
             SERVER_PORT: 8084
+            MATCHING_PARALLELISM: ${MATCHING_PARALLELISM:-16}
+            MATCHING_MAX_COMPUTATIONS: ${MATCHING_MAX_COMPUTATIONS:-8}
+            MATCHING_MAX_SCANNED_LISTINGS: ${MATCHING_MAX_SCANNED_LISTINGS:-10000}
+            MATCHING_COMPUTATION_TIMEOUT: ${MATCHING_COMPUTATION_TIMEOUT:-30s}
             SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
             DB_HOST: postgres
             DB_NAME: hvostid_matching
-            DB_USER: ${DB_USER:-hvostid}
-            DB_PASSWORD: ${DB_PASSWORD:-hvostid}
+            DB_USER: hvostid_matching
+            DB_PASSWORD: ${MATCHING_DB_PASSWORD:-hvostid_matching}
             LISTING_SERVICE_HOST: listing-service
             PASSPORT_SERVICE_HOST: passport-service
         depends_on:
@@ -234,7 +261,9 @@ services:
         build:
             context: ./frontend
             dockerfile: Dockerfile
-        container_name: hvostid-frontend
+        networks:
+            default:
+                ipv4_address: ${HVOSTID_FRONTEND_IP:-172.30.44.10}
         ports:
             - "3000:80"
         depends_on:
@@ -245,3 +274,9 @@ volumes:
     postgres-data:
     minio-data:
     sonarqube-data:
+
+networks:
+    default:
+        ipam:
+            config:
+                - subnet: ${HVOSTID_SUBNET:-172.30.44.0/24}

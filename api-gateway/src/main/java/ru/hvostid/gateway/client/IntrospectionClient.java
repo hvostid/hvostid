@@ -13,8 +13,7 @@ import ru.hvostid.common.contract.auth.IntrospectResponse;
 /**
  * Client that calls Auth Service token introspection endpoint.
  * <p>
- * Returns {@link Optional#empty()} on any error (network, timeout, 4xx/5xx)
- * so the calling filter can treat it as an unauthorized request.
+ * Distinguishes inactive credentials from an unavailable authentication service.
  */
 @Component
 public class IntrospectionClient {
@@ -30,7 +29,8 @@ public class IntrospectionClient {
      * Call the introspection endpoint with the given token.
      *
      * @param token opaque access token to validate
-     * @return introspection result, or empty if the call failed
+     * @return active or inactive introspection result
+     * @throws IntrospectionUnavailableException when the service cannot provide a valid response
      */
     public Optional<IntrospectResponse> introspect(String token) {
         try {
@@ -41,10 +41,13 @@ public class IntrospectionClient {
                     .retrieve()
                     .body(IntrospectResponse.class);
 
-            return Optional.ofNullable(response);
+            if (response == null) {
+                throw new IntrospectionUnavailableException(null);
+            }
+            return Optional.of(response);
         } catch (RestClientException ex) {
             log.warn("Introspection call failed: {}", ex.getMessage());
-            return Optional.empty();
+            throw new IntrospectionUnavailableException(ex);
         }
     }
 }

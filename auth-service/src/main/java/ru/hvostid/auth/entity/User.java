@@ -31,6 +31,28 @@ public class User {
     @Column(name = "role")
     private Set<UserRole> roles = new HashSet<>();
 
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified;
+
+    @Column(name = "contact_sharing_enabled", nullable = false)
+    private boolean contactSharingEnabled;
+
+    public boolean isEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(boolean emailVerified) {
+        this.emailVerified = emailVerified;
+    }
+
+    public boolean isContactSharingEnabled() {
+        return contactSharingEnabled;
+    }
+
+    public void setContactSharingEnabled(boolean enabled) {
+        this.contactSharingEnabled = enabled;
+    }
+
     @Column
     private String phone;
 

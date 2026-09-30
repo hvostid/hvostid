@@ -393,3 +393,8 @@ gradle-app.setting
 *.hprof
 
 # End of https://www.toptal.com/developers/gitignore/api/intellij+all,visualstudiocode,eclipse,netbeans,dotenv,java,node,gradle,react
+
+# Browser test output and local recovery archives
+frontend/test-results/
+frontend/playwright-report/
+backups/

@@ -71,26 +71,22 @@ class IntrospectionClientTest {
     }
 
     @Test
-    @DisplayName("server error returns empty optional")
+    @DisplayName("server error reports unavailable")
     void serverError_returnsEmpty() {
         mockServer
                 .expect(requestTo("http://localhost:8081/internal/auth/introspect"))
                 .andRespond(withServerError());
 
-        Optional<IntrospectResponse> result = client.introspect("some-token");
-
-        assertTrue(result.isEmpty());
+        assertThrows(IntrospectionUnavailableException.class, () -> client.introspect("some-token"));
     }
 
     @Test
-    @DisplayName("4xx error returns empty optional")
+    @DisplayName("upstream protocol error reports unavailable")
     void clientError_returnsEmpty() {
         mockServer
                 .expect(requestTo("http://localhost:8081/internal/auth/introspect"))
                 .andRespond(withBadRequest());
 
-        Optional<IntrospectResponse> result = client.introspect("bad-token");
-
-        assertTrue(result.isEmpty());
+        assertThrows(IntrospectionUnavailableException.class, () -> client.introspect("bad-token"));
     }
 }

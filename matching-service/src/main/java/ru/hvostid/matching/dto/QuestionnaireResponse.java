@@ -32,7 +32,7 @@ public record QuestionnaireResponse(
 
         @Schema(description = "Free-form allergy details") String allergyDetails,
 
-        @Schema(description = "Prior experience with pets", example = "SOME")
+        @Schema(description = "Prior experience with pets", example = "BEGINNER")
         PetExperience petExperience,
 
         @Schema(description = "Desired activity level for the pet", example = "MEDIUM")
@@ -41,7 +41,7 @@ public record QuestionnaireResponse(
         @Schema(description = "Monthly budget for pet care in rubles", example = "8000")
         Integer monthlyBudget,
 
-        @Schema(description = "Buyer's typical work schedule", example = "REMOTE")
+        @Schema(description = "Buyer's typical work schedule", example = "HOME")
         WorkSchedule workSchedule,
 
         @Schema(description = "Whether the buyer is prepared for an adaptation period", example = "true")

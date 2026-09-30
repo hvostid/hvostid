@@ -12,7 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
+import ru.hvostid.listing.ListingIntegrationTest;
 import ru.hvostid.listing.entity.Listing;
 import ru.hvostid.listing.entity.ListingStatus;
 import ru.hvostid.listing.repository.ListingRepository;
@@ -20,7 +20,7 @@ import ru.hvostid.listing.repository.ListingRepository;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class InternalListingControllerTest extends AbstractPostgresContainerTest {
+class InternalListingControllerTest extends ListingIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 
@@ -52,6 +52,29 @@ class InternalListingControllerTest extends AbstractPostgresContainerTest {
             listingRepository.delete(listing);
             listingRepository.flush();
         }
+    }
+
+    @Test
+    void legacyPublishedReferenceMustBelongToTheExpectedPassportOwner() throws Exception {
+        Listing listing = Listing.builder()
+                .sellerId(10L)
+                .title("Legacy reference")
+                .species("CAT")
+                .city("Moscow")
+                .passportId("passport-42")
+                .build();
+        listing.setStatus(ListingStatus.PUBLISHED);
+        listingRepository.saveAndFlush(listing);
+
+        mockMvc.perform(get("/api/v1/listings/passports/42/has-published").param("sellerId", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hasPublishedListing").value(false));
+        mockMvc.perform(get("/api/v1/listings/passports/42/has-published").param("sellerId", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hasPublishedListing").value(true));
+        mockMvc.perform(get("/api/v1/listings/passports/42/has-published"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hasPublishedListing").value(true));
     }
 
     @Test

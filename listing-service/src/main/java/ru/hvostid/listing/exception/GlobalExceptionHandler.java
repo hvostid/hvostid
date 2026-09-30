@@ -23,6 +23,26 @@ import ru.hvostid.common.exception.ValidationException;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @ExceptionHandler(ru.hvostid.listing.client.PassportServiceClient.PassportServiceUnavailableException.class)
+    public ResponseEntity<ProblemDetails> unavailable(RuntimeException ex, HttpServletRequest request) {
+        return ProblemDetailsFactory.problem(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "urn:problem-type:upstream-unavailable",
+                "Passport service unavailable",
+                ex.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ProblemDetails> integrity(RuntimeException ex, HttpServletRequest request) {
+        return ProblemDetailsFactory.problem(
+                HttpStatus.CONFLICT,
+                ConflictException.PROBLEM_TYPE,
+                "Conflicting listing",
+                "A listing with these details already exists",
+                request);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ListingNotFoundException.class)
