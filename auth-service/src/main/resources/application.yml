@@ -41,6 +41,10 @@ hvostid:
             encryption-key: ${AUTH_MAIL_ENCRYPTION_KEY:}
 
 management:
+    health:
+        mail:
+            # SMTP retries use the outbox; transport outages must not block login or service startup.
+            enabled: false
     otlp:
         metrics:
             export:

@@ -61,7 +61,7 @@
 
 Локальные результаты на текущем коде:
 
-- `gradlew build --no-daemon`: успешно; **581 backend-тест**, 0 failures/errors/skipped (gateway 62, auth 90, common 25, listing 220, matching 74, passport 110). Включены Spotless, строгая проверка зависимостей и coverage gates.
+- `gradlew build --no-daemon`: успешно; **589 backend-тестов**, 0 failures/errors/skipped (gateway 62, auth 92, common 25, listing 226, matching 74, passport 110). Включены Spotless, строгая проверка зависимостей и coverage gates.
 - Frontend: **43 теста**, lint без ошибок/предупреждений, production build успешен.
 - Playwright: **8 браузерных сценариев** в изолированном Edge; HTTP-границы подменены fixtures. Отдельный Compose smoke проверяет настоящие сервисы.
 - `npm audit` для root tooling и frontend: 0 зарегистрированных advisory; OSV: 226 JVM runtime packages, 0 совпадений.

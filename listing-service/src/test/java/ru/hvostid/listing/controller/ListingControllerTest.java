@@ -49,6 +49,24 @@ class ListingControllerTest extends ListingIntegrationTest {
     @DisplayName("POST /api/v1/listings")
     class CreateListingTests {
 
+        @ParameterizedTest
+        @ValueSource(strings = {"legacy-id", "0", "-1", "+42", "9223372036854775808", "passport-9223372036854775808"})
+        void create_invalidPassportId_returns400InsteadOfLeakingParsingFailure(String passportId) throws Exception {
+            ListingRequest request = new ListingRequest(
+                    "Invalid passport", "Friendly dog", "dog", "Labrador", 3, 15000, "Moscow", passportId);
+            mockMvc.perform(post(LISTINGS_URL)
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath(
+                            "$.detail",
+                            anyOf(
+                                    is("Passport id must be a positive 64-bit integer"),
+                                    is("Request body failed validation"))));
+        }
+
         @Test
         @DisplayName("SELLER can create listing - returns 201")
         void createListing_withSellerRole_returns201() throws Exception {

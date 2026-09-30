@@ -34,7 +34,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
-    public ResponseEntity<ProblemDetails> integrity(RuntimeException ex, HttpServletRequest request) {
+    public ResponseEntity<ProblemDetails> integrity(HttpServletRequest request) {
         return ProblemDetailsFactory.problem(
                 HttpStatus.CONFLICT,
                 ConflictException.PROBLEM_TYPE,

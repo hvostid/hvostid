@@ -64,6 +64,9 @@ class ListingIntegrityTest extends ListingIntegrationTest {
         assertThatThrownBy(() -> create("0")).isInstanceOf(ValidationException.class);
         doThrow(new ConflictException("Not owned")).when(passportServiceClient).validateOwner(43L, 8080L);
         assertThatThrownBy(() -> create("43")).isInstanceOf(ConflictException.class);
+        var maximumId = create("passport-9223372036854775807");
+        assertThat(maximumId.passportId()).isEqualTo("9223372036854775807");
+        verify(passportServiceClient).validateOwner(Long.MAX_VALUE, 8080L);
     }
 
     @Test

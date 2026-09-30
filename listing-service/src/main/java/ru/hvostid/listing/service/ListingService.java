@@ -71,8 +71,8 @@ public class ListingService {
             throw new ru.hvostid.common.exception.ValidationException(
                     "Title must contain at least 3 non-whitespace characters");
         checkForDuplicate(request, sellerId);
-        String passportId = canonicalPassportId(request.passportId());
-        passports.validateOwner(Long.parseLong(passportId), sellerId);
+        long passportId = parsePassportId(request.passportId());
+        passports.validateOwner(passportId, sellerId);
 
         Listing listing = Listing.builder()
                 .sellerId(sellerId)
@@ -83,7 +83,7 @@ public class ListingService {
                 .age(request.age())
                 .price(request.price())
                 .city(normalize(request.city()))
-                .passportId(passportId)
+                .passportId(Long.toString(passportId))
                 .build();
 
         Listing saved = listingRepository.save(listing);
@@ -149,16 +149,9 @@ public class ListingService {
         if (request.city() != null) listing.setCity(normalize(request.city()));
 
         if (listing.getStatus() == ListingStatus.PUBLISHED) {
-            long operation = referenceJobs.prepare(
-                    listing.getId(),
-                    Long.parseLong(canonicalPassportId(listing.getPassportId())),
-                    listing.getSellerId());
-            passports.acquire(
-                    Long.parseLong(canonicalPassportId(listing.getPassportId())),
-                    listing.getId(),
-                    listing.getSellerId(),
-                    false,
-                    operation * 2);
+            long passportId = parsePassportId(listing.getPassportId());
+            long operation = referenceJobs.prepare(listing.getId(), passportId, listing.getSellerId());
+            passports.acquire(passportId, listing.getId(), listing.getSellerId(), false, operation * 2);
             listing.setStatus(ListingStatus.MODERATION);
             historyRepository.save(new ListingStatusHistory(
                     id,
@@ -258,7 +251,7 @@ public class ListingService {
         Long passportId = existingPassportId(listing);
         if (newStatus == ListingStatus.MODERATION || newStatus == ListingStatus.PUBLISHED) {
             // Legacy invalid references may be retired, but can never enter an active state.
-            passportId = Long.parseLong(canonicalPassportId(listing.getPassportId()));
+            passportId = parsePassportId(listing.getPassportId());
             long operation = referenceJobs.prepare(listing.getId(), passportId, listing.getSellerId());
             passports.acquire(
                     passportId,
@@ -399,12 +392,16 @@ public class ListingService {
     }
 
     public static String canonicalPassportId(String value) {
+        return Long.toString(parsePassportId(value));
+    }
+
+    private static long parsePassportId(String value) {
         try {
             String raw = value == null ? "" : value.trim().replaceFirst("^passport-", "");
             if (!raw.matches("[0-9]+")) throw new NumberFormatException();
             long id = Long.parseLong(raw);
             if (id <= 0) throw new NumberFormatException();
-            return Long.toString(id);
+            return id;
         } catch (NumberFormatException ex) {
             throw new ru.hvostid.common.exception.ValidationException("Passport id must be a positive 64-bit integer");
         }
@@ -412,7 +409,7 @@ public class ListingService {
 
     private static Long existingPassportId(Listing listing) {
         try {
-            return Long.parseLong(canonicalPassportId(listing.getPassportId()));
+            return parsePassportId(listing.getPassportId());
         } catch (ru.hvostid.common.exception.ValidationException ex) {
             return null;
         }
