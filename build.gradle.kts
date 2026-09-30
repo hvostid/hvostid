@@ -1,3 +1,5 @@
+import java.security.MessageDigest
+
 plugins {
     java
     alias(libs.plugins.owasp.dependency.check)
@@ -24,6 +26,7 @@ dependencyCheck {
     failOnError = true
     suppressionFile = "dependency-check-suppressions.xml"
     data.directory = "${rootProject.layout.buildDirectory.get()}/dependency-check-data"
+    outputDirectory.set(layout.buildDirectory.dir("reports"))
     nvd {
         apiKey = System.getenv("NVD_API_KEY")
         // CI bootstraps an empty database from full official feeds, then clears
@@ -34,6 +37,61 @@ dependencyCheck {
         }.getOrElse(24)
     }
     formats = listOf("HTML", "JSON", "SARIF", "XML")
+}
+
+// DC13's task DataExtension sets a Gradle-home default that overrides the
+// extension convention. Set the actual task property so update, scan and purge
+// all use the database restored and saved by CI.
+tasks.withType<org.owasp.dependencycheck.gradle.tasks.ConfiguredTask>().configureEach {
+    data.directory.set(layout.buildDirectory.dir("dependency-check-data").map { it.asFile.path })
+}
+
+val exportSecurityRuntimeInventory = tasks.register("exportSecurityRuntimeInventory") {
+    description = "Export resolved external runtime artifacts for dependency scan completeness checks."
+    val destination = layout.buildDirectory.file("reports/jvm-runtime-inventory.json")
+    outputs.file(destination)
+    // Regenerate from the same resolution used by the scan, never a cached inventory.
+    outputs.upToDateWhen { false }
+    doLast {
+        val services = listOf("api-gateway", "auth-service", "listing-service", "passport-service", "matching-service")
+        val artifacts = services.flatMap { service ->
+            val runtime = project(":$service").configurations.getByName("runtimeClasspath")
+            val external = runtime.incoming.artifactView {
+                componentFilter { it is org.gradle.api.artifacts.component.ModuleComponentIdentifier }
+            }.artifacts.artifacts
+            require(external.isNotEmpty()) { "No external runtime artifacts for $service" }
+            external.map { artifact ->
+                val module = artifact.id.componentIdentifier as org.gradle.api.artifacts.component.ModuleComponentIdentifier
+                val digest = MessageDigest.getInstance("SHA-256")
+                artifact.file.inputStream().use { input ->
+                    val buffer = ByteArray(8192)
+                    var length = input.read(buffer)
+                    while (length != -1) {
+                        digest.update(buffer, 0, length)
+                        length = input.read(buffer)
+                    }
+                }
+                mapOf(
+                    "service" to service,
+                    "group" to module.group,
+                    "name" to module.module,
+                    "version" to module.version,
+                    "fileName" to artifact.file.name,
+                    "sha256" to digest.digest().joinToString("") { "%02x".format(it) }
+                )
+            }.sortedWith(compareBy({ it["group"] }, { it["name"] }, { it["version"] }, { it["fileName"] }))
+        }
+        val report = destination.get().asFile
+        report.parentFile.mkdirs()
+        report.writeText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(
+            mapOf("schema" to 1, "services" to services, "artifacts" to artifacts)
+        )) + "\n")
+        logger.lifecycle("Exported ${artifacts.size} external runtime artifacts across ${services.size} services to $report")
+    }
+}
+
+tasks.named("dependencyCheckAggregate") {
+    dependsOn(exportSecurityRuntimeInventory)
 }
 
 allprojects {

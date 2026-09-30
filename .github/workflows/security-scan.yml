@@ -9,6 +9,7 @@ on:
             - "**/gradle.lockfile"
             - "settings.gradle.kts"
             - "scripts/audit-jvm-dependencies*.mjs"
+            - "scripts/validate-dependency-check*.mjs"
             - "docker/minio/**"
             - "docker/minio-test/**"
             - "dependency-check-suppressions.xml"
@@ -29,6 +30,7 @@ on:
             - "settings.gradle.kts"
             - "dependency-check-suppressions.xml"
             - "scripts/audit-jvm-dependencies*.mjs"
+            - "scripts/validate-dependency-check*.mjs"
             - "docker/minio/**"
             - "docker/minio-test/**"
             - ".github/workflows/security-scan.yml"
@@ -160,6 +162,7 @@ jobs:
                 run: |
                     mkdir -p build/reports
                     node --test scripts/audit-jvm-dependencies.test.mjs
+                    node --test scripts/validate-dependency-check.test.mjs
                     node scripts/audit-jvm-dependencies.mjs
 
             -   name: Update NVD database
@@ -187,6 +190,8 @@ jobs:
                     else
                         ./gradlew dependencyCheckUpdate --no-daemon --info
                     fi
+                    # A missing path otherwise only makes actions/cache warn.
+                    node scripts/validate-dependency-check.mjs --database build/dependency-check-data
 
             # Preserve successfully updated data even when the later vulnerability gate fails.
             # Never persist a partial update after a feed/authentication error.
@@ -198,9 +203,17 @@ jobs:
                     key: ${{ steps.nvd-cache.outputs.cache-primary-key }}
 
             -   name: Run OWASP Dependency Check
+                id: nvd-scan
                 env:
                     NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
                 run: ./gradlew dependencyCheckAggregate --no-daemon
+
+            -   name: Validate complete JVM dependency report
+                if: always() && steps.nvd-scan.outcome != 'skipped'
+                run: |
+                    node scripts/validate-dependency-check.mjs \
+                        --report build/reports/dependency-check-report.json \
+                        --inventory build/reports/jvm-runtime-inventory.json
 
             -   name: Upload dependency verification diagnostics
                 if: failure()
@@ -210,19 +223,21 @@ jobs:
                     path: "**/build/reports/dependency-verification/"
                     if-no-files-found: ignore
 
-            -   name: Upload HTML, JSON and XML reports
+            -   name: Upload HTML, JSON, SARIF and XML reports
                 if: always()
                 uses: actions/upload-artifact@v7
                 with:
                     name: dependency-check-report
                     path: |
                         build/reports/osv-runtime.json
+                        build/reports/jvm-runtime-inventory.json
                         build/reports/dependency-check-report.html
                         build/reports/dependency-check-report.json
+                        build/reports/dependency-check-report.sarif
                         build/reports/dependency-check-report.xml
                     retention-days: 30
-                    # Do not fail the job if dependencyCheckAggregate crashed
-                    # before producing any report files.
+                    # Preserve diagnostics on failure; the preceding validator
+                    # makes a missing or incomplete aggregate report fail CI.
                     if-no-files-found: warn
 
             # Surface findings in the GitHub Security tab. Only attempt the
