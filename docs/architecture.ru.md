@@ -2,164 +2,91 @@
 
 # Архитектура
 
-Этот документ расширяет высокоуровневую диаграмму из
-[корневого README](../README.ru.md#архитектура). Здесь описаны зоны
-ответственности сервисов, жизненный цикл запроса, границы хранилищ и
-межсервисные контракты, которые держат платформу вместе.
+Пять Spring Boot сервисов работают за Spring Cloud Gateway MVC и React SPA,
+которую раздаёт Nginx. У каждого домена отдельная БД PostgreSQL и роль приложения.
+Документы паспортов хранятся в MinIO; Redis хранит краткоживущие media tickets.
+Запуск, TLS, восстановление и наблюдаемость описаны в [руководстве эксплуатации](./operations.md).
 
-## Содержание
+| Сервис | Ответственность | Внешние зависимости |
+|---|---|---|
+| Gateway | Очистка заголовков личности, introspection, маршрутизация и ограничение запросов | Auth |
+| Auth | Аккаунты, хеши токенов, профиль, роли, сессии, восстановление доступа | Настроенный SMTP |
+| Listing | Каталог, черновики, модерация, жалобы и ссылки на паспорт | Passport |
+| Passport | Паспорта, прививки, документы, доверие и защита удаления | Listing, MinIO, Redis |
+| Matching | Анкеты, совместимость, объяснения и рекомендации | Listing, Passport |
 
-- [Сервисы](#сервисы)
-- [Жизненный цикл запроса](#жизненный-цикл-запроса)
-- [Аутентификация и авторизация](#аутентификация-и-авторизация)
-- [Хранилища](#хранилища)
-- [Межсервисные вызовы](#межсервисные-вызовы)
-- [Observability](#observability)
-- [Топология развёртывания](#топология-развёртывания)
+`common` содержит общие security headers, роли, ProblemDetails, обработку ошибок
+и тестовые контейнеры. Доменные сущности и таблицы между сервисами не разделяются.
 
-## Сервисы
+## Путь запроса
 
-| Сервис           | Владеет                                                          | Вызывает                       |
-|------------------|------------------------------------------------------------------|--------------------------------|
-| API Gateway      | Маршрутизация, интроспекция токенов, rate limiting, request id   | Auth (introspection)           |
-| Auth Service     | Пользователи, сессии, opaque access/refresh токены, профиль, роли| --                             |
-| Listing Service  | Объявления о питомцах (CRUD, поиск)                              | Passport (read-only enrich)    |
-| Passport Service | Паспорта питомцев, загрузка документов, оценка доверия           | MinIO                          |
-| Matching Service | Анкета покупателя, оценка совместимости                          | Listing, Passport (read-only)  |
+1. `RequestIdFilter` устанавливает идентификатор запроса.
+2. `IdentityHeaderFilter` удаляет входящие заголовки личности для всех путей,
+   включая публичные и optional-auth.
+3. `RateLimitFilter` ограничивает клиента до работы с авторизацией: 60 токенов
+   в секунду, burst 120; для auth — 1/секунду и burst 10. Кеш клиентов ограничен
+   10 000 записями, неактивные удаляются через 15 минут. Лимиты локальны для
+   процесса gateway; перед горизонтальным масштабированием нужен общий edge limiter.
+4. `TokenIntrospectionFilter` применяет политики public/optional-auth и проверяет
+   bearer token через Auth. Доверенные `X-User-Id`/`X-User-Roles` добавляются только
+   после успешной проверки. Недоступность Auth возвращает ошибку доступности,
+   а не ответ о недействительном токене.
+5. Доменные сервисы проверяют роли и владельца. Внутренние endpoint не публикуются
+   маршрутизатором gateway.
 
-`common/` -- это общий Java-модуль: DTO (`IntrospectRequest`,
-`IntrospectResponse`, `ErrorResponse`), константы `SecurityHeaders` и
-`UserRole`, OpenAPI security-scheme helpers и Testcontainers
-PostgreSQL фикстура в `testFixtures`.
+Nginx заменяет X-Forwarded-For проверенным адресом клиента. Gateway доверяет этому
+заголовку только от фиксированного адреса frontend. Для TLS edge в Nginx отдельно
+задан доверенный адрес Caddy. Доменные порты нельзя открывать в Интернет: доверие
+к заголовкам опирается на закрытую сеть, а не на криптографическую личность сервиса.
 
-## Жизненный цикл запроса
+## Авторизация
 
-Каждый браузерный запрос идёт в Gateway на `:8080`. Gateway -- это
-инстанс Spring Cloud Gateway server-MVC, прогоняющий три фильтра по
-порядку:
+Access token по умолчанию живёт 30 минут, refresh token — 7 дней и меняется при
+обновлении. В PostgreSQL сохраняются SHA-256 хеши токенов. Обновление токенов,
+сброс пароля и отзыв сессий синхронизируются на аккаунте. Очистка использует срок
+refresh token. Политики публичных путей находятся в application.yml gateway.
 
-1. **`RequestIdFilter`** -- добавляет заголовок `X-Request-Id`
-   (генерирует, если его нет) и привязывает к SLF4J MDC, чтобы все
-   строки лога одного запроса делили общий id.
-2. **`TokenIntrospectionFilter`** -- пропускается для `publicPaths`
-   (`/api/v1/auth/login`, `/api/v1/auth/register`, `/actuator/**`).
-   Для всех остальных путей извлекает `Bearer`-токен, вызывает
-   `POST /internal/auth/introspect` Auth Service и при успехе
-   добавляет в апстрим-запрос два заголовка:
-    - `X-User-Id` -- числовой id пользователя
-    - `X-User-Roles` -- список ролей через запятую
-3. **`RateLimitFilter`** -- token bucket по IP клиента
-   (`replenish-rate=20`, `burst-capacity=40`).
+## Данные и согласованность
 
-Downstream-сервисы доверяют этим двум заголовкам, потому что
-introspection-эндпоинт internal-only (не маршрутизируется через
-Gateway). Они конструируют Spring Security-объект
-`GatewayPreAuthentication` из заголовков, и именно его проверяет
-`@PreAuthorize`.
+`docker/init-databases.sh` создаёт четыре БД и отдельные роли `hvostid_auth`,
+`hvostid_listing`, `hvostid_passport`, `hvostid_matching`. Приложения не используют
+администратора PostgreSQL. Существующий том переводится на новые роли командой
+`scripts/migrate-db-roles.sh` при остановленных приложениях. Flyway применяет
+миграции владельца схемы, Hibernate проверяет совместимость.
 
-```mermaid
-sequenceDiagram
-    participant FE as Frontend
-    participant GW as Gateway
-    participant AUTH as Auth Service
-    participant SVC as Downstream Service
+| БД | Основные данные |
+|---|---|
+| Auth | Пользователи, роли, сессии и токены восстановления |
+| Listing | Объявления, черновики, жалобы и история статусов |
+| Passport | Паспорта, прививки, документы, ссылки и долговечная очередь очистки |
+| Matching | buyer_questionnaire |
 
-    FE->>GW: GET /api/v1/listings (Bearer xyz)
-    GW->>GW: RequestIdFilter
-    GW->>AUTH: POST /internal/auth/introspect {token: "xyz"}
-    AUTH-->>GW: {active: true, userId: 42, roles: ["BUYER"]}
-    GW->>GW: RateLimitFilter
-    GW->>SVC: GET /api/v1/listings (X-User-Id: 42, X-User-Roles: BUYER)
-    SVC-->>GW: 200 OK + body
-    GW-->>FE: 200 OK + body
-```
+Listing проверяет канонический ID и владельца паспорта и поддерживает сохранённую
+ссылку в Passport. Изменение и удаление паспорта блокируется активными ссылками
+на модерации и после публикации. Неудачная синхронизация и очистка файлов повторяются
+из сохранённых очередей. Между сервисами используются HTTP-контракты, без SQL join
+между БД и распределённых SQL-транзакций.
 
-## Аутентификация и авторизация
+RestClient создаётся через настроенный Spring builder для передачи tracing-контекста
+и имеет connect/read timeout. Matching применяет Resilience4j: ошибки Passport
+учитываются circuit breaker до fallback. Частичный score помечается degraded.
+Рекомендации учитывают вид и породу, объединяют только выполняющийся расчёт одной
+версии анкеты и перечитывают данные при новом запросе. Общий пул, предел одновременных
+расчётов, 10 000 просмотренных объявлений и 30 секунд ограничивают нагрузку.
+Превышение возвращает 503, а не неполный рейтинг без предупреждения.
 
-- **Токены непрозрачные.** Auth Service выпускает случайные строки и
-  хранит их в таблице `sessions` по id пользователя. Никакого JWT,
-  ключей подписи и клиентской верификации токена -- каждый запрос
-  делает introspect.
-- **Two-token flow.** Login возвращает access-токен (TTL 30 минут по
-  умолчанию) и refresh-токен (TTL 7 дней). Endpoint refresh принимает
-  refresh-токен и возвращает новую пару, ротируя старый refresh.
-- **Роли** хранятся в таблице `user_roles` и возвращаются
-  introspect-ом. Downstream-сервисы проверяют их через Spring Security
-  `@PreAuthorize("hasRole('SELLER')")`.
-- **Public paths** настроены в
-  [`api-gateway/src/main/resources/application.yml`](../api-gateway/src/main/resources/application.yml)
-  под `hvostid.auth.public-paths`. Сейчас интроспекцию обходят только
-  login, register и эндпоинты actuator health.
+## Развёртывание и наблюдаемость
 
-## Хранилища
+Dev публикует сервисные порты для инструментов разработчика. В prod наружу доступен
+frontend, диагностический gateway привязан к loopback, доменные сервисы и хранилища
+остаются в закрытой сети. `docker-compose.tls.yml` добавляет Caddy с TLS.
+`docker-compose.observability.yml` включает Prometheus, Grafana, Alertmanager и
+OpenTelemetry traces в Tempo. Dashboard и alert rules версионируются; адресаты
+уведомлений настраиваются оператором. В обычном запуске OTLP export выключен.
 
-Каждый бэкенд-сервис владеет своей PostgreSQL-схемой. Cross-service
-SQL не существует -- если Listing нужны данные паспорта, он делает
-HTTP-вызов. Общий PostgreSQL создаёт четыре базы при первом запуске
-через [`docker/init-databases.sql`](../docker/init-databases.sql):
-
-| База               | Владелец         | Заметные таблицы                     |
-|--------------------|------------------|--------------------------------------|
-| `hvostid_auth`     | Auth Service     | `users`, `sessions`, `user_roles`    |
-| `hvostid_listing`  | Listing Service  | `listings`                           |
-| `hvostid_passport` | Passport Service | (схема создаётся через Flyway, T19/T20) |
-| `hvostid_matching` | Matching Service | `buyer_questionnaires`               |
-
-Миграции лежат рядом со своим сервисом в
-`<service>/src/main/resources/db/migration`, и Flyway применяет их при
-загрузке. JPA настроена с `ddl-auto: validate`, поэтому любое
-расхождение между сущностями и схемой роняет старт приложения.
-
-MinIO хранит документы паспортов в бакете `pet-documents`
-(автосоздаётся compose-сервисом `minio-init`). Только Passport Service
-говорит с MinIO.
-
-## Межсервисные вызовы
-
-Service-to-service вызовы используют обычный HTTP через `RestClient`,
-с целевым хостом, инжектируемым из окружения, чтобы тот же код
-работал и локально, и в Compose.
-
-| Откуда          | Куда     | Зачем                                                              | Property                       |
-|-----------------|----------|--------------------------------------------------------------------|--------------------------------|
-| Gateway         | Auth     | Интроспекция токена                                                | `hvostid.auth.introspect-url`  |
-| Passport        | Listing  | Проверить, что паспорт стоит за PUBLISHED-листингом (buyer-доступ) | `hvostid.listing-service.url`  |
-| Matching        | Listing  | Прочитать объявления для оценки                                    | `hvostid.listing-service.url`  |
-| Matching        | Passport | Прочитать паспорта для оценки                                      | `hvostid.passport-service.url` |
-
-Сервис-меша и circuit breaker нет; ошибки всплывают как обычные
-HTTP-ошибки и мапятся в `ErrorResponse` через
-`GlobalExceptionHandler` каждого сервиса.
-
-## Observability
-
-- **Health.** Каждый сервис экспозит `/actuator/health` (используется
-  compose healthcheck-ами и smoke-тестом CD).
-- **Логи.** SLF4J + Logback на `INFO` для root и `DEBUG` для
-  `ru.hvostid.*`. Request id протекает через MDC.
-- **Метрики.** `actuator/info` экспозится; Prometheus scrape ещё не
-  подключён.
-- **Code quality.** SonarQube через профиль `quality` в Compose; CI
-  запускает `./gradlew sonar` только когда `SONAR_TOKEN` настроен как
-  секрет GitHub Actions.
-- **Нагрузка.** k6-скрипты под [`k6/`](../k6) шлют синтетический
-  трафик в gateway. (T24)
-
-## Топология развёртывания
-
-В проде весь стек живёт как Docker-образы. CD workflow
-([`.github/workflows/cd-main.yml`](../.github/workflows/cd-main.yml))
-публикует per-service образы в GitHub Container Registry под
-`ghcr.io/hvostid/hvostid-<service>:<short-sha>` (и `:latest`).
-
-Локально те же образы запускаются через
-[`docker-compose.yml`](../docker-compose.yml). Compose-стек содержит:
-
-- 1 контейнер Postgres (4 логические БД)
-- 1 контейнер MinIO + 1 init-контейнер, создающий бакет
-- 5 Spring Boot сервисов
-- 1 фронтенд через Nginx
-- (опционально, профиль `quality`) 1 контейнер SonarQube
-
-`depends_on` с `condition: service_healthy` обеспечивает порядок
-загрузки: сначала Postgres и MinIO, потом Auth, потом остальные.
+MinIO server и mc собираются из фиксированных commit в `docker/minio/`. Тестовый
+образ использует тот же контекст сборки, патчи и зависимости, что и production. Критичные образы фиксируются
+digest, Gradle — lockfiles. PR CI проверяет backend, frontend lint/test/build/audit,
+браузерные регрессии, новый Compose со сквозными API/загрузками и восстановление в
+отдельное пустое окружение. CD сначала публикует SHA-кандидат и проверяет его, затем
+продвигает `latest`; провал scan/smoke не меняет стабильный тег.

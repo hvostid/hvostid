@@ -151,7 +151,7 @@ public class PassportController {
     @ApiResponse(responseCode = "404", description = "Passport not found", content = @Content)
     @ApiResponse(
             responseCode = "409",
-            description = "Passport is referenced by a published listing",
+            description = "Passport is referenced by a published listing or a listing under moderation",
             content = @Content)
     @ApiResponse(responseCode = "503", description = "Listing service unavailable", content = @Content)
     @DeleteMapping("/{petId}")

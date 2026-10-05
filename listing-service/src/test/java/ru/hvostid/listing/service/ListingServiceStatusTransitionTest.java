@@ -33,6 +33,12 @@ class ListingServiceStatusTransitionTest {
     @Mock
     private ListingStatusHistoryRepository historyRepository;
 
+    @Mock
+    private ru.hvostid.listing.client.PassportServiceClient passports;
+
+    @Mock
+    private PassportReferenceJobService referenceJobs;
+
     @InjectMocks
     private ListingService listingService;
 
@@ -59,7 +65,7 @@ class ListingServiceStatusTransitionTest {
                 .age(12)
                 .price(500)
                 .city("Moscow")
-                .passportId("PASSPORT123")
+                .passportId("123")
                 .build();
         listing.setId(LISTING_ID);
     }
@@ -70,7 +76,7 @@ class ListingServiceStatusTransitionTest {
     void shouldAllowOwnerToSendToModeration() {
         // given
         listing.setStatus(ListingStatus.DRAFT);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
         when(listingRepository.save(any(Listing.class))).thenReturn(listing);
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.MODERATION, null);
@@ -88,7 +94,7 @@ class ListingServiceStatusTransitionTest {
     void shouldAllowModeratorToPublish() {
         // given
         listing.setStatus(ListingStatus.MODERATION);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
         when(listingRepository.save(any(Listing.class))).thenReturn(listing);
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.PUBLISHED, null);
@@ -105,7 +111,7 @@ class ListingServiceStatusTransitionTest {
     void shouldAllowModeratorToReject() {
         // given
         listing.setStatus(ListingStatus.MODERATION);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
         when(listingRepository.save(any(Listing.class))).thenReturn(listing);
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.REJECTED, "Poor quality photos");
@@ -123,7 +129,7 @@ class ListingServiceStatusTransitionTest {
     void shouldAllowModeratorToReturnToDraftWithComment() {
         // given
         listing.setStatus(ListingStatus.MODERATION);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
         when(listingRepository.save(any(Listing.class))).thenReturn(listing);
 
         String comment = "Please fix the description and add more photos";
@@ -142,7 +148,7 @@ class ListingServiceStatusTransitionTest {
     void shouldAllowAdminToPublish() {
         // given
         listing.setStatus(ListingStatus.MODERATION);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
         when(listingRepository.save(any(Listing.class))).thenReturn(listing);
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.PUBLISHED, null);
@@ -158,7 +164,7 @@ class ListingServiceStatusTransitionTest {
     void shouldAllowOwnerToArchive() {
         // given
         listing.setStatus(ListingStatus.PUBLISHED);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
         when(listingRepository.save(any(Listing.class))).thenReturn(listing);
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.ARCHIVED, null);
@@ -174,7 +180,7 @@ class ListingServiceStatusTransitionTest {
     void shouldAllowOwnerToMarkAsSold() {
         // given
         listing.setStatus(ListingStatus.PUBLISHED);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
         when(listingRepository.save(any(Listing.class))).thenReturn(listing);
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.SOLD, null);
@@ -191,7 +197,7 @@ class ListingServiceStatusTransitionTest {
         // given
         listing.setStatus(ListingStatus.REJECTED);
         listing.setModerationComment("Poor quality");
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
         when(listingRepository.save(any(Listing.class))).thenReturn(listing);
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.DRAFT, null);
@@ -210,7 +216,7 @@ class ListingServiceStatusTransitionTest {
     void shouldNotAllowDirectDraftToPublished() {
         // given
         listing.setStatus(ListingStatus.DRAFT);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.PUBLISHED, null);
 
@@ -224,7 +230,7 @@ class ListingServiceStatusTransitionTest {
     void shouldNotAllowModerationToSold() {
         // given
         listing.setStatus(ListingStatus.MODERATION);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.SOLD, null);
 
@@ -238,7 +244,7 @@ class ListingServiceStatusTransitionTest {
     void shouldAllowOwnerToUnarchiveArchivedListing() {
         // T09: ARCHIVED is no longer terminal; owner can revive into DRAFT.
         listing.setStatus(ListingStatus.ARCHIVED);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
         when(listingRepository.save(any(Listing.class))).thenReturn(listing);
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.DRAFT, null);
@@ -252,7 +258,7 @@ class ListingServiceStatusTransitionTest {
     @Test
     void shouldNotAllowNonOwnerToUnarchive() {
         listing.setStatus(ListingStatus.ARCHIVED);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.DRAFT, null);
 
@@ -263,7 +269,7 @@ class ListingServiceStatusTransitionTest {
     @Test
     void shouldNotAllowArchivedToAnyOtherStatus() {
         listing.setStatus(ListingStatus.ARCHIVED);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.PUBLISHED, null);
 
@@ -275,8 +281,8 @@ class ListingServiceStatusTransitionTest {
     @Test
     void shouldRejectUnarchiveWhenAnotherActiveListingHasSameTitle() {
         listing.setStatus(ListingStatus.ARCHIVED);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
-        when(listingRepository.existsBySellerIdAndTitleAndStatusNot(
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.existsBySellerIdAndTitleIgnoreCaseAndStatusNot(
                         listing.getSellerId(), listing.getTitle(), ListingStatus.ARCHIVED))
                 .thenReturn(true);
 
@@ -292,7 +298,7 @@ class ListingServiceStatusTransitionTest {
     void shouldStampSoldAtWhenTransitioningToSold() {
         listing.setStatus(ListingStatus.PUBLISHED);
         assertThat(listing.getSoldAt()).isNull();
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
         when(listingRepository.save(any(Listing.class))).thenAnswer(inv -> inv.getArgument(0));
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.SOLD, null);
@@ -307,7 +313,7 @@ class ListingServiceStatusTransitionTest {
     void shouldNotAllowTransitionFromTerminalStateSold() {
         // given
         listing.setStatus(ListingStatus.SOLD);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.ARCHIVED, null);
 
@@ -321,7 +327,7 @@ class ListingServiceStatusTransitionTest {
     void shouldRequireCommentWhenReturningToDraft() {
         // given
         listing.setStatus(ListingStatus.MODERATION);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.DRAFT, null);
 
@@ -337,7 +343,7 @@ class ListingServiceStatusTransitionTest {
     void shouldNotAllowNonOwnerToSendToModeration() {
         // given
         listing.setStatus(ListingStatus.DRAFT);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.MODERATION, null);
 
@@ -355,7 +361,7 @@ class ListingServiceStatusTransitionTest {
     void shouldNotAllowNonModeratorToPublish() {
         // given
         listing.setStatus(ListingStatus.MODERATION);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.PUBLISHED, null);
 
@@ -369,7 +375,7 @@ class ListingServiceStatusTransitionTest {
     void shouldNotAllowNonModeratorToReject() {
         // given
         listing.setStatus(ListingStatus.MODERATION);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.REJECTED, "Bad");
 
@@ -382,7 +388,7 @@ class ListingServiceStatusTransitionTest {
     void shouldNotAllowNonOwnerToArchive() {
         // given
         listing.setStatus(ListingStatus.PUBLISHED);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.ARCHIVED, null);
 
@@ -396,7 +402,7 @@ class ListingServiceStatusTransitionTest {
     void shouldNotAllowNonOwnerToMarkAsSold() {
         // given
         listing.setStatus(ListingStatus.PUBLISHED);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.SOLD, null);
 
@@ -410,7 +416,7 @@ class ListingServiceStatusTransitionTest {
     @Test
     void shouldThrowNotFoundWhenListingDoesNotExist() {
         // given
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.empty());
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.empty());
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.MODERATION, null);
 
@@ -426,7 +432,7 @@ class ListingServiceStatusTransitionTest {
     void shouldSaveHistoryRecordOnStatusChange() {
         // given
         listing.setStatus(ListingStatus.DRAFT);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
         when(listingRepository.save(any(Listing.class))).thenReturn(listing);
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.MODERATION, null);
@@ -451,7 +457,7 @@ class ListingServiceStatusTransitionTest {
     void shouldSaveHistoryWithModeratorRole() {
         // given
         listing.setStatus(ListingStatus.MODERATION);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
         when(listingRepository.save(any(Listing.class))).thenReturn(listing);
 
         StatusUpdateRequest request = new StatusUpdateRequest(ListingStatus.PUBLISHED, null);
@@ -470,7 +476,7 @@ class ListingServiceStatusTransitionTest {
     void shouldSaveHistoryWithComment() {
         // given
         listing.setStatus(ListingStatus.MODERATION);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(listing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(listing));
         when(listingRepository.save(any(Listing.class))).thenReturn(listing);
 
         String comment = "Please add more photos";

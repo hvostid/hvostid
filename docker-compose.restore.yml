@@ -1,0 +1,19 @@
+# Isolated empty target for restore drills. No host ports or application writers.
+services:
+    postgres:
+        extends:
+            file: docker-compose.yml
+            service: postgres
+        ports: !reset []
+    minio:
+        extends:
+            file: docker-compose.yml
+            service: minio
+        ports: !reset []
+    minio-init:
+        extends:
+            file: docker-compose.yml
+            service: minio-init
+volumes:
+    postgres-data:
+    minio-data:

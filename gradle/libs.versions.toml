@@ -2,18 +2,18 @@
 java = "25"
 
 # Spring
-spring-boot = "4.0.6"
-spring-cloud = "2025.1.1"
+spring-boot = "4.0.8"
+spring-cloud = "2025.1.3"
 spring-dependency-management = "1.1.7"
-spring-doc = "3.0.3"
-swagger-annotations = "2.2.50"
+spring-doc = "3.1.1"
+swagger-annotations = "2.2.55"
 
 # Override transitive dependencies
-bouncycastle = "1.84"
-netty = "4.2.13.Final"
-postgresql = "42.7.11"
-swagger-ui = "5.32.5"
-tomcat = "11.0.22"
+bouncycastle = "1.86"
+netty = "4.2.18.Final"
+postgresql = "42.7.13"
+swagger-ui = "5.32.15"
+tomcat = "11.0.26"
 
 # Plugins
 owasp-dependency-check = "13.0.0"
@@ -23,16 +23,18 @@ palantir-java-format = "2.90.0"
 
 # Libraries
 awaitility = "4.3.0"
-jackson = "2.21"
-jackson-core = "3.1.3"
-jakarta-validation = "4.0.0-M1"
-minio = "9.0.1"
-junit = "6.1.0"
+jackson = "2.22"
+jackson-core = "3.2.3"
+jakarta-validation = "3.1.1"
+minio = "9.0.3"
+pdfbox = "3.0.8"
+junit = "6.1.3"
 postgres-image = "postgres:18-alpine"
-minio-image = "minio/minio:RELEASE.2025-09-07T16-13-09Z"
+# Built from pinned upstream source by :passport-service:prepareMinioTestImage.
+minio-image = "hvostid/minio-test:security-2026-09-30"
 redis-image = "redis:8-alpine"
 resilience4j = "2.4.0"
-caffeine = "3.2.4"
+caffeine = "3.3.0"
 logstash-logback-encoder = "9.0"
 
 [libraries]
@@ -106,6 +108,7 @@ jakarta-servlet-api = { module = "jakarta.servlet:jakarta.servlet-api" }
 
 # MinIO
 minio = { module = "io.minio:minio", version.ref = "minio" }
+apache-pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
 
 # Testing
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }

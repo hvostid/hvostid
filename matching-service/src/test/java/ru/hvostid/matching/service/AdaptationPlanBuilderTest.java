@@ -20,6 +20,14 @@ class AdaptationPlanBuilderTest {
     }
 
     @Test
+    void localizedNervousTemperamentUsesGentleIntroductionPlan() {
+        var english = builder.build(petContext("cat", "Siamese", 24, "NERVOUS", true));
+        var localized = builder.build(
+                petContext("cat", "Siamese", 24, "\u043f\u0443\u0433\u043b\u0438\u0432\u044b\u0439", true));
+        assertThat(localized).isEqualTo(english);
+    }
+
+    @Test
     @DisplayName("plan has three phases with expected day ranges")
     void build_threePhases() {
         PetContext pet = petContext("dog", "Labrador", 24, "friendly", true);

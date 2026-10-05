@@ -1,5 +1,8 @@
 -- Repeatable demo seed for passport-service (profile: demo)
 
+-- The demo profile replaces its reserved fixture IDs; production never loads this script.
+DELETE FROM passport_listing_references WHERE passport_id BETWEEN 1 AND 99;
+
 DELETE FROM passport_documents
 WHERE passport_id BETWEEN 1 AND 99;
 

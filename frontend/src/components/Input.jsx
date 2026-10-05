@@ -11,6 +11,7 @@ export default function Input({
     placeholder,
     ...props // Allows passing additional HTML attributes (disabled, onBlur, etc.)
 }) {
+    const errorId = `${id}-error`;
     return (
         <div className="mb-4">
             <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
@@ -25,6 +26,8 @@ export default function Input({
                 value={value}
                 onChange={onChange}
                 required={required}
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? errorId : undefined}
                 autoComplete={autoComplete}
                 placeholder={placeholder}
                 className={`
@@ -35,7 +38,11 @@ export default function Input({
                 {...props} // Spread all additional props to the input element
             />
 
-            {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+            {error && (
+                <p id={errorId} role="alert" className="mt-1 text-sm text-red-600">
+                    {error}
+                </p>
+            )}
         </div>
     );
 }

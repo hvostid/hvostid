@@ -1,0 +1,10 @@
+route:
+    receiver: local-ui
+    group_by: [alertname, service]
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+# Local alert UI works immediately. Configure an authenticated receiver before
+# relying on unattended notification delivery; no external messages are sent by default.
+receivers:
+    - name: local-ui

@@ -1,117 +1,50 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
-    <!--
-        ============================================================
-        BOM-declared false positives
-        ============================================================
-
-        The Spring Boot 4.0.6 BOM (spring-boot-dependencies-4.0.6.pom)
-        declares some dependencies at versions that have known CVEs.
-        OWASP Dependency Check reads the BOM POM during aggregate scan
-        and reports those declarations as project findings, even when
-        the project has explicitly overridden the resolved version via
-        resolutionStrategy in the root build.gradle.kts.
-
-        Verification: Trivy scans of the built Docker images (see
-        cd-main.yml) consume only the resolved JARs that ship inside
-        BOOT-INF/lib of each service fat jar. Trivy reports no
-        findings for any of the CVEs suppressed below, which confirms
-        the runtime artifacts are on the patched versions.
-
-        Each suppression below has an `until` date that matches the
-        expected release of a Spring Boot patch that bumps the BOM to
-        a non-vulnerable version. When that patch arrives, both the
-        override block in build.gradle.kts and the matching block
-        here should be removed in the same PR. Until then, run the
-        dependencyInsight commands documented in README.md after any
-        dependency change to confirm the runtime resolution is still
-        on the patched version.
-    -->
-
-    <!-- Apache Tomcat embedded artifacts. -->
-    <suppress until="2026-09-30Z">
+    <!-- Exceptions identify reproduced false positives, exact resolved artifacts,
+         primary evidence and a review expiry. Do not suppress generic CPEs.
+         The distinct Java issue CVE-2026-45292 is fixed by SDK 1.62.0 and is
+         intentionally not suppressed:
+         https://github.com/open-telemetry/opentelemetry-java/security/advisories/GHSA-rcgg-9c38-7xpx -->
+    <suppress until="2026-12-31Z">
         <notes><![CDATA[
-            Spring Boot 4.0.6 BOM pins tomcat.version=11.0.21. The
-            root build.gradle.kts forces every
-            org.apache.tomcat.embed:*-jdk18on artifact to 11.0.22 via
-            configurations.all.resolutionStrategy.eachDependency.
-            Trivy on the built images confirms 11.0.22 is what
-            actually ships. Remove this entry together with the
-            tomcat branch in build.gradle.kts once the Spring Boot
-            BOM moves past 11.0.21.
+        Reproduced in CI 36658875170 on 2026-09-30: Dependency-Check 13.0.0
+        assigned the generic opentelemetry CPE with wildcard target_sw to
+        these 14 Java SDK 1.62.0 artifacts. CVE-2026-54285 affects the npm
+        package @opentelemetry/core before 2.8.0; NVD target_sw is node.js.
+        https://github.com/open-telemetry/opentelemetry-js/security/advisories/GHSA-8988-4f7v-96qf
+        https://nvd.nist.gov/vuln/detail/CVE-2026-54285
         ]]></notes>
-        <gav regex="true">^org\.apache\.tomcat\.embed:.*:11\.0\.21$</gav>
-        <cve>CVE-2026-41293</cve>
-        <cve>CVE-2026-43512</cve>
-        <cve>CVE-2026-43515</cve>
-        <cve>CVE-2026-41284</cve>
-        <cve>CVE-2026-42498</cve>
-        <cve>CVE-2026-43513</cve>
-        <cve>CVE-2026-43514</cve>
+        <packageUrl regex="true">^pkg:maven/io\.opentelemetry/opentelemetry-(api|common|context|exporter-common|exporter-otlp|exporter-otlp-common|exporter-sender-okhttp|extension-trace-propagators|sdk|sdk-common|sdk-extension-autoconfigure-spi|sdk-logs|sdk-metrics|sdk-trace)@1\.62\.0$</packageUrl>
+        <cve>CVE-2026-54285</cve>
     </suppress>
-
-    <!-- PostgreSQL JDBC driver. -->
-    <suppress until="2026-09-30Z">
+    <suppress until="2026-12-31Z">
         <notes><![CDATA[
-            Spring Boot 4.0.6 BOM pins postgresql=42.7.10. The root
-            build.gradle.kts forces org.postgresql:postgresql to
-            42.7.11 via
-            configurations.all.resolutionStrategy.eachDependency.
-            Trivy on the built images confirms 42.7.11 is what
-            actually ships. Remove this entry together with the
-            postgresql branch in build.gradle.kts once the Spring
-            Boot BOM moves past 42.7.10.
-        ]]></notes>
-        <gav>org.postgresql:postgresql:42.7.10</gav>
-        <cve>CVE-2026-42198</cve>
-    </suppress>
+        The same scan mapped Java protobuf bindings 1.8.0-alpha to the
+        generic opentelemetry CPE with wildcard target_sw. These five CVEs
+        affect other language implementations, not these Java bindings:
+        https://github.com/open-telemetry/opentelemetry-proto-java
 
-    <!-- Netty 4.2.x family. -->
-    <suppress until="2026-09-30Z">
-        <notes><![CDATA[
-            Spring Boot 4.0.6 BOM pins netty.version=4.2.12.Final.
-            The root build.gradle.kts overrides the extra property to
-            4.2.13.Final via the spring-dependency-management plugin,
-            and dependencyInsight confirms every io.netty:* artifact
-            resolves to 4.2.13.Final on the runtime classpath. Trivy
-            on the built images confirms 4.2.13.Final is what
-            actually ships. Remove this entry together with the
-            netty branch in build.gradle.kts once the Spring Boot BOM
-            moves past 4.2.12.Final.
+        CVE-2026-54285: npm @opentelemetry/core before 2.8.0 (node.js).
+        https://github.com/open-telemetry/opentelemetry-js/security/advisories/GHSA-8988-4f7v-96qf
+        https://nvd.nist.gov/vuln/detail/CVE-2026-54285
+        CVE-2026-39882: OpenTelemetry Go OTLP HTTP exporters (go).
+        https://github.com/open-telemetry/opentelemetry-go/security/advisories/GHSA-w8rr-5gcm-pp58
+        https://nvd.nist.gov/vuln/detail/CVE-2026-39882
+        CVE-2026-40894: NuGet propagators before 1.15.3 (.net).
+        https://github.com/open-telemetry/opentelemetry-dotnet/security/advisories/GHSA-g94r-2vxg-569j
+        https://nvd.nist.gov/vuln/detail/CVE-2026-40894
+        CVE-2026-41178: Go baggage/propagation 1.41.0 and 1.43.0 (go).
+        https://github.com/open-telemetry/opentelemetry-go/security/advisories/GHSA-5wrp-cwcj-q835
+        https://nvd.nist.gov/vuln/detail/CVE-2026-41178
+        CVE-2026-44967: OpenTelemetry C++ before 1.27.0 (c++).
+        https://github.com/open-telemetry/opentelemetry-cpp/security/advisories/GHSA-5qhm-4rfp-qqvj
+        https://nvd.nist.gov/vuln/detail/CVE-2026-44967
         ]]></notes>
-        <gav regex="true">^io\.netty:.*:4\.2\.12\.Final$</gav>
-        <cve>CVE-2026-41417</cve>
-        <cve>CVE-2026-42577</cve>
-        <cve>CVE-2026-42578</cve>
-        <cve>CVE-2026-42579</cve>
-        <cve>CVE-2026-42580</cve>
-        <cve>CVE-2026-42581</cve>
-        <cve>CVE-2026-42582</cve>
-        <cve>CVE-2026-42583</cve>
-        <cve>CVE-2026-42584</cve>
-        <cve>CVE-2026-42585</cve>
-        <cve>CVE-2026-42586</cve>
-        <cve>CVE-2026-42587</cve>
-        <cve>CVE-2026-44248</cve>
+        <packageUrl>pkg:maven/io.opentelemetry.proto/opentelemetry-proto@1.8.0-alpha</packageUrl>
+        <cve>CVE-2026-54285</cve>
+        <cve>CVE-2026-39882</cve>
+        <cve>CVE-2026-40894</cve>
+        <cve>CVE-2026-41178</cve>
+        <cve>CVE-2026-44967</cve>
     </suppress>
-
-    <!-- swagger-ui webjar bundled with springdoc. -->
-    <suppress until="2026-09-30Z">
-        <notes><![CDATA[
-            springdoc-openapi 3.0.3 pulls org.webjars:swagger-ui:5.32.2
-            which ships DOMPurify 3.3.2 (CVE-2026-41238/41239/41240 +
-            GHSA-39q2-94rc-95cp). The root build.gradle.kts overrides
-            the webjar to 5.32.5, which bundles DOMPurify 3.4.0 (the
-            fixed version), via configurations.all.resolutionStrategy.
-            Trivy on the built images confirms 5.32.5 is what actually
-            ships. Remove this entry together with the swagger-ui
-            branch in build.gradle.kts once springdoc bumps the webjar.
-        ]]></notes>
-        <gav>org.webjars:swagger-ui:5.32.2</gav>
-        <cve>CVE-2026-41238</cve>
-        <cve>CVE-2026-41239</cve>
-        <cve>CVE-2026-41240</cve>
-        <vulnerabilityName>GHSA-39q2-94rc-95cp</vulnerabilityName>
-    </suppress>
-
 </suppressions>

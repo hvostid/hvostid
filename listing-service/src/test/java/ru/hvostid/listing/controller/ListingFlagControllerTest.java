@@ -17,7 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import ru.hvostid.common.security.UserRole;
-import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
+import ru.hvostid.listing.ListingIntegrationTest;
 import ru.hvostid.listing.dto.FlagListingRequest;
 import ru.hvostid.listing.entity.FlagReason;
 import ru.hvostid.listing.entity.Listing;
@@ -29,7 +29,7 @@ import tools.jackson.databind.ObjectMapper;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class ListingFlagControllerTest extends AbstractPostgresContainerTest {
+class ListingFlagControllerTest extends ListingIntegrationTest {
     private static final Long OWNER_ID = 100L;
 
     @Autowired

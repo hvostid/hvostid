@@ -1,6 +1,19 @@
 name: Security - Dependency Check
 
 on:
+    pull_request:
+        branches: [ main ]
+        paths:
+            - "gradle/**"
+            - "**/build.gradle.kts"
+            - "**/gradle.lockfile"
+            - "settings.gradle.kts"
+            - "scripts/audit-jvm-dependencies*.mjs"
+            - "scripts/validate-dependency-check*.mjs"
+            - "docker/minio/**"
+            - "docker/minio-test/**"
+            - "dependency-check-suppressions.xml"
+            - ".github/workflows/security-scan.yml"
     schedule:
         # Daily at 03:00 UTC (06:00 Moscow).
         -   cron: "0 3 * * *"
@@ -12,13 +25,15 @@ on:
         paths:
             - "gradle/libs.versions.toml"
             - "gradle/wrapper/gradle-wrapper.properties"
+            - "**/gradle.lockfile"
             - "**/build.gradle.kts"
             - "settings.gradle.kts"
             - "dependency-check-suppressions.xml"
-
-concurrency:
-    group: security-scan-${{ github.ref }}
-    cancel-in-progress: false
+            - "scripts/audit-jvm-dependencies*.mjs"
+            - "scripts/validate-dependency-check*.mjs"
+            - "docker/minio/**"
+            - "docker/minio-test/**"
+            - ".github/workflows/security-scan.yml"
 
 permissions:
     contents: read
@@ -26,9 +41,89 @@ permissions:
     actions: read
 
 jobs:
-    dependency-check:
+    minio-security:
+        concurrency:
+            group: minio-security-${{ github.ref }}
+            cancel-in-progress: true
         runs-on: ubuntu-latest
-        timeout-minutes: 45
+        timeout-minutes: 40
+        permissions:
+            contents: read
+            actions: read
+        steps:
+            -   name: Checkout code
+                uses: actions/checkout@v6
+
+            -   name: Set up Node for upstream advisory checks
+                uses: actions/setup-node@v6
+                with:
+                    node-version: 24
+
+            -   name: Check pinned upstream MinIO and mc advisories
+                timeout-minutes: 5
+                env:
+                    GH_TOKEN: ${{ github.token }}
+                    MINIO_AUDIT_REPORT: build/reports/minio-upstream.json
+                run: |
+                    node --test docker/minio/audit-upstream.test.mjs
+                    node docker/minio/audit-upstream.mjs
+
+            -   name: Set up Docker BuildX
+                uses: docker/setup-buildx-action@v4
+                with:
+                    buildkitd-config-inline: |
+                        [worker.oci]
+                          max-parallelism = 2
+
+            # Reuse compilation layers, never a previous vulnerability scan.
+            # Both the Go database and the separate main-module inventory are
+            # consulted on every run; either failed check keeps this job red.
+            -   name: Audit the linked MinIO and mc binaries
+                uses: docker/build-push-action@v7
+                with:
+                    context: ./docker/minio
+                    target: audit-reports
+                    no-cache-filters: audit
+                    outputs: type=local,dest=build/reports/minio-binary
+                    cache-from: type=gha,scope=minio-security-build
+                    cache-to: type=gha,mode=max,scope=minio-security-build
+
+            -   name: Load the audited runtime image for protocol checks
+                uses: docker/build-push-action@v7
+                with:
+                    context: ./docker/minio
+                    target: runtime
+                    load: true
+                    tags: hvostid/minio:security-ci
+
+            -   name: Check S3 compatibility and disabled vulnerable features
+                timeout-minutes: 5
+                env:
+                    MINIO_IMAGE: hvostid/minio:security-ci
+                    MINIO_SMOKE_REPORT: build/reports/minio-smoke.json
+                run: node docker/minio/security-smoke.mjs
+
+            -   name: Upload MinIO security reports
+                if: always()
+                uses: actions/upload-artifact@v7
+                with:
+                    name: minio-security-report
+                    path: |
+                        build/reports/minio-upstream.json
+                        build/reports/minio-binary/
+                        build/reports/minio-smoke.json
+                    retention-days: 30
+                    if-no-files-found: warn
+
+    dependency-check:
+        # Let a cold NVD import finish and save its cache without holding up
+        # the independent storage audit on newer commits.
+        concurrency:
+            group: security-scan-${{ github.ref }}
+            cancel-in-progress: false
+        runs-on: ubuntu-latest
+        # Allow a bounded full-feed bootstrap, API catch-up and aggregate scan.
+        timeout-minutes: 90
 
         env:
             DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
@@ -49,32 +144,100 @@ jobs:
             -   name: Setup Gradle
                 uses: gradle/actions/setup-gradle@v6
 
-            -   name: Cache NVD database
-                uses: actions/cache@v5
+            -   name: Restore NVD database
+                id: nvd-cache
+                uses: actions/cache/restore@v5
                 with:
                     path: build/dependency-check-data
-                    key: nvd-db-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}-${{ github.run_id }}
+                    key: nvd-db-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
                     restore-keys: |
                         nvd-db-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}-
-                        nvd-db-${{ runner.os }}-
+
+            -   name: Set up Node for runtime advisory scan
+                uses: actions/setup-node@v6
+                with:
+                    node-version: 24
+
+            -   name: Check production JVM dependencies against OSV
+                run: |
+                    mkdir -p build/reports
+                    node --test scripts/audit-jvm-dependencies.test.mjs
+                    node --test scripts/validate-dependency-check.test.mjs
+                    node scripts/audit-jvm-dependencies.mjs
+
+            -   name: Update NVD database
+                id: nvd-update
+                timeout-minutes: 60
+                env:
+                    NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+                    NVD_RESTORED_CACHE: ${{ steps.nvd-cache.outputs.cache-matched-key }}
+                run: |
+                    set -euo pipefail
+                    if [ -z "$NVD_API_KEY" ]; then
+                        echo "::error::NVD_API_KEY is required for the NVD scan; this is not a clean security result."
+                        exit 1
+                    fi
+                    if [ -z "$NVD_RESTORED_CACHE" ]; then
+                        # DC13 imports every year from 2002 (including older CVEs)
+                        # through the current year, then applies the modified feed.
+                        ./gradlew dependencyCheckUpdate --no-daemon --info \
+                            '-PnvdDatafeedUrl=https://nvd.nist.gov/feeds/json/cve/2.0/nvdcve-2.0-{0}.json.gz' \
+                            -PnvdValidForHours=0
+                        # A feed import also marks the API as recently checked.
+                        # Clear the feed override and bypass that time cache so
+                        # all API changes since the feed timestamp are ingested.
+                        ./gradlew dependencyCheckUpdate --no-daemon --info -PnvdValidForHours=0
+                    else
+                        ./gradlew dependencyCheckUpdate --no-daemon --info
+                    fi
+                    # A missing path otherwise only makes actions/cache warn.
+                    node scripts/validate-dependency-check.mjs --database build/dependency-check-data
+
+            # Preserve successfully updated data even when the later vulnerability gate fails.
+            # Never persist a partial update after a feed/authentication error.
+            -   name: Save updated NVD database
+                if: success() && steps.nvd-update.outcome == 'success' && steps.nvd-cache.outputs.cache-hit != 'true'
+                uses: actions/cache/save@v5
+                with:
+                    path: build/dependency-check-data
+                    key: ${{ steps.nvd-cache.outputs.cache-primary-key }}
 
             -   name: Run OWASP Dependency Check
+                id: nvd-scan
                 env:
                     NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
                 run: ./gradlew dependencyCheckAggregate --no-daemon
 
-            -   name: Upload HTML, JSON and XML reports
+            -   name: Validate complete JVM dependency report
+                if: always() && steps.nvd-scan.outcome != 'skipped'
+                run: |
+                    node scripts/validate-dependency-check.mjs \
+                        --report build/reports/dependency-check-report.json \
+                        --inventory build/reports/jvm-runtime-inventory.json
+
+            -   name: Upload dependency verification diagnostics
+                if: failure()
+                uses: actions/upload-artifact@v7
+                with:
+                    name: dependency-verification-security
+                    path: "**/build/reports/dependency-verification/"
+                    if-no-files-found: ignore
+
+            -   name: Upload HTML, JSON, SARIF and XML reports
                 if: always()
                 uses: actions/upload-artifact@v7
                 with:
                     name: dependency-check-report
                     path: |
+                        build/reports/osv-runtime.json
+                        build/reports/jvm-runtime-inventory.json
                         build/reports/dependency-check-report.html
                         build/reports/dependency-check-report.json
+                        build/reports/dependency-check-report.sarif
                         build/reports/dependency-check-report.xml
                     retention-days: 30
-                    # Do not fail the job if dependencyCheckAggregate crashed
-                    # before producing any report files.
+                    # Preserve diagnostics on failure; the preceding validator
+                    # makes a missing or incomplete aggregate report fail CI.
                     if-no-files-found: warn
 
             # Surface findings in the GitHub Security tab. Only attempt the

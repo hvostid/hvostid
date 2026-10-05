@@ -2,60 +2,59 @@
 
 # API Gateway
 
-Spring Cloud Gateway (server-MVC) front door for the platform.
+Spring Cloud Gateway MVC routes external API requests to internal services.
 
-## Responsibilities
+## Request processing
 
-- Route `/api/v1/**` traffic to the right service.
-- Validate incoming Bearer tokens via Auth Service introspection and
-  inject `X-User-Id` / `X-User-Roles` for downstream services
-  (`TokenIntrospectionFilter`).
-- Generate / propagate `X-Request-Id` and bind it to MDC for log
-  correlation (`RequestIdFilter`).
-- Token-bucket rate limit per client IP (`RateLimitFilter`).
+1. RequestIdFilter establishes the request ID and logging context.
+2. IdentityHeaderFilter removes every incoming X-User-Id and X-User-Roles header,
+   including on public routes.
+3. RateLimitFilter checks the immediate client address or a configured trusted proxy chain.
+4. TokenIntrospectionFilter validates Bearer credentials and sets authenticated
+   identity headers. Missing/inactive credentials produce 401; unavailable
+   introspection produces 503, preserving the distinction for clients.
 
-The full request lifecycle is documented in
-[`docs/architecture.md`](../docs/architecture.md#request-lifecycle).
+Public paths are explicitly method scoped in application.yml. Catalog search is
+public; only numeric listing detail paths permit optional authentication. My
+listings and saved drafts always require authentication. Internal service routes
+are never gateway-routed.
 
-## Routing
+## Routes
 
-| Path prefix          | Target service              |
-|----------------------|-----------------------------|
-| `/api/v1/auth/**`    | Auth Service (`:8081`)      |
-| `/api/v1/profile/**` | Auth Service (`:8081`)      |
-| `/api/v1/listings/**`| Listing Service (`:8082`)   |
-| `/api/v1/passports/**`| Passport Service (`:8083`) |
-| `/api/v1/match/**`   | Matching Service (`:8084`)  |
+| Prefix | Target |
+| --- | --- |
+| /api/v1/auth/**, /api/v1/profile/**, /api/v1/users/** | Auth (:8081) |
+| /api/v1/listings/**, /api/v1/moderation/** | Listing (:8082) |
+| /api/v1/passports/** | Passport (:8083) |
+| /api/v1/match/** | Matching (:8084) |
 
-Public paths (no token required): `/api/v1/auth/login`,
-`/api/v1/auth/register`, `/actuator/**`.
+## Configuration
 
-## Environment variables
+Service hosts use AUTH_SERVICE_HOST, LISTING_SERVICE_HOST,
+PASSPORT_SERVICE_HOST and MATCHING_SERVICE_HOST, each defaulting to localhost.
+SERVER_PORT defaults to 8080. Introspection has a 3-second timeout.
 
-| Name                      | Default     | Description                       |
-|---------------------------|-------------|-----------------------------------|
-| `SERVER_PORT`             | `8080`      | HTTP port                         |
-| `AUTH_SERVICE_HOST`       | `localhost` | Auth Service hostname             |
-| `LISTING_SERVICE_HOST`    | `localhost` | Listing Service hostname          |
-| `PASSPORT_SERVICE_HOST`   | `localhost` | Passport Service hostname         |
-| `MATCHING_SERVICE_HOST`   | `localhost` | Matching Service hostname         |
+The token-bucket limits default to 60 requests/second and a burst of 120 per
+client. Authentication endpoints have an independent 1/second, burst-10 quota.
+The cache holds at most 10,000 client/category buckets, expiring idle entries
+after 15 minutes; active entries are not evicted to reset quotas. At capacity,
+new clients receive 429 until capacity is available. Responses include Retry-After.
 
-Rate limit (`hvostid.rate-limit.replenish-rate` / `burst-capacity`) and
-auth (`hvostid.auth.introspect-url` / `introspect-timeout`) are
-configured in
-[`application.yml`](./src/main/resources/application.yml).
+X-Forwarded-For is ignored by default. HVOSTID_RATE_LIMIT_TRUSTED_PROXIES is an
+explicit comma-separated list of immediate proxy IPs, never an arbitrary client
+list. Configure the edge to overwrite X-Forwarded-For with the remote address;
+the gateway walks a trusted chain from right to left to the nearest untrusted
+peer. Do not expose the gateway directly when trusting a proxy. Limits are
+per gateway instance: keep a single gateway replica, or use a shared limiter
+before horizontal scaling.
 
-## Run locally
+Production should expose only the TLS edge. Actuator is for private monitoring,
+not public nginx routing. Full property defaults are in src/main/resources/application.yml.
 
-Bring up dependencies, then start the gateway from your IDE or:
+## Local run
 
 ```bash
 docker compose up -d postgres minio minio-init auth-service listing-service passport-service matching-service
 ./gradlew :api-gateway:bootRun
+./gradlew :api-gateway:test
 ```
-
-## Dependencies
-
-- **Required at runtime:** Auth Service (introspection).
-- **Required to forward traffic:** whichever downstream service the
-  current path targets.

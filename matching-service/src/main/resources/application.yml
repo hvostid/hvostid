@@ -19,6 +19,12 @@ spring:
         open-in-view: false
 
 hvostid:
+    recommendations:
+        # Shared limits across all buyers; excess work returns a retryable 503.
+        parallelism: ${MATCHING_PARALLELISM:16}
+        max-concurrent-computations: ${MATCHING_MAX_COMPUTATIONS:8}
+        max-scanned-listings: ${MATCHING_MAX_SCANNED_LISTINGS:10000}
+        computation-timeout: ${MATCHING_COMPUTATION_TIMEOUT:30s}
     listing-service:
         url: http://${LISTING_SERVICE_HOST:localhost}:8082
         connect-timeout: 2s
@@ -49,6 +55,15 @@ resilience4j:
                 permitted-number-of-calls-in-half-open-state: 3
 
 management:
+    otlp:
+        metrics:
+            export:
+                enabled: false
+    opentelemetry:
+        tracing:
+            export:
+                otlp:
+                    enabled: false
     endpoints:
         web:
             exposure:

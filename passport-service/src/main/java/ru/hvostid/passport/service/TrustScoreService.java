@@ -22,19 +22,16 @@ public class TrustScoreService {
 
     private final PetPassportRepository passportRepository;
     private final PassportDocumentRepository documentRepository;
-    private final SellerSignalsProvider sellerSignalsProvider;
     private final ListingServiceClient listingServiceClient;
     private final TrustScoreCalculator calculator;
 
     public TrustScoreService(
             PetPassportRepository passportRepository,
             PassportDocumentRepository documentRepository,
-            SellerSignalsProvider sellerSignalsProvider,
             ListingServiceClient listingServiceClient,
             TrustScoreCalculator calculator) {
         this.passportRepository = passportRepository;
         this.documentRepository = documentRepository;
-        this.sellerSignalsProvider = sellerSignalsProvider;
         this.listingServiceClient = listingServiceClient;
         this.calculator = calculator;
     }
@@ -62,7 +59,8 @@ public class TrustScoreService {
                 .orElseThrow(() -> new PassportNotFoundException("Passport not found with id: " + passportId));
 
         if (!canReadTrustScoreWithoutListingCheck(passport, userId, userRoles)
-                && !listingServiceClient.hasPublishedListingForPassport(passport.getId(), requestId)) {
+                && !listingServiceClient.hasPublishedListingForPassport(
+                        passport.getId(), passport.getSellerId(), requestId)) {
             log.warn(
                     "Trust score access denied for passportId={} userId={} (no PUBLISHED listing reference)",
                     passportId,
@@ -107,7 +105,6 @@ public class TrustScoreService {
 
     private TrustScoreBreakdown computeBreakdown(PetPassport passport) {
         List<PassportDocument> documents = documentRepository.findByPassportIdOrderByUploadedAtDesc(passport.getId());
-        SellerSignals signals = sellerSignalsProvider.fetch(passport.getSellerId());
-        return calculator.compute(passport, documents, signals);
+        return calculator.compute(passport, documents);
     }
 }

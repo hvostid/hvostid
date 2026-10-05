@@ -95,19 +95,19 @@ public class CompatibilityScoreCalculator {
                     "Passport temperament unavailable - moderate child compatibility assumed");
         }
 
-        String temp = pet.temperament().toLowerCase(Locale.ROOT);
+        TemperamentKind temperament = TemperamentKind.classify(pet.temperament());
         int childAge = q.getChildrenAgeMin() == null ? YOUNG_CHILD_AGE_THRESHOLD : q.getChildrenAgeMin();
         boolean youngChildren = childAge < YOUNG_CHILD_AGE_THRESHOLD;
 
         int score;
         String comment;
-        if (containsAny(temp, "aggressive", "bite", "dominant", "guarding")) {
+        if (temperament == TemperamentKind.CHALLENGING) {
             score = youngChildren ? 3 : 6;
             comment = "Temperament may be challenging with children";
-        } else if (containsAny(temp, "gentle", "patient", "calm", "friendly", "tolerant")) {
+        } else if (temperament == TemperamentKind.FRIENDLY) {
             score = youngChildren ? 14 : max;
             comment = "Temperament appears suitable for families with children";
-        } else if (containsAny(temp, "nervous", "shy", "fearful")) {
+        } else if (temperament == TemperamentKind.NERVOUS) {
             score = youngChildren ? 5 : 9;
             comment = "Nervous temperament may need careful introduction to children";
         } else {

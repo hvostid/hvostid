@@ -6,7 +6,7 @@ export const getQuestionnaire = async () => {
         return response.data;
     } catch (error) {
         if (error.response?.status === 404) {
-            return null; // Анкета не заполнена
+            return null;
         }
         throw error;
     }
@@ -22,9 +22,10 @@ export const getMatchScore = async (listingId) => {
     return response.data;
 };
 
-export const getRecommendations = async (page = 0, size = 10, minScore = 40) => {
+export const getRecommendations = async (page = 0, size = 10, minScore = 40, signal) => {
     const response = await api.get(
-        `/match/recommendations?page=${page}&size=${size}&minScore=${minScore}`
+        `/match/recommendations?page=${page}&size=${size}&minScore=${minScore}`,
+        { signal }
     );
     return response.data;
 };

@@ -18,7 +18,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import ru.hvostid.common.security.UserRole;
-import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
+import ru.hvostid.listing.ListingIntegrationTest;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingResponse;
 import ru.hvostid.listing.entity.Listing;
@@ -31,7 +31,7 @@ import ru.hvostid.listing.service.ListingService;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class ListingDeleteControllerTest extends AbstractPostgresContainerTest {
+class ListingDeleteControllerTest extends ListingIntegrationTest {
 
     private static final String LISTINGS_URL = "/api/v1/listings";
     private static final Long OWNER_ID = 100L;
@@ -59,21 +59,21 @@ class ListingDeleteControllerTest extends AbstractPostgresContainerTest {
 
     @BeforeEach
     void setUp() {
-        ListingRequest draftRequest = new ListingRequest(
-                "Draft Listing", "Description", "dog", "Breed", 6, 10000, "Moscow", "passport-draft");
+        ListingRequest draftRequest =
+                new ListingRequest("Draft Listing", "Description", "dog", "Breed", 6, 10000, "Moscow", "101");
         ListingResponse draftResponse = listingService.createListing(draftRequest, OWNER_ID);
         draftListingId = draftResponse.id();
 
-        ListingRequest pubRequest = new ListingRequest(
-                "Published Listing", "Description", "dog", "Breed", 6, 10000, "Moscow", "passport-pub");
+        ListingRequest pubRequest =
+                new ListingRequest("Published Listing", "Description", "dog", "Breed", 6, 10000, "Moscow", "102");
         ListingResponse pubResponse = listingService.createListing(pubRequest, OWNER_ID);
         publishedListingId = pubResponse.id();
         Listing pubListing = listingRepository.findById(publishedListingId).orElseThrow();
         pubListing.setStatus(ListingStatus.PUBLISHED);
         listingRepository.save(pubListing);
 
-        ListingRequest modRequest = new ListingRequest(
-                "Moderation Listing", "Description", "dog", "Breed", 6, 10000, "Moscow", "passport-mod");
+        ListingRequest modRequest =
+                new ListingRequest("Moderation Listing", "Description", "dog", "Breed", 6, 10000, "Moscow", "103");
         ListingResponse modResponse = listingService.createListing(modRequest, OWNER_ID);
         moderationListingId = modResponse.id();
         Listing modListing = listingRepository.findById(moderationListingId).orElseThrow();

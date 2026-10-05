@@ -1,5 +1,5 @@
 // pages/RecommendationsPage.jsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { getRecommendations } from '../api/matching';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -14,14 +14,14 @@ const COMPATIBILITY_STYLES = {
 };
 
 const COMPATIBILITY_LABELS = {
-    GREAT: 'Отлично',
-    GOOD: 'Хорошо',
-    RISKY: 'Есть риски',
-    NOT_RECOMMENDED: 'Не рекомендуется',
+    GREAT: 'Excellent',
+    GOOD: 'Good',
+    RISKY: 'Some risks',
+    NOT_RECOMMENDED: 'Not recommended',
 };
 
 const MIN_SCORE_OPTIONS = [
-    { value: 0, label: 'Все' },
+    { value: 0, label: 'All' },
     { value: 30, label: '≥ 30%' },
     { value: 50, label: '≥ 50%' },
     { value: 70, label: '≥ 70%' },
@@ -29,6 +29,8 @@ const MIN_SCORE_OPTIONS = [
 ];
 
 export default function RecommendationsPage() {
+    const generationRef = useRef(0);
+    const pendingRef = useRef(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [recommendations, setRecommendations] = useState([]);
@@ -39,9 +41,16 @@ export default function RecommendationsPage() {
     const [loadingMore, setLoadingMore] = useState(false);
 
     const loadRecommendations = useCallback(async (pageNum, currentMinScore) => {
+        pendingRef.current?.abort();
+        const controller = new AbortController();
+        pendingRef.current = controller;
+        const request = ++generationRef.current;
         setLoadingMore(true);
+        setError(null);
         try {
-            const data = await getRecommendations(pageNum, 12, currentMinScore);
+            const data = await getRecommendations(pageNum, 12, currentMinScore, controller.signal);
+            if (request !== generationRef.current) return;
+            setPage(pageNum);
             if (pageNum === 0) {
                 setRecommendations(data.content || []);
             } else {
@@ -50,33 +59,40 @@ export default function RecommendationsPage() {
             setTotalPages(data.totalPages || 0);
             setTotalElements(data.totalElements || 0);
         } catch (err) {
-            console.error('Failed to load recommendations:', err);
+            if (controller.signal.aborted || request !== generationRef.current) return;
             if (err.response?.status === 400) {
-                setError('Анкета не заполнена. Пожалуйста, заполните анкету совместимости.');
+                setError('Complete your compatibility questionnaire first.');
             } else {
-                setError('Не удалось загрузить рекомендации');
+                setError('Recommendations could not be loaded.');
             }
         } finally {
-            setLoading(false);
-            setLoadingMore(false);
+            if (request === generationRef.current) {
+                setLoading(false);
+                setLoadingMore(false);
+            }
         }
     }, []);
 
     useEffect(() => {
-        setLoading(true);
-        setPage(0);
-        loadRecommendations(0, minScore);
+        // Query changes start cancellable work and clear the previous request error.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        void loadRecommendations(0, minScore);
+        return () => {
+            pendingRef.current?.abort();
+            generationRef.current += 1;
+        };
     }, [minScore, loadRecommendations]);
 
     const loadMore = () => {
         if (page + 1 < totalPages) {
             const nextPage = page + 1;
-            setPage(nextPage);
             loadRecommendations(nextPage, minScore);
         }
     };
 
     const handleMinScoreChange = (e) => {
+        setLoading(true);
+        setPage(0);
         setMinScore(parseInt(e.target.value, 10));
     };
 
@@ -84,7 +100,7 @@ export default function RecommendationsPage() {
         return (
             <div>
                 <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900">Рекомендации для вас</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">Recommendations for you</h1>
                     <div className="w-32 h-8 bg-gray-200 rounded animate-pulse" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -101,11 +117,14 @@ export default function RecommendationsPage() {
             <div className="max-w-2xl mx-auto text-center py-12">
                 <div className="bg-teal-50 border border-indigo-200 text-teal-800 px-6 py-4 rounded-lg">
                     <p className="mb-4">{error}</p>
+                    <button onClick={() => loadRecommendations(0, minScore)} className="mr-4">
+                        Retry
+                    </button>
                     <Link
                         to="/profile/questionnaire"
                         className="inline-block px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
                     >
-                        Заполнить анкету
+                        Complete questionnaire
                     </Link>
                 </div>
             </div>
@@ -115,10 +134,13 @@ export default function RecommendationsPage() {
     return (
         <div>
             <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-                <h1 className="text-2xl font-bold text-gray-900">Рекомендации для вас</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Recommendations for you</h1>
                 <div className="flex items-center gap-3">
-                    <label className="text-sm text-gray-600">Минимальный score:</label>
+                    <label htmlFor="minimum-score" className="text-sm text-gray-600">
+                        Minimum score:
+                    </label>
                     <select
+                        id="minimum-score"
                         value={minScore}
                         onChange={handleMinScoreChange}
                         className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
@@ -133,18 +155,18 @@ export default function RecommendationsPage() {
             </div>
 
             {totalElements > 0 && (
-                <p className="text-sm text-gray-500 mb-4">Найдено {totalElements} рекомендаций</p>
+                <p className="text-sm text-gray-500 mb-4">Found {totalElements} recommendations</p>
             )}
 
             {recommendations.length === 0 ? (
                 <div className="text-center py-12 bg-gray-50 rounded-lg">
-                    <p className="text-gray-500">Нет рекомендаций с выбранным фильтром</p>
+                    <p className="text-gray-500">No recommendations match this filter.</p>
                     {minScore > 0 && (
                         <button
                             onClick={() => setMinScore(0)}
                             className="mt-4 text-indigo-600 hover:text-indigo-700 transition-colors"
                         >
-                            Сбросить фильтр
+                            Reset filter
                         </button>
                     )}
                 </div>
@@ -192,10 +214,10 @@ export default function RecommendationsPage() {
                                 {loadingMore ? (
                                     <span className="flex items-center gap-2">
                                         <LoadingSpinner size="sm" />
-                                        Загрузка...
+                                        Loading...
                                     </span>
                                 ) : (
-                                    'Загрузить ещё'
+                                    'Load more'
                                 )}
                             </button>
                         </div>

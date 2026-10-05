@@ -10,6 +10,7 @@ dependencies {
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.spring.boot.starter.security)
+    implementation("org.springframework.boot:spring-boot-starter-mail")
     implementation(libs.spring.doc.openapi.webmvc)
     implementation(project(":common"))
 

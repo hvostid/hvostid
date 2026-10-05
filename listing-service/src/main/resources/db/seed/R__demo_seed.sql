@@ -1,5 +1,7 @@
 -- Repeatable demo seed for listing-service (profile: demo)
 
+DELETE FROM passport_reference_jobs WHERE listing_id BETWEEN 1 AND 99;
+
 DELETE FROM listing_flags
 WHERE listing_id BETWEEN 1 AND 99;
 
@@ -99,3 +101,10 @@ BEGIN
         RAISE EXCEPTION 'Demo seed failed: expected at least 5 demo flags, got %', flag_count;
     END IF;
 END $$;
+
+-- Rebuild reservations with new monotonic revisions after replacing demo fixtures.
+INSERT INTO passport_reference_jobs(listing_id,passport_id,seller_id)
+SELECT id,CAST(passport_id AS BIGINT),seller_id FROM listings l
+WHERE status IN ('MODERATION','PUBLISHED')
+AND (CASE WHEN passport_id ~ '^[1-9][0-9]{0,18}$' THEN CAST(passport_id AS NUMERIC) END) <= 9223372036854775807
+AND NOT EXISTS(SELECT 1 FROM passport_reference_jobs j WHERE j.listing_id=l.id);

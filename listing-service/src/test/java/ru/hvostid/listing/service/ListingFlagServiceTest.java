@@ -66,7 +66,7 @@ class ListingFlagServiceTest {
 
     @Test
     void shouldCreateFlagForPublishedListing() {
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(publishedListing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(publishedListing));
         when(flagRepository.existsByListingIdAndReporterId(LISTING_ID, REPORTER_ID))
                 .thenReturn(false);
         when(flagRepository.save(any(ListingFlag.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -88,7 +88,7 @@ class ListingFlagServiceTest {
 
     @Test
     void shouldRejectWhenListingNotFound() {
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.empty());
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.empty());
 
         FlagListingRequest request = new FlagListingRequest(FlagReason.SCAM, null);
 
@@ -100,7 +100,7 @@ class ListingFlagServiceTest {
 
     @Test
     void shouldRejectWhenReporterIsOwner() {
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(publishedListing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(publishedListing));
 
         FlagListingRequest request = new FlagListingRequest(FlagReason.SCAM, null);
 
@@ -112,7 +112,7 @@ class ListingFlagServiceTest {
     @Test
     void shouldRejectWhenListingNotPublished() {
         publishedListing.setStatus(ListingStatus.DRAFT);
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(publishedListing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(publishedListing));
 
         FlagListingRequest request = new FlagListingRequest(FlagReason.SCAM, null);
 
@@ -123,7 +123,7 @@ class ListingFlagServiceTest {
 
     @Test
     void shouldRejectDuplicateFlagFromSameReporter() {
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(publishedListing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(publishedListing));
         when(flagRepository.existsByListingIdAndReporterId(LISTING_ID, REPORTER_ID))
                 .thenReturn(true);
 
@@ -136,7 +136,7 @@ class ListingFlagServiceTest {
 
     @Test
     void shouldAutoModerateWhenThresholdReached() {
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(publishedListing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(publishedListing));
         when(flagRepository.existsByListingIdAndReporterId(LISTING_ID, REPORTER_ID))
                 .thenReturn(false);
         when(flagRepository.save(any(ListingFlag.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -162,7 +162,7 @@ class ListingFlagServiceTest {
 
     @Test
     void shouldSkipHistoryWhenConcurrentTransitionAlreadyHappened() {
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(publishedListing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(publishedListing));
         when(flagRepository.existsByListingIdAndReporterId(LISTING_ID, REPORTER_ID))
                 .thenReturn(false);
         when(flagRepository.save(any(ListingFlag.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -181,7 +181,7 @@ class ListingFlagServiceTest {
 
     @Test
     void shouldNotAutoModerateBelowThreshold() {
-        when(listingRepository.findById(LISTING_ID)).thenReturn(Optional.of(publishedListing));
+        when(listingRepository.findLockedById(LISTING_ID)).thenReturn(Optional.of(publishedListing));
         when(flagRepository.existsByListingIdAndReporterId(LISTING_ID, REPORTER_ID))
                 .thenReturn(false);
         when(flagRepository.save(any(ListingFlag.class))).thenAnswer(invocation -> invocation.getArgument(0));

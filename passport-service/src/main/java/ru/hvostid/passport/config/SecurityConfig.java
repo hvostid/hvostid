@@ -37,6 +37,8 @@ public class SecurityConfig {
         return GatewaySecurityDefaults.applyTo(http, authenticationManager)
                 .authorizeHttpRequests(auth -> auth.requestMatchers(GatewaySecurityDefaults.internalPaths())
                         .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/actuator/prometheus")
+                        .permitAll()
                         .requestMatchers(GatewaySecurityDefaults.alwaysPublic())
                         .permitAll()
                         .requestMatchers(HttpMethod.GET, MEDIA_CONTENT_PATH, MEDIA_COVER_PATH)

@@ -12,16 +12,17 @@ import org.springframework.web.client.RestClient;
 public class ServiceClientConfig {
 
     @Bean
-    public RestClient listingRestClient(HvostidServiceProperties properties) {
-        return buildRestClient(properties.listingService());
+    public RestClient listingRestClient(HvostidServiceProperties properties, RestClient.Builder builder) {
+        return buildRestClient(properties.listingService(), builder);
     }
 
     @Bean
-    public RestClient passportRestClient(HvostidServiceProperties properties) {
-        return buildRestClient(properties.passportService());
+    public RestClient passportRestClient(HvostidServiceProperties properties, RestClient.Builder builder) {
+        return buildRestClient(properties.passportService(), builder);
     }
 
-    private static RestClient buildRestClient(HvostidServiceProperties.ServiceEndpoint endpoint) {
+    private static RestClient buildRestClient(
+            HvostidServiceProperties.ServiceEndpoint endpoint, RestClient.Builder builder) {
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(endpoint.connectTimeout())
                 .build();
@@ -29,7 +30,7 @@ public class ServiceClientConfig {
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
         requestFactory.setReadTimeout(endpoint.readTimeout());
 
-        return RestClient.builder()
+        return builder.clone()
                 .baseUrl(endpoint.url())
                 .requestFactory(requestFactory)
                 .build();

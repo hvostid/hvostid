@@ -1,23 +1,25 @@
 // pages/CreatePassportPage.jsx
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createPassport, uploadDocument } from '../api/passports';
 import Input from '../components/Input';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { PHOTO_ACCEPT, PHOTO_MIME_TYPES } from '../constants/passportDocuments';
 import { extractDetail, todayIso } from '../utils/format';
+import { PET_SPECIES } from '../constants/petSpecies';
 
-const UNSUPPORTED_PHOTO_MESSAGE =
-    'Формат файла не поддерживается. Допустимы JPEG или PNG, до 10 МБ.';
+const UNSUPPORTED_PHOTO_MESSAGE = 'Unsupported file format. Use JPEG or PNG, up to 10 MB.';
 
 const GENDER_OPTIONS = [
-    { value: 'MALE', label: 'Мальчик' },
-    { value: 'FEMALE', label: 'Девочка' },
+    { value: 'MALE', label: 'Male' },
+    { value: 'FEMALE', label: 'Female' },
 ];
 
 export default function CreatePassportPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const fromListing = searchParams.get('from') === 'listing';
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState(null);
@@ -38,12 +40,10 @@ export default function CreatePassportPage() {
         microchipped: false,
     });
 
-    // Загрузка файла (без создания паспорта, просто добавляем в список)
     const handleFileUpload = (file) => {
         setUploading(true);
         setError(null);
 
-        // Создаём временный объект для превью
         const previewUrl = URL.createObjectURL(file);
         const tempDoc = {
             id: `temp_${Date.now()}`,
@@ -104,24 +104,23 @@ export default function CreatePassportPage() {
     };
 
     const handleSave = async () => {
-        // Валидация обязательных полей
         if (!formData.name.trim()) {
-            setError('Кличка обязательна для заполнения');
+            setError('Pet name is required.');
             setTimeout(() => setError(null), 3000);
             return;
         }
         if (!formData.species.trim()) {
-            setError('Вид животного обязателен для заполнения');
+            setError('Species is required.');
             setTimeout(() => setError(null), 3000);
             return;
         }
         if (!formData.birthDate || !formData.birthDate.trim()) {
-            setError('Дата рождения обязательна для заполнения');
+            setError('Birth date is required.');
             setTimeout(() => setError(null), 3000);
             return;
         }
         if (formData.birthDate > todayIso()) {
-            setError('Дата рождения не может быть в будущем');
+            setError('Birth date cannot be in the future.');
             setTimeout(() => setError(null), 3000);
             return;
         }
@@ -130,7 +129,6 @@ export default function CreatePassportPage() {
         setError(null);
 
         try {
-            // 1. Создаём паспорт
             const passportData = {
                 ...formData,
                 vaccinations: [],
@@ -138,7 +136,6 @@ export default function CreatePassportPage() {
             const passport = await createPassport(passportData);
             const passportId = passport.id;
 
-            // 2. Загружаем все фото
             let uploadErrors = [];
             for (const doc of documents) {
                 if (doc.isNew && doc.file) {
@@ -146,20 +143,23 @@ export default function CreatePassportPage() {
                         await uploadDocument(passportId, doc.file, 'PHOTO');
                     } catch (err) {
                         console.error('Failed to upload photo:', err);
-                        const reason = extractDetail(err, 'неизвестная ошибка');
+                        const reason = extractDetail(err, 'unknown error');
                         uploadErrors.push(`${doc.originalFilename} (${reason})`);
                     }
                 }
             }
 
-            // Переходим на страницу моих объявлений. Если часть фото не
-            // загрузилась, проносим предупреждение через navigation state -
-            // показать его здесь нельзя, навигация размонтирует компонент.
+            // Return to the saved listing form when passport creation is part of that flow.
             const warning =
                 uploadErrors.length > 0
-                    ? `Паспорт создан, но не удалось загрузить фото: ${uploadErrors.join('; ')}`
+                    ? `Passport created, but these photos could not be uploaded: ${uploadErrors.join('; ')}`
                     : null;
-            navigate('/my-listings', warning ? { state: { warning } } : undefined);
+            navigate(
+                fromListing
+                    ? `/my-listings/new?passportId=${passportId}&formId=${encodeURIComponent(searchParams.get('formId') || '')}`
+                    : '/my-listings',
+                warning ? { state: { warning } } : undefined
+            );
         } catch (err) {
             console.error('Failed to create passport:', err);
 
@@ -167,11 +167,11 @@ export default function CreatePassportPage() {
                 const messages = err.response.data.errors
                     .map((e) => `${e.field}: ${e.message}`)
                     .join(', ');
-                setError(`Ошибка валидации: ${messages}`);
+                setError(`Validation error: ${messages}`);
             } else if (err.response?.data?.message) {
                 setError(err.response.data.message);
             } else {
-                setError('Ошибка при создании паспорта. Попробуйте позже.');
+                setError('The passport could not be created. Please retry later.');
             }
         } finally {
             setSaving(false);
@@ -181,13 +181,12 @@ export default function CreatePassportPage() {
     return (
         <div className="max-w-3xl mx-auto">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Создание паспорта питомца</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Create a pet passport</h1>
             </div>
 
             <p className="text-gray-600 mb-6">
-                Заполните информацию о питомце и загрузите фото. После создания паспорта вы сможете
-                создать объявление. Поля отмеченные <span className="text-red-500">*</span>{' '}
-                обязательны.
+                Enter pet details and add photos. You can create a listing after saving the
+                passport. Fields marked <span className="text-red-500">*</span> are required.
             </p>
 
             {error && (
@@ -197,35 +196,48 @@ export default function CreatePassportPage() {
             )}
 
             <div className="bg-white rounded-lg shadow p-6 space-y-8">
-                {/* Основная информация */}
                 <section>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                        Основная информация
-                    </h2>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic information</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Input
                             id="name"
                             name="name"
                             type="text"
-                            label="Кличка"
+                            label="Pet name"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             required
                         />
-                        <Input
-                            id="species"
-                            name="species"
-                            type="text"
-                            label="Вид"
-                            value={formData.species}
-                            onChange={(e) => setFormData({ ...formData, species: e.target.value })}
-                            required
-                        />
+                        <div>
+                            <label
+                                htmlFor="species"
+                                className="block text-sm font-medium text-gray-700 mb-1"
+                            >
+                                Species *
+                            </label>
+                            <select
+                                id="species"
+                                name="species"
+                                value={formData.species}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, species: e.target.value })
+                                }
+                                required
+                                className="w-full rounded border border-gray-300 px-3 py-2"
+                            >
+                                <option value="">Choose a species</option>
+                                {PET_SPECIES.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                         <Input
                             id="breed"
                             name="breed"
                             type="text"
-                            label="Порода"
+                            label="Breed"
                             value={formData.breed}
                             onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
                         />
@@ -233,7 +245,7 @@ export default function CreatePassportPage() {
                             id="birthDate"
                             name="birthDate"
                             type="date"
-                            label="Дата рождения"
+                            label="Birth date"
                             value={formData.birthDate}
                             onChange={(e) =>
                                 setFormData({ ...formData, birthDate: e.target.value })
@@ -242,9 +254,7 @@ export default function CreatePassportPage() {
                             required
                         />
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Пол
-                            </label>
+                            <p className="block text-sm font-medium text-gray-700 mb-1">Sex</p>
                             <div className="flex gap-4">
                                 {GENDER_OPTIONS.map((option) => (
                                     <label key={option.value} className="flex items-center">
@@ -267,7 +277,7 @@ export default function CreatePassportPage() {
                             id="color"
                             name="color"
                             type="text"
-                            label="Окрас"
+                            label="Color"
                             value={formData.color}
                             onChange={(e) => setFormData({ ...formData, color: e.target.value })}
                         />
@@ -275,7 +285,7 @@ export default function CreatePassportPage() {
                             id="temperament"
                             name="temperament"
                             type="text"
-                            label="Характер"
+                            label="Temperament"
                             value={formData.temperament}
                             onChange={(e) =>
                                 setFormData({ ...formData, temperament: e.target.value })
@@ -285,7 +295,7 @@ export default function CreatePassportPage() {
                             id="specialNeeds"
                             name="specialNeeds"
                             type="text"
-                            label="Особые потребности"
+                            label="Special needs"
                             value={formData.specialNeeds}
                             onChange={(e) =>
                                 setFormData({ ...formData, specialNeeds: e.target.value })
@@ -301,7 +311,7 @@ export default function CreatePassportPage() {
                                 }
                                 className="mr-2"
                             />
-                            <span className="text-sm text-gray-700">Стерилизован/кастрирован</span>
+                            <span className="text-sm text-gray-700">Spayed or neutered</span>
                         </label>
                         <label className="flex items-center">
                             <input
@@ -313,14 +323,13 @@ export default function CreatePassportPage() {
                                 }
                                 className="mr-2"
                             />
-                            <span className="text-sm text-gray-700">Чипирован</span>
+                            <span className="text-sm text-gray-700">Microchipped</span>
                         </label>
                     </div>
                 </section>
 
-                {/* Фото */}
                 <section>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Фото питомца</h2>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Pet photos</h2>
 
                     <div
                         onDragOver={handleDragOver}
@@ -337,9 +346,9 @@ export default function CreatePassportPage() {
                         ) : (
                             <>
                                 <p className="text-gray-600">
-                                    Перетащите фото сюда или{' '}
+                                    Drop a photo here or{' '}
                                     <label className="text-indigo-600 hover:text-indigo-800 cursor-pointer">
-                                        выберите из папки
+                                        choose a file
                                         <input
                                             type="file"
                                             className="hidden"
@@ -349,7 +358,7 @@ export default function CreatePassportPage() {
                                     </label>
                                 </p>
                                 <p className="text-xs text-gray-400 mt-2">
-                                    Поддерживаются JPEG и PNG, до 10 МБ
+                                    JPEG and PNG, up to 10 MB
                                 </p>
                             </>
                         )}
@@ -357,7 +366,7 @@ export default function CreatePassportPage() {
 
                     {documents.length > 0 && (
                         <div className="mt-4">
-                            <p className="text-sm text-gray-600 mb-2">Выбранные фото:</p>
+                            <p className="text-sm text-gray-600 mb-2">Selected photos:</p>
                             <div className="grid grid-cols-3 gap-2">
                                 {documents.map((doc) => (
                                     <div
@@ -384,17 +393,17 @@ export default function CreatePassportPage() {
 
                 <div className="flex justify-end gap-3 pt-4 border-t">
                     <button
-                        onClick={() => navigate('/my-listings')}
+                        onClick={() => navigate(fromListing ? '/my-listings/new' : '/my-listings')}
                         className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                     >
-                        Отмена
+                        Cancel
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={saving}
                         className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
                     >
-                        {saving ? 'Создание...' : 'Создать паспорт'}
+                        {saving ? 'Creating...' : 'Create passport'}
                     </button>
                 </div>
             </div>
@@ -406,8 +415,8 @@ export default function CreatePassportPage() {
                     removeTempDocument(deleteDialog.docId);
                     setDeleteDialog({ isOpen: false, docId: null, docName: null });
                 }}
-                title="Удалить фото"
-                message={`Вы уверены, что хотите удалить фото "${deleteDialog.docName}"?`}
+                title="Delete photo"
+                message={`Delete photo "${deleteDialog.docName}"?`}
             />
         </div>
     );

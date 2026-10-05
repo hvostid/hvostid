@@ -21,10 +21,12 @@ public record ListingRequest(
                 example = "Litter-trained, vaccinated, comes with passport")
         String description,
 
-        @NotBlank(message = "Species is required") @Schema(description = "Animal species", example = "CAT")
+        @NotBlank(message = "Species is required")
+        @Schema(description = "Animal species", example = "CAT")
+        @Size(max = 255)
         String species,
 
-        @Schema(description = "Breed (optional, free-form)", example = "Domestic shorthair")
+        @Schema(description = "Breed (optional, free-form)", example = "Domestic shorthair") @Size(max = 255)
         String breed,
 
         @PositiveOrZero(message = "Age must be positive")
@@ -38,6 +40,7 @@ public record ListingRequest(
 
         @NotBlank(message = "City is required")
         @Schema(description = "City where the animal is currently located", example = "Saint Petersburg")
+        @Size(max = 255)
         String city,
 
         @NotBlank(message = "PassportId is required")

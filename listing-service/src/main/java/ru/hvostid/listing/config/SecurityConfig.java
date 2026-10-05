@@ -23,13 +23,17 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager) {
         return GatewaySecurityDefaults.applyTo(http, authenticationManager)
-                .authorizeHttpRequests(auth -> auth.requestMatchers(HttpMethod.GET, "/api/v1/listings")
+                .authorizeHttpRequests(auth -> auth.requestMatchers(GatewaySecurityDefaults.internalPaths())
+                        .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/listings")
                         .permitAll()
                         // Public catalog detail: only numeric ids match here so /my and other
                         // alpha-prefixed paths still go through anyRequest().authenticated().
                         .requestMatchers(RegexRequestMatcher.regexMatcher(HttpMethod.GET, "/api/v1/listings/\\d+"))
                         .permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/listings/passports/*/has-published")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/actuator/prometheus")
                         .permitAll()
                         .requestMatchers(GatewaySecurityDefaults.alwaysPublic())
                         .permitAll()

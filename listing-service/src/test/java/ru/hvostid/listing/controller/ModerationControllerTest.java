@@ -19,7 +19,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import ru.hvostid.common.security.UserRole;
-import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
+import ru.hvostid.listing.ListingIntegrationTest;
 import ru.hvostid.listing.entity.FlagReason;
 import ru.hvostid.listing.entity.Listing;
 import ru.hvostid.listing.entity.ListingFlag;
@@ -31,7 +31,7 @@ import tools.jackson.databind.ObjectMapper;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class ModerationControllerTest extends AbstractPostgresContainerTest {
+class ModerationControllerTest extends ListingIntegrationTest {
     private static final String BASE = "/api/v1/moderation";
     private static final Long OWNER_ID = 100L;
     private static final Long MODERATOR_ID = 200L;
@@ -198,7 +198,7 @@ class ModerationControllerTest extends AbstractPostgresContainerTest {
                 .age(6)
                 .price(15000)
                 .city("Moscow")
-                .passportId("p-" + title.hashCode())
+                .passportId(Long.toString(Math.abs((long) title.hashCode()) + 1))
                 .build();
         listing.setStatus(status);
         return listingRepository.save(listing);

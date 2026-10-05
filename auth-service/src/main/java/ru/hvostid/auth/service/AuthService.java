@@ -56,10 +56,10 @@ public class AuthService {
      */
     @Transactional
     public UserResponse register(RegisterRequest request) {
-        log.debug("Registering user with email={}", request.email());
+        log.debug("Registering user");
 
         if (userRepository.existsByEmail(request.email())) {
-            log.warn("Registration failed: email already exists email={}", request.email());
+            log.warn("Registration failed: email already exists");
             throw new EmailAlreadyExistsException(request.email());
         }
 
@@ -67,7 +67,7 @@ public class AuthService {
         User user = new User(request.email(), request.name(), hashedPassword);
         user = userRepository.save(user);
 
-        log.info("User registered userId={} email={} roles={}", user.getId(), user.getEmail(), user.getRoles());
+        log.info("User registered userId={} roles={}", user.getId(), user.getRoles());
         return toUserResponse(user);
     }
 
@@ -80,20 +80,20 @@ public class AuthService {
      */
     @Transactional
     public LoginResponse login(LoginRequest request) {
-        log.debug("Login attempt email={}", request.email());
+        log.debug("Login attempt");
 
-        User user = userRepository.findByEmail(request.email()).orElseThrow(() -> {
-            log.warn("Login failed: user not found email={}", request.email());
+        User user = userRepository.findByEmailForUpdate(request.email()).orElseThrow(() -> {
+            log.warn("Login failed: credentials rejected");
             return new InvalidCredentialsException();
         });
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            log.warn("Login failed: wrong password userId={} email={}", user.getId(), user.getEmail());
+            log.warn("Login failed: credentials rejected");
             throw new InvalidCredentialsException();
         }
 
         LoginResponse response = createSession(user);
-        log.info("Login successful userId={} email={}", user.getId(), user.getEmail());
+        log.info("Login successful userId={}", user.getId());
         return response;
     }
 
@@ -109,7 +109,7 @@ public class AuthService {
         log.debug("Introspect requested");
 
         return sessionRepository
-                .findByAccessToken(request.token())
+                .findByAccessToken(TokenService.hash(request.token()))
                 .filter(session -> session.getExpiresAt().isAfter(Instant.now()))
                 .map(session -> {
                     User user = session.getUser();
@@ -137,14 +137,19 @@ public class AuthService {
     public LoginResponse refresh(RefreshRequest request) {
         log.debug("Refresh token requested");
 
+        String tokenHash = TokenService.hash(request.refreshToken());
+        Long userId =
+                sessionRepository.findOwnerIdByRefreshToken(tokenHash).orElseThrow(InvalidRefreshTokenException::new);
+        // Serialize rotation with password reset and revoke-all, always user before session.
+        userRepository.findLockedById(userId);
         Session oldSession = sessionRepository
-                .findByRefreshToken(request.refreshToken())
+                .findByRefreshToken(TokenService.hash(request.refreshToken()))
                 .orElseThrow(() -> {
                     log.warn("Refresh failed: token not found");
                     return new InvalidRefreshTokenException();
                 });
 
-        if (oldSession.getRefreshTokenExpiresAt().isBefore(Instant.now())) {
+        if (!oldSession.getRefreshTokenExpiresAt().isAfter(Instant.now())) {
             log.warn(
                     "Refresh failed: token expired userId={} sessionId={}",
                     oldSession.getUser().getId(),
@@ -171,7 +176,7 @@ public class AuthService {
         log.debug("Logout requested");
 
         sessionRepository
-                .findByAccessToken(accessToken)
+                .findByAccessToken(TokenService.hash(accessToken))
                 .ifPresentOrElse(
                         session -> {
                             Long userId = session.getUser().getId();
@@ -181,9 +186,32 @@ public class AuthService {
                         () -> log.debug("Logout: session not found, no-op"));
     }
 
-    /**
-     * Create a new session for the user and return the token response.
-     */
+    /** Revoke all credentials while excluding concurrent rotation or password reset. */
+    @Transactional
+    public void logoutAll(Long userId) {
+        userRepository.findLockedById(userId).orElseThrow(InvalidCredentialsException::new);
+        sessionRepository.deleteByUserId(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SessionResponse> sessions(Long userId) {
+        return sessionRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .filter(session -> session.getRefreshTokenExpiresAt().isAfter(Instant.now()))
+                .map(session -> new SessionResponse(
+                        session.getId(), session.getCreatedAt(), session.getRefreshTokenExpiresAt()))
+                .toList();
+    }
+
+    @Transactional
+    public void revokeSession(Long userId, Long sessionId) {
+        userRepository.findLockedById(userId).orElseThrow(InvalidCredentialsException::new);
+        sessionRepository
+                .findById(sessionId)
+                .filter(session -> userId.equals(session.getUser().getId()))
+                .ifPresent(sessionRepository::delete);
+    }
+
+    /** Create a session containing only token digests and return the credentials once. */
     private LoginResponse createSession(User user) {
         String accessToken = tokenService.generateToken();
         String refreshToken = tokenService.generateToken();
@@ -193,7 +221,12 @@ public class AuthService {
         Instant accessExpiresAt = now.plusSeconds(accessTtlSeconds);
         Instant refreshExpiresAt = now.plus(tokenProperties.refreshTokenTtl());
 
-        Session session = new Session(user, accessToken, refreshToken, accessExpiresAt, refreshExpiresAt);
+        Session session = new Session(
+                user,
+                TokenService.hash(accessToken),
+                TokenService.hash(refreshToken),
+                accessExpiresAt,
+                refreshExpiresAt);
         sessionRepository.save(session);
 
         log.debug(

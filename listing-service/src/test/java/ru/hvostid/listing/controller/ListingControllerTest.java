@@ -11,6 +11,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -18,7 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import ru.hvostid.common.security.UserRole;
-import ru.hvostid.common.testfixtures.AbstractPostgresContainerTest;
+import ru.hvostid.listing.ListingIntegrationTest;
 import ru.hvostid.listing.dto.ListingRequest;
 import ru.hvostid.listing.dto.ListingUpdateRequest;
 import ru.hvostid.listing.entity.Listing;
@@ -29,7 +31,7 @@ import tools.jackson.databind.ObjectMapper;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class ListingControllerTest extends AbstractPostgresContainerTest {
+class ListingControllerTest extends ListingIntegrationTest {
 
     private static final String LISTINGS_URL = "/api/v1/listings";
     private final Long testSellerId = 100L;
@@ -46,6 +48,24 @@ class ListingControllerTest extends AbstractPostgresContainerTest {
     @Nested
     @DisplayName("POST /api/v1/listings")
     class CreateListingTests {
+
+        @ParameterizedTest
+        @ValueSource(strings = {"legacy-id", "0", "-1", "+42", "9223372036854775808", "passport-9223372036854775808"})
+        void create_invalidPassportId_returns400InsteadOfLeakingParsingFailure(String passportId) throws Exception {
+            ListingRequest request = new ListingRequest(
+                    "Invalid passport", "Friendly dog", "dog", "Labrador", 3, 15000, "Moscow", passportId);
+            mockMvc.perform(post(LISTINGS_URL)
+                            .header(USER_ID, testSellerId)
+                            .header(USER_ROLES, UserRole.SELLER.value())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath(
+                            "$.detail",
+                            anyOf(
+                                    is("Passport id must be a positive 64-bit integer"),
+                                    is("Request body failed validation"))));
+        }
 
         @Test
         @DisplayName("SELLER can create listing - returns 201")
@@ -177,6 +197,24 @@ class ListingControllerTest extends AbstractPostgresContainerTest {
                     .andExpect(jsonPath("$.content", hasSize(1)))
                     .andExpect(jsonPath("$.totalElements").value(2))
                     .andExpect(jsonPath("$.totalPages").value(2));
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"created_desc", "price_asc", "price_desc"})
+        void keywordSearchWithSort_keepsPagination(String sort) throws Exception {
+            for (int page = 0; page < 2; page++) {
+                mockMvc.perform(get(LISTINGS_URL)
+                                .param("q", "Pub")
+                                .param("sort", sort)
+                                .param("city", "Moscow")
+                                .param("page", String.valueOf(page))
+                                .param("size", "1"))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.content", hasSize(1)))
+                        .andExpect(jsonPath("$.content[0].title").value("Pub " + (1 - page)))
+                        .andExpect(jsonPath("$.totalElements").value(2))
+                        .andExpect(jsonPath("$.totalPages").value(2));
+            }
         }
     }
 

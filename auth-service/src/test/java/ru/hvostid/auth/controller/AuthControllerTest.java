@@ -48,6 +48,19 @@ class AuthControllerTest extends AbstractPostgresContainerTest {
 
     // -- Registration --
 
+    @Test
+    void disabledRecoveryMailDoesNotRevealWhetherAccountExists() throws Exception {
+        registerUser("existing@example.com", "password123", "Owner");
+        for (String email : java.util.List.of("existing@example.com", "absent@example.com")) {
+            mockMvc.perform(post("/api/v1/auth/password-reset/request")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(java.util.Map.of("email", email))))
+                    .andExpect(status().isServiceUnavailable())
+                    .andExpect(jsonPath("detail")
+                            .value("Account email delivery is temporarily unavailable. Try again later."));
+        }
+    }
+
     private void registerUser(String email, String password, String name) throws Exception {
         RegisterRequest request = new RegisterRequest(email, password, name);
         mockMvc.perform(post(REGISTER_URL)

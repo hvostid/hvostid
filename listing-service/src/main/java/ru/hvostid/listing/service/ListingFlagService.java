@@ -46,7 +46,7 @@ public class ListingFlagService {
         log.debug("Flagging listingId={} by reporterId={} reason={}", listingId, reporterId, request.reason());
 
         Listing listing = listingRepository
-                .findById(listingId)
+                .findLockedById(listingId)
                 .orElseThrow(() -> new ListingNotFoundException("Listing not found with id: " + listingId));
 
         if (listing.getSellerId().equals(reporterId)) {

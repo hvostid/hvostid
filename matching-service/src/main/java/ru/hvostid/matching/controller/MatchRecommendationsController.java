@@ -43,9 +43,11 @@ public class MatchRecommendationsController {
 
     @Operation(
             summary = "Get top compatible listings for the buyer",
-            description = "Returns PUBLISHED listings ranked by compatibility score against the authenticated buyer's "
-                    + "questionnaire. Listings are sorted by score descending; only entries with score >= minScore "
-                    + "are returned. Results are cached per buyer for 10 minutes.")
+            description =
+                    "Returns PUBLISHED listings ranked by compatibility score against the authenticated buyer's "
+                            + "questionnaire. Listings are sorted by score descending; only entries with score >= minScore "
+                            + "are returned. Species and breed preferences filter candidates before scoring. "
+                            + "Every completed request is refreshed from the current catalog; concurrent identical requests are combined.")
     @ApiResponse(
             responseCode = "200",
             description = "Recommendations",

@@ -24,9 +24,12 @@ public class InternalPassportController {
     private static final Logger log = LoggerFactory.getLogger(InternalPassportController.class);
 
     private final PassportService passportService;
+    private final ru.hvostid.passport.service.PassportReferenceService references;
 
-    public InternalPassportController(PassportService passportService) {
+    public InternalPassportController(
+            PassportService passportService, ru.hvostid.passport.service.PassportReferenceService references) {
         this.passportService = passportService;
+        this.references = references;
     }
 
     @Operation(
@@ -46,5 +49,29 @@ public class InternalPassportController {
         log.debug("GET /internal/passports/{}", petId);
         PassportResponse response = passportService.getPassportForInternal(petId);
         return ResponseEntity.ok(response);
+    }
+
+    public record ReferenceRequest(
+            @jakarta.validation.constraints.Positive long sellerId,
+            boolean approved,
+            @jakarta.validation.constraints.Positive long revision) {}
+
+    @org.springframework.web.bind.annotation.PutMapping("/{petId}/references/{listingId}")
+    public ResponseEntity<Void> acquire(
+            @PathVariable Long petId,
+            @PathVariable Long listingId,
+            @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody ReferenceRequest request) {
+        references.acquire(petId, listingId, request.sellerId(), request.approved(), request.revision());
+        return ResponseEntity.noContent().build();
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/{petId}/references/{listingId}")
+    public ResponseEntity<Void> release(
+            @PathVariable Long petId,
+            @PathVariable Long listingId,
+            @org.springframework.web.bind.annotation.RequestParam @jakarta.validation.constraints.Positive
+                    long revision) {
+        references.release(petId, listingId, revision);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -41,6 +41,8 @@ public class PassportDocumentService {
     private final ListingServiceClient listingServiceClient;
     private final MediaTicketService mediaTicketService;
     private final MediaTicketProperties mediaTicketProperties;
+    private final PassportReferenceService references;
+    private final ObjectCleanupService cleanup;
 
     public PassportDocumentService(
             PassportAccessService accessService,
@@ -52,7 +54,9 @@ public class PassportDocumentService {
             TrustScoreService trustScoreService,
             ListingServiceClient listingServiceClient,
             MediaTicketService mediaTicketService,
-            MediaTicketProperties mediaTicketProperties) {
+            MediaTicketProperties mediaTicketProperties,
+            PassportReferenceService references,
+            ObjectCleanupService cleanup) {
         this.accessService = accessService;
         this.documentRepository = documentRepository;
         this.validator = validator;
@@ -63,21 +67,29 @@ public class PassportDocumentService {
         this.listingServiceClient = listingServiceClient;
         this.mediaTicketService = mediaTicketService;
         this.mediaTicketProperties = mediaTicketProperties;
+        this.references = references;
+        this.cleanup = cleanup;
     }
 
     @Transactional
     public PassportDocumentResponse uploadDocument(
             Long passportId, MultipartFile file, PassportDocumentType type, Long userId) {
         Objects.requireNonNull(type, "type must not be null");
-        validator.validate(file);
-        PetPassport passport = accessService.getExistingPassport(passportId);
+        validator.validate(file, type);
+        PetPassport passport = references.lock(passportId);
         accessService.requireOwner(passport, userId, "upload documents to");
+        requireEditable(passportId);
+        if (documentRepository.countByPassportId(passportId) >= 20
+                || documentRepository.totalBytes(passportId) + file.getSize() > 100L * 1024 * 1024)
+            throw new InvalidPassportDocumentException("Passport document quota exceeded (20 files / 100 MB)");
+        passport.setModerated(false);
 
         String bucket = minioProperties.buckets().forDocumentType(type);
         String storagePath =
                 objectNameFactory.create(passport.getSellerId(), passport.getId(), file.getOriginalFilename());
         log.debug("Uploading passport document passportId={} type={} bucket={}", passportId, type, bucket);
 
+        cleanup.prepareUpload(bucket, storagePath, passportId);
         try (var inputStream = file.getInputStream()) {
             storageService.upload(bucket, storagePath, inputStream, file.getSize(), file.getContentType());
         } catch (IOException ex) {
@@ -90,6 +102,7 @@ public class PassportDocumentService {
             PassportDocument saved = documentRepository.saveAndFlush(document);
             log.info("Passport document uploaded id={} passportId={} type={}", saved.getId(), passportId, type);
             trustScoreService.recalculate(passportId);
+            cleanup.uploadCommitted(bucket, storagePath);
             return PassportDocumentResponse.from(saved);
         } catch (RuntimeException ex) {
             deleteUploadedObjectAfterMetadataFailure(bucket, storagePath, ex);
@@ -116,7 +129,9 @@ public class PassportDocumentService {
             Long passportId, Long userId, Set<String> userRoles, String requestId) {
         PetPassport passport = accessService.getExistingPassport(passportId);
         boolean privileged = accessService.isPrivilegedViewer(passport, userId, userRoles);
-        if (!privileged && !listingServiceClient.hasPublishedListingForPassport(passportId, requestId)) {
+        if (!privileged
+                && !listingServiceClient.hasPublishedListingForPassport(
+                        passportId, passport.getSellerId(), requestId)) {
             log.warn(
                     "Document list denied passportId={} userId={} (no PUBLISHED listing reference)",
                     passportId,
@@ -149,7 +164,8 @@ public class PassportDocumentService {
         PassportDocument document = getDocument(passportId, documentId);
         if (!accessService.isPrivilegedViewer(passport, userId, userRoles)
                 && (document.getType() != PassportDocumentType.PHOTO
-                        || !listingServiceClient.hasPublishedListingForPassport(passportId, requestId))) {
+                        || !listingServiceClient.hasPublishedListingForPassport(
+                                passportId, passport.getSellerId(), requestId))) {
             log.warn(
                     "Document ticket denied passportId={} documentId={} type={} userId={}",
                     passportId,
@@ -179,8 +195,8 @@ public class PassportDocumentService {
      * probing client cannot distinguish them.
      */
     public PassportDocument resolveCoverPhoto(Long passportId, String requestId) {
-        accessService.getExistingPassport(passportId);
-        if (!listingServiceClient.hasPublishedListingForPassport(passportId, requestId)) {
+        PetPassport passport = accessService.getExistingPassport(passportId);
+        if (!listingServiceClient.hasPublishedListingForPassport(passportId, passport.getSellerId(), requestId)) {
             throw new PassportDocumentNotFoundException("Cover not available for passport " + passportId);
         }
         return documentRepository
@@ -190,46 +206,32 @@ public class PassportDocumentService {
 
     @Transactional
     public void deleteDocument(Long passportId, Long documentId, Long userId) {
-        PetPassport passport = accessService.getExistingPassport(passportId);
+        PetPassport passport = references.lock(passportId);
         accessService.requireOwner(passport, userId, "delete documents from");
+        requireEditable(passportId);
+        passport.setModerated(false);
         PassportDocument document = getDocument(passportId, documentId);
         documentRepository.delete(document);
-        storageService.delete(minioProperties.buckets().forDocumentType(document.getType()), document.getStoragePath());
+        cleanup.enqueue(minioProperties.buckets().forDocumentType(document.getType()), document.getStoragePath());
         log.info("Passport document deleted id={} passportId={}", documentId, passportId);
         trustScoreService.recalculate(passportId);
     }
 
-    public DocumentCleanupResult deleteAllForPassport(Long passportId) {
-        return deleteObjectsForPassport(passportId, storageRefsForPassport(passportId));
+    public void enqueueCleanupForPassport(Long passportId) {
+        for (var document : storageRefsForPassport(passportId))
+            cleanup.enqueue(minioProperties.buckets().forDocumentType(document.getType()), document.getStoragePath());
+    }
+
+    private void requireEditable(Long id) {
+        references.requireUnreferenced(id);
+        if (listingServiceClient.hasActiveListingForPassport(id, null))
+            throw new ru.hvostid.passport.exception.PassportInUseException(
+                    "Archive the active listing before editing passport files");
     }
 
     public List<StorageRef> storageRefsForPassport(Long passportId) {
         return documentRepository.findAllProjectedByPassportId(passportId);
     }
-
-    public DocumentCleanupResult deleteObjectsForPassport(Long passportId, List<StorageRef> documents) {
-        int cleaned = 0;
-        int failed = 0;
-        for (StorageRef document : documents) {
-            String bucket = minioProperties.buckets().forDocumentType(document.getType());
-            try {
-                storageService.delete(bucket, document.getStoragePath());
-                cleaned++;
-            } catch (RuntimeException ex) {
-                failed++;
-                log.warn(
-                        "Failed to delete passport document object passportId={} documentId={} bucket={} object={}",
-                        passportId,
-                        document.getId(),
-                        bucket,
-                        document.getStoragePath(),
-                        ex);
-            }
-        }
-        return new DocumentCleanupResult(cleaned, failed);
-    }
-
-    public record DocumentCleanupResult(int cleaned, int failed) {}
 
     private PassportDocument getDocument(Long passportId, Long documentId) {
         return documentRepository

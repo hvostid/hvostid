@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import Input from '../components/Input';
 import { EMAIL_REGEX } from './RegisterPage';
+import { returnPath } from '../utils/returnPath';
 
 export default function LoginPage() {
     const navigate = useNavigate();
@@ -23,7 +24,8 @@ export default function LoginPage() {
 
     // Get redirect URL and registration success flag from query params
     const params = new URLSearchParams(location.search);
-    const from = params.get('redirect') || '/';
+    const requestedRedirect = params.get('redirect');
+    const from = returnPath(requestedRedirect);
     const isRegistered = params.get('registered') === 'true';
 
     // Form validation before submission
@@ -34,7 +36,7 @@ export default function LoginPage() {
         if (!email.trim()) {
             setEmailError('Email is required');
             isValid = false;
-        } else if (!EMAIL_REGEX.test(email)) {
+        } else if (!EMAIL_REGEX.test(email.trim())) {
             setEmailError('Please enter a valid email (example: name@domain.com)');
             isValid = false;
         } else {
@@ -64,11 +66,13 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            await login(email, password);
+            const profile = await login(email.trim().toLowerCase(), password);
+            if (!profile) {
+                setGeneralError('Your session could not be loaded. Please retry signing in.');
+                return;
+            }
             navigate(from, { replace: true });
         } catch (err) {
-            console.error('Login error:', err);
-
             // Security: Do not distinguish between 401 and 404 to prevent user enumeration
             if (err.response?.status === 401 || err.response?.status === 404) {
                 setGeneralError('Invalid email or password');
@@ -146,6 +150,9 @@ export default function LoginPage() {
                         />
                     </div>
 
+                    <Link to="/forgot-password" className="text-sm text-indigo-700 underline">
+                        Forgot your password?
+                    </Link>
                     {/* Submit button */}
                     <div>
                         <button

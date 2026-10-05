@@ -43,7 +43,7 @@ public record QuestionnaireRequest(
         String allergyDetails,
 
         @NotNull(message = "Pet experience is required")
-        @Schema(description = "Prior experience with pets", example = "SOME")
+        @Schema(description = "Prior experience with pets", example = "BEGINNER")
         PetExperience petExperience,
 
         @NotNull(message = "Activity level is required")
@@ -56,7 +56,7 @@ public record QuestionnaireRequest(
         Integer monthlyBudget,
 
         @NotNull(message = "Work schedule is required")
-        @Schema(description = "Buyer's typical work schedule", example = "REMOTE")
+        @Schema(description = "Buyer's typical work schedule", example = "HOME")
         WorkSchedule workSchedule,
 
         @NotNull(message = "Ready for adaptation is required")
@@ -64,9 +64,11 @@ public record QuestionnaireRequest(
         Boolean readyForAdaptation,
 
         @Size(max = 255, message = "Preferred species too long")
-        @Schema(description = "Preferred species (optional)", example = "CAT")
+        @Schema(description = "Species filter for recommendations (optional)", example = "CAT")
         String preferredSpecies,
 
         @Size(max = 255, message = "Preferred breed too long")
-        @Schema(description = "Preferred breed (optional)", example = "Domestic shorthair")
+        @Schema(
+                description = "Exact case-insensitive breed filter for recommendations (optional)",
+                example = "Domestic shorthair")
         String preferredBreed) {}

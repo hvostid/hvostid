@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,8 +40,14 @@ class MatchRecommendationsServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new MatchRecommendationsService(listingClient, matchScoreService, null);
+        service = new MatchRecommendationsService(
+                listingClient, matchScoreService, 4, 8, 10000, java.time.Duration.ofSeconds(30));
         questionnaire = new BuyerQuestionnaire(1L);
+    }
+
+    @AfterEach
+    void tearDown() {
+        service.close();
     }
 
     @Test

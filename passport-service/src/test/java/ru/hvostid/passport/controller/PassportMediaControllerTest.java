@@ -33,6 +33,9 @@ import tools.jackson.databind.ObjectMapper;
 @SpringBootTest
 @AutoConfigureMockMvc
 class PassportMediaControllerTest extends AbstractPassportIntegrationTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private ru.hvostid.passport.client.ListingServiceClient listingServiceClient;
+
     private static final String PASSPORTS_URL = "/api/v1/passports";
     private static final String DOCS_URL = PASSPORTS_URL + "/1/docs";
     private static final String CONTENT_URL = DOCS_URL + "/1/content";
@@ -127,7 +130,11 @@ class PassportMediaControllerTest extends AbstractPassportIntegrationTest {
 
     private void uploadPhoto() throws Exception {
         mockMvc.perform(multipart(DOCS_URL)
-                        .file(new MockMultipartFile("file", "photo.jpg", "image/jpeg", "image".getBytes()))
+                        .file(new MockMultipartFile(
+                                "file",
+                                "photo.jpg",
+                                "image/jpeg",
+                                ru.hvostid.passport.TestDocumentContent.image("jpg")))
                         .param("type", "PHOTO")
                         .header(USER_ID, 10L)
                         .header(USER_ROLES, SELLER.value()))

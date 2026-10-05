@@ -57,7 +57,8 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
     void resetListingClient() {
         // Default to "no PUBLISHED listing" so non-privileged callers in legacy
         // tests get the same 404 they used to get as 403 before this change.
-        when(listingServiceClient.hasPublishedListingForPassport(any(), any())).thenReturn(false);
+        when(listingServiceClient.hasPublishedListingForPassport(any(), any(), any()))
+                .thenReturn(false);
     }
 
     @AfterEach
@@ -74,7 +75,7 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
             createPassport();
 
             mockMvc.perform(multipart(DOCS_URL)
-                            .file(file("photo.jpg", "image/jpeg", "image".getBytes()))
+                            .file(file("photo.jpg", "image/jpeg", ru.hvostid.passport.TestDocumentContent.image("jpg")))
                             .param("type", "PHOTO")
                             .header(USER_ID, 10L)
                             .header(USER_ROLES, SELLER.value()))
@@ -83,7 +84,7 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
                     .andExpect(jsonPath("$.type", is("PHOTO")))
                     .andExpect(jsonPath("$.originalFilename", is("photo.jpg")))
                     .andExpect(jsonPath("$.mimeType", is("image/jpeg")))
-                    .andExpect(jsonPath("$.size", is(5)))
+                    .andExpect(jsonPath("$.size", is(ru.hvostid.passport.TestDocumentContent.image("jpg").length)))
                     .andExpect(jsonPath("$.uploadedAt", notNullValue()));
         }
 
@@ -93,7 +94,7 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
             createPassport();
 
             mockMvc.perform(multipart(DOCS_URL)
-                            .file(file("record.pdf", "application/pdf", "pdf".getBytes()))
+                            .file(file("record.pdf", "application/pdf", ru.hvostid.passport.TestDocumentContent.pdf()))
                             .param("type", "VET_RECORD")
                             .header(USER_ID, 10L)
                             .header(USER_ROLES, SELLER.value()))
@@ -108,7 +109,7 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
             createPassport();
 
             mockMvc.perform(multipart(DOCS_URL)
-                            .file(file("photo.jpg", "image/jpeg", "image".getBytes()))
+                            .file(file("photo.jpg", "image/jpeg", ru.hvostid.passport.TestDocumentContent.image("jpg")))
                             .param("type", "PHOTO")
                             .header(USER_ID, 11L)
                             .header(USER_ROLES, SELLER.value()))
@@ -178,7 +179,7 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
             createPassport();
             uploadPhoto();
             uploadVetRecord();
-            when(listingServiceClient.hasPublishedListingForPassport(eq(1L), any()))
+            when(listingServiceClient.hasPublishedListingForPassport(eq(1L), any(), any()))
                     .thenReturn(true);
 
             mockMvc.perform(get(DOCS_URL).header(USER_ID, 99L).header(USER_ROLES, BUYER.value()))
@@ -211,7 +212,7 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
         void list_listingServiceUnavailable_returns503() throws Exception {
             createPassport();
             uploadPhoto();
-            when(listingServiceClient.hasPublishedListingForPassport(any(), any()))
+            when(listingServiceClient.hasPublishedListingForPassport(any(), any(), any()))
                     .thenThrow(new ListingServiceUnavailableException("upstream down"));
 
             mockMvc.perform(get(DOCS_URL).header(USER_ID, 99L).header(USER_ROLES, BUYER.value()))
@@ -250,7 +251,7 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
         void ticket_buyerPublishedListingPhoto_returns200() throws Exception {
             createPassport();
             uploadPhoto();
-            when(listingServiceClient.hasPublishedListingForPassport(eq(1L), any()))
+            when(listingServiceClient.hasPublishedListingForPassport(eq(1L), any(), any()))
                     .thenReturn(true);
 
             mockMvc.perform(get(DOCS_URL + "/1").header(USER_ID, 99L).header(USER_ROLES, BUYER.value()))
@@ -263,7 +264,7 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
         void ticket_buyerPublishedListingVetRecord_returns404() throws Exception {
             createPassport();
             uploadVetRecord();
-            when(listingServiceClient.hasPublishedListingForPassport(any(), any()))
+            when(listingServiceClient.hasPublishedListingForPassport(any(), any(), any()))
                     .thenReturn(true);
 
             mockMvc.perform(get(DOCS_URL + "/1").header(USER_ID, 99L).header(USER_ROLES, BUYER.value()))
@@ -333,7 +334,7 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
 
     private void uploadPhoto() throws Exception {
         mockMvc.perform(multipart(DOCS_URL)
-                        .file(file("photo.jpg", "image/jpeg", "image".getBytes()))
+                        .file(file("photo.jpg", "image/jpeg", ru.hvostid.passport.TestDocumentContent.image("jpg")))
                         .param("type", "PHOTO")
                         .header(USER_ID, 10L)
                         .header(USER_ROLES, SELLER.value()))
@@ -342,7 +343,7 @@ class PassportDocumentControllerTest extends AbstractPassportIntegrationTest {
 
     private void uploadVetRecord() throws Exception {
         mockMvc.perform(multipart(DOCS_URL)
-                        .file(file("record.pdf", "application/pdf", "pdf".getBytes()))
+                        .file(file("record.pdf", "application/pdf", ru.hvostid.passport.TestDocumentContent.pdf()))
                         .param("type", "VET_RECORD")
                         .header(USER_ID, 10L)
                         .header(USER_ROLES, SELLER.value()))
